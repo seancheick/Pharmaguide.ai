@@ -85,7 +85,7 @@ class ProfileRelevanceSummary {
     footnote: note,
   );
 
-  /// The all-clear's place on a catalog caution (ADR-015): nothing personal
+  /// The all-clear's place on a catalog caution (ADR-016): nothing personal
   /// came up, and the product still has notes for everyone. The body shows
   /// without a tap because it's the point of the wording.
   ProfileRelevanceSummary withGeneralSafetyNotes({

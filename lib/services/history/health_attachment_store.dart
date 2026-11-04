@@ -35,6 +35,16 @@ class HealthAttachmentStore {
     return Directory(path.join(support.path, _directoryName));
   }
 
+  /// Removes the copy image_picker made in the app's shared temp folder. It is
+  /// outside the account's folder, so nothing else would ever clear it.
+  static void discardPicked(XFile selected) {
+    try {
+      File(selected.path).deleteSync();
+    } on FileSystemException {
+      // Already gone, or the OS refused. The OS purges its temp folder.
+    }
+  }
+
   Future<ImportedHealthAttachment> importImage(XFile selected) async {
     final source = File(selected.path);
     if (!await source.exists()) {

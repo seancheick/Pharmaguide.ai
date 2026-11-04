@@ -26,6 +26,7 @@ Future<void> _seedSupplement(
   required String dsldId,
   required String name,
   required List<String> canonicalTags,
+  double? mappedCoverage = 1.0,
   bool legacyBloodThinner = false,
   bool legacyStimulant = false,
   bool legacySedative = false,
@@ -42,6 +43,7 @@ Future<void> _seedSupplement(
           containsStimulants: Value(legacyStimulant ? 1 : 0),
           containsSedatives: Value(legacySedative ? 1 : 0),
           keyIngredientTags: Value(tagsJson),
+          mappedCoverage: Value(mappedCoverage),
           exportVersion: 'test',
           exportedAt: '2026-07-05T00:00:00Z',
         ),
@@ -158,6 +160,173 @@ class _SelectiveAuditDb extends CoreDatabase {
 }
 
 void main() {
+  for (final scenario in [
+    (
+      name: 'candidate low coverage',
+      candidateCoverage: 0.29,
+      peerCoverage: 1.0,
+      candidateIds: true,
+      peerIds: true,
+      expectedIncomplete: true,
+    ),
+    (
+      name: 'candidate unknown coverage',
+      candidateCoverage: null,
+      peerCoverage: 1.0,
+      candidateIds: true,
+      peerIds: true,
+      expectedIncomplete: true,
+    ),
+    (
+      name: 'stack low coverage',
+      candidateCoverage: 1.0,
+      peerCoverage: 0.29,
+      candidateIds: true,
+      peerIds: true,
+      expectedIncomplete: true,
+    ),
+    (
+      name: 'stack unknown coverage',
+      candidateCoverage: 1.0,
+      peerCoverage: null,
+      candidateIds: true,
+      peerIds: true,
+      expectedIncomplete: true,
+    ),
+    (
+      name: 'candidate missing identities',
+      candidateCoverage: 1.0,
+      peerCoverage: 1.0,
+      candidateIds: false,
+      peerIds: true,
+      expectedIncomplete: true,
+    ),
+    (
+      name: 'stack missing identities',
+      candidateCoverage: 1.0,
+      peerCoverage: 1.0,
+      candidateIds: true,
+      peerIds: false,
+      expectedIncomplete: true,
+    ),
+    (
+      name: 'both at coverage floor',
+      candidateCoverage: 0.3,
+      peerCoverage: 0.3,
+      candidateIds: true,
+      peerIds: true,
+      expectedIncomplete: false,
+    ),
+  ]) {
+    test('pre-add mapping: ${scenario.name}', () async {
+      final coreDb = CoreDatabase.memory();
+      final interactionDb = InteractionDatabase.memory();
+      final userDb = UserDatabase.memory();
+      addTearDown(() async {
+        await coreDb.close();
+        await interactionDb.close();
+        await userDb.close();
+      });
+      await _seedSupplement(
+        coreDb,
+        dsldId: 'candidate',
+        name: 'Magnesium',
+        canonicalTags: scenario.candidateIds ? ['magnesium'] : [],
+        mappedCoverage: scenario.candidateCoverage,
+      );
+      await _seedSupplement(
+        coreDb,
+        dsldId: 'peer',
+        name: 'Zinc',
+        canonicalTags: scenario.peerIds ? ['zinc'] : [],
+        mappedCoverage: scenario.peerCoverage,
+      );
+      await userDb.addToStack(
+        UserStacksLocalCompanion.insert(
+          id: 'peer-row',
+          name: 'Zinc',
+          dsldId: const Value('peer'),
+          ingredientKeys: Value(scenario.peerIds ? '["zinc"]' : '[]'),
+        ),
+      );
+      final container = ProviderContainer(
+        overrides: [
+          coreDatabaseProvider.overrideWithValue(coreDb),
+          interactionDatabaseProvider.overrideWithValue(interactionDb),
+          userDatabaseProvider.overrideWithValue(userDb),
+          detailBlobProvider.overrideWith(
+            (ref, id) async => {
+              'ingredients': [
+                {
+                  'standard_name': id == 'candidate' ? 'Magnesium' : 'Zinc',
+                  'quantity': 10,
+                  'unit': 'mg',
+                },
+              ],
+            },
+          ),
+        ],
+      );
+      addTearDown(container.dispose);
+      final result = await container.read(
+        safetyCheckForAddProvider('candidate').future,
+      );
+      expect(result.results, isEmpty);
+      expect(result.checksIncomplete, scenario.expectedIncomplete);
+      expect(result.isConfidentClear, !scenario.expectedIncomplete);
+    });
+  }
+
+  for (final id in [null, '']) {
+    test(
+      'pre-add stack supplement without catalog id $id is incomplete',
+      () async {
+        final coreDb = CoreDatabase.memory();
+        final interactionDb = InteractionDatabase.memory();
+        final userDb = UserDatabase.memory();
+        addTearDown(() async {
+          await coreDb.close();
+          await interactionDb.close();
+          await userDb.close();
+        });
+        await _seedSupplement(
+          coreDb,
+          dsldId: 'candidate',
+          name: 'Magnesium',
+          canonicalTags: ['magnesium'],
+        );
+        await userDb.addToStack(
+          UserStacksLocalCompanion.insert(
+            id: 'unknown',
+            name: 'Unknown supplement',
+            dsldId: Value(id),
+          ),
+        );
+        final container = ProviderContainer(
+          overrides: [
+            coreDatabaseProvider.overrideWithValue(coreDb),
+            interactionDatabaseProvider.overrideWithValue(interactionDb),
+            userDatabaseProvider.overrideWithValue(userDb),
+            detailBlobProvider.overrideWith(
+              (ref, id) async => {
+                'ingredients': [
+                  {'standard_name': 'Magnesium', 'quantity': 10, 'unit': 'mg'},
+                ],
+              },
+            ),
+          ],
+        );
+        addTearDown(container.dispose);
+        final result = await container.read(
+          safetyCheckForAddProvider('candidate').future,
+        );
+        expect(result.stackEmpty, isFalse);
+        expect(result.checksIncomplete, isTrue);
+        expect(result.isConfidentClear, isFalse);
+      },
+    );
+  }
+
   test(
     'mixed missing and unreadable products preserve both failure reasons',
     () async {
@@ -355,7 +524,7 @@ void main() {
       },
     );
 
-    test('warfarin med + ginkgo candidate surfaces the curated DDI', () async {
+    test('low-coverage ginkgo retains the curated warfarin warning', () async {
       final coreDb = CoreDatabase.memory();
       final interactionDb = InteractionDatabase.memory();
       final userDb = UserDatabase.memory();
@@ -370,6 +539,7 @@ void main() {
         dsldId: 'SUPP_GINKGO',
         name: 'Ginkgo Biloba',
         canonicalTags: ['ginkgo'],
+        mappedCoverage: 0.1,
       );
       await _seedWarfarinGinkgoDdi(interactionDb);
       // Warfarin with a resolvable drug class so normalization does NOT
@@ -395,7 +565,8 @@ void main() {
 
       expect(result.results, isNotEmpty);
       expect(result.results.any((r) => r.id == 'DDI_WARFARIN_GINKGO'), isTrue);
-      // A real interaction was found → the sheet must not affirm "Safe to add".
+      // Known warnings survive even when mapping prevents a complete check.
+      expect(result.checksIncomplete, isTrue);
       expect(result.isConfidentClear, isFalse);
     });
 
@@ -667,6 +838,7 @@ void main() {
       coreDb,
       dsldId: 'LOW',
       name: 'Fructose',
+      mappedCoverage: null,
       canonicalTags: const [],
     );
     await _seedSupplement(

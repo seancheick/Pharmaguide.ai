@@ -889,7 +889,7 @@ class _ProductDetailV2ConnectedState
                       ],
 
                       // Nothing else explains the missing all-clear, whatever
-                      // the quality state (ADR-015).
+                      // the quality state (ADR-016).
                       if (catalogProductSafetyChecksIncomplete(_product)) ...[
                         const PGSeverityBanner(
                           key: Key('safety-checks-incomplete-banner'),

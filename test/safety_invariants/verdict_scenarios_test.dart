@@ -456,7 +456,7 @@ void main() {
     });
   });
 
-  group('safety checks decide the all-clear (ADR-015)', () {
+  group('safety checks decide the all-clear (ADR-016)', () {
     // Sean, 2026-11-03: "A quality evidence gap alone must not imply that safety
     // checks failed; genuinely unavailable or incomplete required safety checks
     // must still withhold an all-clear." Each message shows only when its own
@@ -914,7 +914,7 @@ void main() {
     });
   });
 
-  group('a catalog caution with nothing personal (ADR-015)', () {
+  group('a catalog caution with nothing personal (ADR-016)', () {
     testWidgets('general notes on the page: the qualified wording points to '
         'them, with no all-clear', (tester) async {
       await pumpPage(

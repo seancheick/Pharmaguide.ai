@@ -20,6 +20,7 @@ import 'package:pharmaguide/features/stack/services/stack_sync_queue.dart';
 import 'package:pharmaguide/services/connectivity_service.dart';
 import 'package:pharmaguide/services/crash_reporting_service.dart';
 import 'package:pharmaguide/services/medications/medication_class_bridge.dart';
+import 'package:pharmaguide/services/stack/medication_profile_gate_evaluator.dart';
 import 'package:pharmaguide/services/stack/stack_reminder_scheduler.dart';
 
 /// Thrown when [StackActions.addProduct] is called with a product whose
@@ -359,6 +360,19 @@ class StackActions {
     // preserved here. Supplements have no user-authored schedule: clinical
     // timing remains owned by the reviewed Daily Plan.
     final nextFrequency = isMedication ? entry.frequency : null;
+    // Match medication entry's dose/schedule invalidation: a free-text edit
+    // confirms neither a daily amount nor compliance with label directions.
+    // Revoke both confirmations so their exceptions cannot outlive the dose
+    // they were confirmed for. The separately selected route remains valid.
+    var medicationContext = const Value<String?>.absent();
+    if (isMedication && entry.dosage != nextDosage) {
+      final previousContext = MedicationUseContext.fromStored(
+        entry.medicationContextCol,
+      );
+      medicationContext = Value(
+        jsonEncode(MedicationUseContext(route: previousContext.route).toJson()),
+      );
+    }
     final nextStartedAt = startedAt.present ? startedAt.value : entry.startedAt;
     final nextReminder = reminderMinutes.present
         ? reminderMinutes.value
@@ -414,6 +428,7 @@ class StackActions {
               )..where((table) => table.id.equals(entryId))).write(
                 UserStacksLocalCompanion(
                   dosage: Value(nextDosage),
+                  medicationContextCol: medicationContext,
                   frequency: Value(nextFrequency),
                   startedAt: Value(nextStartedAt),
                   reminderMinutes: Value(nextReminder),

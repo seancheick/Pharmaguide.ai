@@ -5,6 +5,7 @@ import 'package:crypto/crypto.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:path/path.dart' as p;
 import 'package:path_provider/path_provider.dart';
+import 'package:pharmaguide/services/auth/account_database_cipher.dart';
 
 /// Whose health data this provider tree is showing, and where it lives.
 class ActiveAccount {
@@ -41,11 +42,13 @@ class AccountStorage {
   AccountStorage({
     required this._supportDirectory,
     required this._documentsDirectory,
+    this._cipher,
   });
 
   factory AccountStorage.production() => AccountStorage(
     supportDirectory: getApplicationSupportDirectory,
     documentsDirectory: getApplicationDocumentsDirectory,
+    cipher: AccountDatabaseCipher.production,
   );
 
   static const guestScope = 'guest';
@@ -55,6 +58,7 @@ class AccountStorage {
 
   final Future<Directory> Function() _supportDirectory;
   final Future<Directory> Function() _documentsDirectory;
+  final AccountDatabaseCipher? _cipher;
 
   /// Hashed so the uid stays out of file paths and preference keys.
   static String scopeFor(String? uid) => uid == null || uid.isEmpty
@@ -100,9 +104,15 @@ class AccountStorage {
     await guest.rename(target.path);
   }
 
+  /// The database goes first, so a kill partway leaves no encrypted file behind
+  /// without its key, which would lock this account out if it came back.
   Future<void> delete(String? uid) async {
     final folder = await _folderFor(uid);
-    if (await folder.exists()) await folder.delete(recursive: true);
+    if (!await folder.exists()) return;
+    final database = File(p.join(folder.path, databaseName));
+    if (await database.exists()) await database.delete();
+    await _cipher?.forget(database.path);
+    await folder.delete(recursive: true);
   }
 
   /// One-way move of the single pre-ADR-013 store into [owner]'s folder.

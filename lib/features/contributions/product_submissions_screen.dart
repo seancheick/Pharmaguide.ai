@@ -355,6 +355,25 @@ class _ProductSubmissionsScreenState
     }
   }
 
+  /// Local evidence remains reachable even when history cannot be fetched.
+  /// The server's availability must never gate recovery of on-device photos.
+  Widget _historyUnavailable(Widget status) => RefreshIndicator(
+    onRefresh: _refresh,
+    child: ListView(
+      physics: const AlwaysScrollableScrollPhysics(),
+      padding: const EdgeInsets.all(V2Spacing.space24),
+      children: [
+        _UnfinishedCaptures(onFinish: _finishPending),
+        Text(
+          'Your submissions',
+          style: V2Typography.titleSm(color: context.v2.fg),
+        ),
+        const SizedBox(height: V2Spacing.space24),
+        status,
+      ],
+    ),
+  );
+
   @override
   Widget build(BuildContext context) {
     final submissions = ref.watch(productSubmissionsProvider);
@@ -387,9 +406,11 @@ class _ProductSubmissionsScreenState
       body: SafeArea(
         top: false,
         child: submissions.when(
-          loading: () => const Center(child: CircularProgressIndicator()),
-          error: (_, _) => Center(
-            child: _StatusError(
+          loading: () => _historyUnavailable(
+            const Center(child: CircularProgressIndicator()),
+          ),
+          error: (_, _) => _historyUnavailable(
+            _StatusError(
               onRetry: () => ref.invalidate(productSubmissionsProvider),
             ),
           ),
@@ -487,7 +508,7 @@ class _ProductSubmissionsScreenState
   }
 }
 
-/// Photos this device saved that never reached the server.
+/// Local captures without a confirmed server receipt.
 ///
 /// Shown above the server-backed history because it is the one thing here the
 /// user can still act on offline, and because the alternative route back to an
@@ -502,14 +523,20 @@ class _UnfinishedCaptures extends ConsumerWidget {
     final pending = ref.watch(pendingProductSubmissionDraftsProvider);
     final drafts = pending.value ?? const <PendingProductSubmission>[];
     if (drafts.isEmpty) return const SizedBox.shrink();
+    ref.watch(productSubmissionTransfersProvider);
+    final service = ref.watch(productSubmissionServiceProvider);
     return Column(
       key: const Key('unfinished-captures'),
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text('Not sent yet', style: V2Typography.titleSm(color: context.v2.fg)),
+        Text(
+          'Saved on this device',
+          style: V2Typography.titleSm(color: context.v2.fg),
+        ),
         const SizedBox(height: V2Spacing.space8),
         Text(
-          'These photos are still on this phone. Nobody has seen them yet.',
+          'Sending is not yet confirmed for these photos. '
+          'Check progress or finish an interrupted send.',
           style: V2Typography.bodySm(color: context.v2.fgMuted),
         ),
         const SizedBox(height: V2Spacing.space12),
@@ -519,8 +546,10 @@ class _UnfinishedCaptures extends ConsumerWidget {
             child: ListTile(
               key: Key('unfinished-${draft.submissionId}'),
               title: Text(
-                '${draft.photoCount} '
-                '${draft.photoCount == 1 ? 'photo' : 'photos'} ready to send',
+                service.activeTransfer(draft.submissionId) != null
+                    ? 'Sending ${draft.photoCount} photos…'
+                    : '${draft.photoCount} '
+                          '${draft.photoCount == 1 ? 'photo' : 'photos'} ready to send',
                 style: V2Typography.bodySm(color: context.v2.fg),
               ),
               subtitle: Text(
@@ -531,7 +560,11 @@ class _UnfinishedCaptures extends ConsumerWidget {
               ),
               trailing: FilledButton(
                 onPressed: () => onFinish(draft),
-                child: const Text('Finish sending'),
+                child: Text(
+                  service.activeTransfer(draft.submissionId) != null
+                      ? 'View progress'
+                      : 'Finish sending',
+                ),
               ),
             ),
           ),

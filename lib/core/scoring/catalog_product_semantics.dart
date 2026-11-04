@@ -155,7 +155,7 @@ bool catalogProductHasCompletePublicScore(ProductsCoreData? product) {
 
 /// Whether a check that found nothing may be reported as "no known concerns".
 ///
-/// The safety checks decide, not quality completion (ADR-015): a known catalog
+/// The safety checks decide, not quality completion (ADR-016): a known catalog
 /// safety status and `safety_assessment_status` of `complete`. A quality gap
 /// belongs to the quality message, and any status other than `complete`
 /// withholds. Concerns the checks did find still show.

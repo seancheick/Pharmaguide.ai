@@ -334,7 +334,7 @@ void main() {
 
     // On a full phone the rebuild can't run, and the old folder stays active.
     // Typed reads use SELECT *, so a column it never had reads as null, which
-    // means an older catalog and keeps the stricter rule (ADR-015). Naming that
+    // means an older catalog and keeps the stricter rule (ADR-016). Naming that
     // column in a query would break this phone.
     test('a folder that cannot be rebuilt still reads, with no safety status, '
         'and is not written', () async {

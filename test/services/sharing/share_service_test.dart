@@ -1,4 +1,7 @@
+import 'dart:io';
+
 import 'package:flutter_test/flutter_test.dart';
+import 'package:path/path.dart' as p;
 import 'package:pharmaguide/services/sharing/share_service.dart';
 
 void main() {
@@ -266,6 +269,73 @@ void main() {
 
       expect(capturedText, contains('• Vitamin D'));
       expect(capturedText, isNot(contains('null')));
+    });
+  });
+
+  group('clearSharedClinicianReport', () {
+    const name = 'pharmaguide-clinician-report.pdf';
+    late Directory container;
+    late Directory support;
+    late Directory cache;
+
+    setUp(() {
+      container = Directory.systemTemp.createTempSync('report-temp-');
+      addTearDown(() => container.deleteSync(recursive: true));
+      support = Directory(p.join(container.path, 'Library', 'Support'))
+        ..createSync(recursive: true);
+      cache = Directory(p.join(container.path, 'Library', 'Caches'))
+        ..createSync(recursive: true);
+    });
+
+    File inFolder(List<String> parts) {
+      final file = File(p.joinAll([container.path, ...parts]));
+      file.parent.createSync(recursive: true);
+      return file..writeAsBytesSync(const [37, 80, 68, 70]);
+    }
+
+    Future<void> clear() => clearSharedClinicianReport(
+      supportDirectory: () async => support,
+      cacheDirectory: () async => cache,
+    );
+
+    test('removes the copy the plugin leaves on iOS', () async {
+      final report = inFolder(['tmp', name]);
+      await clear();
+      expect(report.existsSync(), isFalse);
+    });
+
+    test('removes the copy the plugin leaves on Android', () async {
+      final report = inFolder(['Library', 'Caches', 'share', name]);
+      await clear();
+      expect(report.existsSync(), isFalse);
+    });
+
+    test('leaves every other file alone', () async {
+      final other = inFolder(['tmp', 'other.pdf']);
+      final cached = inFolder(['Library', 'Caches', name]);
+      await clear();
+      expect(other.existsSync(), isTrue);
+      expect(cached.existsSync(), isTrue);
+    });
+
+    test('is quiet when there is nothing to remove', () async {
+      await expectLater(clear(), completes);
+    });
+
+    test('a folder that cannot be found still clears the other', () async {
+      final report = inFolder(['tmp', name]);
+      await clearSharedClinicianReport(
+        supportDirectory: () async => support,
+        cacheDirectory: () async => throw const FileSystemException('no'),
+      );
+      expect(report.existsSync(), isFalse);
+      await expectLater(
+        clearSharedClinicianReport(
+          supportDirectory: () async => throw const FileSystemException('no'),
+          cacheDirectory: () async => throw const FileSystemException('no'),
+        ),
+        completes,
+      );
     });
   });
 }

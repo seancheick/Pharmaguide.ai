@@ -136,7 +136,7 @@ void main() {
     });
   });
 
-  group('an older catalog needs a number before an all-clear (ADR-015)', () {
+  group('an older catalog needs a number before an all-clear (ADR-016)', () {
     test('a suppressed score with no number withholds, and says why', () {
       final p = _p(
         qualityScoreStatus: 'suppressed_safety',
@@ -158,7 +158,7 @@ void main() {
   });
 
   // The page hides the For You card on a block, so only this can see the rule.
-  group('finished safety checks never clear a block (ADR-015)', () {
+  group('finished safety checks never clear a block (ADR-016)', () {
     for (final status in ['blocked', 'unsafe']) {
       test(status, () {
         final p = _p(

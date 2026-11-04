@@ -331,7 +331,7 @@ No personal profile/medication/goal data is added to Supabase. Publication and i
 ## ADR-013: Each account's health data lives in its own storage
 
 **Date:** 2026-11-02
-**Status:** IMPLEMENTED for storage and switching on branch `claude/a5-per-account-data` (2026-11-02), not merged. SQLCipher isn't adopted, and the acceptance items under "Still open" aren't met, so A5 is not done and public release stays blocked.
+**Status:** Storage and switching are merged. Encryption is implemented on branch `claude/a5-finish-7dbae8` and isn't adopted until its device checks pass (see "Encryption, 2026-11-02"). A5 is not done and public release stays blocked.
 **Supersedes:** ADR-007's "A different account signing in clears them".
 **Context:**
 - `user_data.db` has no owner column. `getProfile` and `getActiveStack` read whatever is there, and sign-out deliberately keeps everything (`pg_auth_service.dart`), so a guest using the phone after sign-out sees the previous person's medications. Reproduced 2026-11-02 by `test/safety/guest_cannot_read_previous_account_test.dart`, which stays skipped until this ADR is implemented and must pass before public release.
@@ -363,6 +363,24 @@ OS encryption protects a locked phone. It does nothing about two people using th
 - **Unchanged.** Stack sync, and the rule that medication rows never sync. The catalog and rules open unencrypted under SQLCipher's library.
 - **Image cache.** Shared. It holds public product photos with no link to an owner and nothing in the app lists it. Noted rather than changed.
 
+**Encryption, 2026-11-02 (`account_database_cipher.dart::AccountDatabaseCipher`).** Rerun on sqlite3 3.8.0 and drift 2.34.4 with `hooks: user_defines: sqlite3: source: sqlcipher` and no `sqlite3_flutter_libs`. SQLCipher 4.19.0 over SQLite 3.53.4 ran on macOS and the iOS 26.5 simulator. A wrong key and no key were both rejected with error 26, no plaintext stayed in the file or the WAL, and the catalog (FTS, 4,621 rows for `magnesium`) and rules (131 rows) opened with no key and stayed plain. iOS simulator debug timings: create 185 ms, 1,000 inserts 455 ms, catalog query 23 ms, rules query 4 ms. What the implementation binds:
+- **A key must survive a restart before it encrypts anything.** On Android, `flutter_secure_storage` 11.2.0 saves with `SharedPreferences.apply()`, so its write returns before the key is on disk, and a read in the same run only sees memory. A kill in that gap would leave an encrypted database with no key, which for medication data means permanent loss. So the first session on any database stays plain and stores a key, and the next launch encrypts with that key once it reads back. A device whose key store loses keys stays plain and keeps working. The cost: a new account's first session is plaintext until the app next launches, and an account that signs out after one session and never returns stays plaintext.
+- **A missing or unreadable key never opens a new database.** Only the file's first 16 bytes decide. An encrypted file with no readable key throws, and the guard shows its retry. No code path creates a key for an encrypted file.
+- **The key id lives in the account's folder**, in `database_key_id`, so adoption is still one rename with no key store write to lose.
+- **Migration** writes `user_data.db.enc-tmp`, verifies it (cipher check, integrity check, schema, row counts, `user_version`), and replaces the plain file in one rename. A kill at any point leaves one whole database, and the next launch starts again. A failure keeps the plain file working and reports it.
+- **Storage options.** Android `resetOnError: false`, because the default erases the whole store on a read error, and a namespace of its own. iOS after-first-unlock, this device only.
+- **App size, iOS.** Two release IPAs from the same source: 69,760,631 bytes without SQLCipher and 69,788,363 with it, so 27,732 bytes more (0.04%). Installed, the app grows by 84 KB, and the SQLite framework goes from 1,648,832 to 1,734,896 bytes. On iOS this build uses Apple's CommonCrypto (`commoncrypto` in the binary, linked to `Security.framework`). Android isn't measured yet.
+- **Crash reports never carry a key.** A `SqliteException` includes its statement, and `ATTACH ... KEY` contains the key, so those errors are rethrown without it.
+
+**Android size, release AAB:** 126,877,098 bytes at `7aa16b95`, 134,280,067 with SQLCipher (+7,402,969, about 5.8%). The arm64 library grows from 1,749,200 to 5,086,272 bytes. An AAB holds every ABI, so this isn't the download size for one phone, which wasn't measured.
+
+**Checked on devices, build `6c911765`:**
+- **Real process kills, iOS 26.5 simulator.** A throwaway app ran this cipher file (one import swapped), the real Keychain and a copy of a real plaintext database. It killed itself after each migration step and during the copy (at 1.1 MB), then relaunched: every case resumed with all rows, encrypted, and no plaintext. A removed key threw, left the file unchanged and created no key, also after a restart, and restoring the key opened the data (`~/pg_quality/a5_finish_20261102/kill_harness_ios_sim.txt`).
+- **Real-app upgrade, iOS 26.5 simulator.** A's plaintext data stayed plain on the first launch and was encrypted on the next: `sqlite3` gets error 26, the medication name is gone from the file, and the medication, Health History event and attachment still show. A's reminder fired on this build.
+- **Real-app upgrade, iPhone 17 Pro Max.** A store from before this ADR with 9 stack rows and 19 events moved to the account's folder on the first launch, passing its integrity check, and was encrypted on the second (`sqlite3` gets error 26, empty WAL, no copy left).
+
+**Encryption limits:** a database stays plaintext until its next launch, and an account that doesn't come back stays plaintext because encryption runs only when its folder opens. Attachments, recent searches (preferences), `legacy/` archives and product submission drafts stay plaintext, as do deleted blocks of the old plain file until the OS reuses them. The shared image cache `libCachedImageData.db` holds plain product image URLs, so it shows which products were viewed on this device, across accounts. Each clinician report share leaves the full PDF in clear in the system temp folder, outside every account folder (`printing` 5.15.1). `AccountSwitchGuard` clears it at sign-out, switch, Remove and every launch, not when the share call returns, because the share sheet may still need it; a report already shared stays with its recipient, and copies from older builds go only once a fixed build launches. Remove deletes the key and the folder. A key lost for good leaves the account's data locked, and the retry screen has no way out. Sean decides what it offers. `ITSAppUsesNonExemptEncryption` is false in `Info.plist`, and shipping SQLCipher may change that answer, so Sean decides before a release. A build without SQLCipher can't open an encrypted database, so rolling the app back to one shows the retry screen; any release rollback has to stay on a SQLCipher build. A phone moved by device-to-device transfer may carry files but not this-device-only keys; unverified.
+
 **Dependency integration (2026-11-02):** the combined candidate upgrades to sqlite3 3.8.0 and drift 2.34.4 and removes sqlite3_flutter_libs, using sqlite3 build hooks for the native library. This remains plaintext storage. The SQLCipher spike above used the older dependencies and does not qualify encryption on this candidate; its adoption and device checks remain open.
 
 **Known limits:** kept data has no recovery if the phone is lost or the app is deleted, because medications may not sync; any fix needs its own decision. Reminder text on the lock screen is outside this ADR. A provider rebuild doesn't prove that the app-switcher snapshot is replaced, so this is unverified until it is checked on physical devices.
@@ -393,7 +411,29 @@ OS encryption protects a locked phone. It does nothing about two people using th
 
 ---
 
-## ADR-015: Safety checks decide "No known concerns"; each incomplete message speaks for its own assessment
+## ADR-015: The safety-alert feed is signed before its first publish
+
+**Date:** 2026-11-03. **Decision by:** Sean (signature before first publish, and he alone holds the key).
+
+**Context:** No alert release has been published. The feed had a checksum in its release row and no signature, so anyone able to write to Supabase could replace both. ADR-012's signing already exists for catalogs.
+
+**Decision:**
+- Reuse ADR-012's signing: canonical JSON, Ed25519, `<key id>:<base64>`, `verifySignedText` here and `scripts/release_manifest.py` in the pipeline. There is no second system.
+- The signature is detached and travels as `manifest.signed_feed` on the release row. The feed bytes, `feed_path` and `checksum` don't change, so installed builds read what they read before. The dispatcher never reads `manifest`.
+- The signed statement names the base and extended feed by checksum, and a sequence. This build reads those from the statement, not from the row. A statement carries a `purpose`, so it can't pass as a catalog manifest, or the reverse.
+- Keys are pinned apart, in `_kProductionAlertFeedKeys` and `alert_feed_keys`. A key in the release lists starts signed-only catalogs and keyed catalog behaviour, which waits on A9. The feed must neither wait for that nor cause it.
+- A missing or bad signature is a failed fetch through the existing owners: a saved copy stays, and a phone that never verified a feed gets no all-clear. A saved copy nothing vouches for keeps its alerts and gives no all-clear. There is no new copy and no new verdict.
+- A lower sequence than the saved copy is refused. The sequence lives in the existing cache entry, along with the statement and signature, all of which are public.
+
+**Differs from ADR-012:** a catalog may be unsigned until the first key is pinned, and a keyless build ignores signed fields, because phones already depended on unsigned catalogs. The feed has no such history, so the publisher always refuses and a keyless build verifies nothing. `scripts/require_alert_feed_key.sh` refuses a store build with no key; TestFlight may go without one.
+
+**Accepted cost:** if the key is lost with no standby, keyed builds get no new alert until an app update. So the runbook generates a standby and pins it from the start.
+
+**Limits:** builds from before this change don't check. A signature can't prove a release is the latest, nor that it is clinically correct.
+
+**Steps:** the pipeline's `docs/RELEASE_SIGNING_RUNBOOK.md`, "The safety-alert feed".
+
+## ADR-016: Safety checks decide "No known concerns"; each incomplete message speaks for its own assessment
 
 **Date:** 2026-11-03
 **Status:** DECIDED. Implemented in PR #177, on the contract in pipeline PR #338. They land together.

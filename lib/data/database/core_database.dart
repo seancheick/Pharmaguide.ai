@@ -238,7 +238,7 @@ class CoreDatabase extends _$CoreDatabase {
     'product_safety_status TEXT',
     'quality_assessment_status TEXT',
     // Older catalogs lack this; NULL means a finished public assessment
-    // decides the all-clear (ADR-015).
+    // decides the all-clear (ADR-016).
     'safety_assessment_status TEXT',
     'quality_tier TEXT',
     'quality_score_suppressed_reason TEXT',
