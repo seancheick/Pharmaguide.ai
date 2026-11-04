@@ -133,6 +133,46 @@ void main() {
       );
     });
 
+    test('a strict bound on one line survives raising the other line', () {
+      StackDoseThresholdRule rule(
+        String entry,
+        double threshold,
+        String comparator,
+        double amount, {
+        bool strict = false,
+      }) => StackDoseThresholdRule(
+        conditionId: 'smoker',
+        canonicalId: 'beta_carotene',
+        thresholdValue: threshold,
+        thresholdUnit: 'mcg rae',
+        comparator: comparator,
+        normalizedDailyAmount: amount,
+        normalizedDailyUnit: 'mcg rae',
+        normalizedAmountIsStrictLowerBound: strict,
+        sourceStackEntryId: entry,
+      );
+
+      List<StackDoseThresholdAlert> read(List<StackDoseThresholdRule> rules) =>
+          const StackDoseSummer().thresholdAlertsFromNormalizedRules(
+            userConditions: const ['smoker'],
+            thresholdRules: rules,
+          );
+
+      final raised = read([
+        rule('a', 7500, '>=', 7500),
+        rule('b', 10000, '>', 10000, strict: true),
+      ]).singleWhere((alert) => alert.thresholdValue == 7500);
+      expect(raised.totalValue, 17500);
+      expect(raised.totalIsStrictLowerBound, isTrue);
+
+      final exact = read([
+        rule('a', 7500, '>=', 7500),
+        rule('b', 10000, '>', 10001),
+      ]).singleWhere((alert) => alert.thresholdValue == 7500);
+      expect(exact.totalValue, 17501);
+      expect(exact.totalIsStrictLowerBound, isFalse);
+    });
+
     for (final exactAmount in [200.0, 300.0]) {
       for (final reverse in [false, true]) {
         test(
