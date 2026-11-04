@@ -18,6 +18,7 @@ import 'package:pharmaguide/core/theme/v2/v2_spacing.dart';
 import 'package:pharmaguide/core/theme/v2/v2_typography.dart';
 import 'package:pharmaguide/data/providers/reference_data_provider.dart';
 import 'package:pharmaguide/features/profile/profile_provider.dart';
+import 'package:pharmaguide/features/profile/widgets/profile_load_gate.dart';
 
 /// Phase 11.7L.B.6 — v2 ProfileSetup restructure.
 ///
@@ -517,7 +518,9 @@ class _ProfileSetupV2ScreenState extends ConsumerState<ProfileSetupV2Screen> {
   // ───────── build ─────────
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context) => ProfileLoadGate(builder: _buildLoaded);
+
+  Widget _buildLoaded(BuildContext context, WidgetRef ref) {
     final profile = ref.watch(profileProvider);
     final clinicalSchema = ref
         .watch(clinicalProfileSchemaProvider)
@@ -1043,11 +1046,7 @@ class _PrivacyFooter extends StatelessWidget {
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Icon(
-            Icons.lock_outline_rounded,
-            size: 14,
-            color: context.v2.fgMuted,
-          ),
+          Icon(Icons.lock_outline_rounded, size: 14, color: context.v2.fgMuted),
           const SizedBox(width: V2Spacing.space8),
           Expanded(
             child: Text(

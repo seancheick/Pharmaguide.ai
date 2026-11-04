@@ -30,6 +30,26 @@ Map<String, String> get kReleaseVerificationKeys => {
     _kTestKeyId: _kTestKey,
 };
 
+/// Verification keys for the safety-alert feed, by key ID, as hex. Separate from
+/// the release keys: a key there puts catalog updates into signed-only mode and is
+/// held back until A9 finishes, and the feed must not wait on that or change it.
+/// With no key here every feed is unverified, so this build shows no alert from the
+/// feed and no all-clear. scripts/require_alert_feed_key.sh keeps that out of store
+/// builds; steps are in the pipeline's docs/RELEASE_SIGNING_RUNBOOK.md.
+const Map<String, String> _kProductionAlertFeedKeys = {
+  'alert-feed-2026-11':
+      '86931cbd3b7ccff1fdd2564a582964d96fe1ce7417f9dd57fea4e5af6cad46fa',
+  'alert-feed-standby':
+      'd0184fbe88be20df2753fb6acaffa0b41f18722dd5e97d1053645b8e26e9bb9e',
+};
+
+/// Test builds add the same dart-define key, which release mode ignores.
+Map<String, String> get kAlertFeedVerificationKeys => {
+  ..._kProductionAlertFeedKeys,
+  if (!kReleaseMode && _kTestKeyId.isNotEmpty && _kTestKey.isNotEmpty)
+    _kTestKeyId: _kTestKey,
+};
+
 /// The highest `format` this build reads.
 const int kSupportedReleaseFormat = 1;
 
@@ -110,44 +130,11 @@ class ReleaseManifest {
     required String signature,
     required Map<String, String> keys,
   }) async {
-    final separator = signature.indexOf(':');
-    if (separator <= 0) {
-      throw const ReleaseManifestException('Malformed release signature');
-    }
-    final keyId = signature.substring(0, separator);
-    final keyHex = keys[keyId];
-    if (keyHex == null) {
-      throw ReleaseManifestException('Unknown release key $keyId');
-    }
-
-    final List<int> signatureBytes;
-    try {
-      signatureBytes = base64.decode(signature.substring(separator + 1));
-    } on FormatException {
-      throw const ReleaseManifestException('Malformed release signature');
-    }
-    if (signatureBytes.length != 64) {
-      throw const ReleaseManifestException('Malformed release signature');
-    }
-
-    final bool valid;
-    try {
-      valid = await Ed25519().verify(
-        utf8.encode(signedRelease),
-        signature: Signature(
-          signatureBytes,
-          publicKey: SimplePublicKey(
-            _hexBytes(keyHex),
-            type: KeyPairType.ed25519,
-          ),
-        ),
-      );
-    } on Object catch (e) {
-      throw ReleaseManifestException('Release signature check failed: $e');
-    }
-    if (!valid) {
-      throw const ReleaseManifestException('Invalid release signature');
-    }
+    final keyId = await verifySignedText(
+      text: signedRelease,
+      signature: signature,
+      keys: keys,
+    );
 
     final manifest = _parse(signedRelease);
     if (manifest.$2 != keyId) {
@@ -241,6 +228,55 @@ class ReleaseManifest {
       throw const ReleaseManifestException('The pair names a blocked version');
     }
   }
+}
+
+/// Verifies [signature] (`<key id>:<base64>`) over the exact [text] and returns
+/// the key ID. Says nothing about what the text means: each caller parses its own
+/// document and checks the key ID it names.
+Future<String> verifySignedText({
+  required String text,
+  required String signature,
+  required Map<String, String> keys,
+}) async {
+  final separator = signature.indexOf(':');
+  if (separator <= 0) {
+    throw const ReleaseManifestException('Malformed release signature');
+  }
+  final keyId = signature.substring(0, separator);
+  final keyHex = keys[keyId];
+  if (keyHex == null) {
+    throw ReleaseManifestException('Unknown release key $keyId');
+  }
+
+  final List<int> signatureBytes;
+  try {
+    signatureBytes = base64.decode(signature.substring(separator + 1));
+  } on FormatException {
+    throw const ReleaseManifestException('Malformed release signature');
+  }
+  if (signatureBytes.length != 64) {
+    throw const ReleaseManifestException('Malformed release signature');
+  }
+
+  final bool valid;
+  try {
+    valid = await Ed25519().verify(
+      utf8.encode(text),
+      signature: Signature(
+        signatureBytes,
+        publicKey: SimplePublicKey(
+          _hexBytes(keyHex),
+          type: KeyPairType.ed25519,
+        ),
+      ),
+    );
+  } on Object catch (e) {
+    throw ReleaseManifestException('Release signature check failed: $e');
+  }
+  if (!valid) {
+    throw const ReleaseManifestException('Invalid release signature');
+  }
+  return keyId;
 }
 
 List<int> _hexBytes(String hex) {

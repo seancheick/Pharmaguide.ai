@@ -34,6 +34,13 @@ import 'package:pharmaguide/services/stack/synergy_result.dart';
 class StackHealthSnapshot {
   final StackIntelligence intelligence;
   final List<ClinicalSignal> reviewSignals;
+
+  /// Review counts and warning headlines exclude informational context. The
+  /// complete signal list remains available to the Good to know details lane.
+  List<ClinicalSignal> get actionableSignals => reviewSignals
+      .where((signal) => signal.consumerDisposition.requiresReview)
+      .toList(growable: false);
+
   final bool checksIncomplete;
   final bool coverageIncomplete;
   final bool catalogProductSkipped;
@@ -220,12 +227,21 @@ class StackIntelligenceEngine {
         .where((match) => match.alert.interaction == null)
         .length;
     // A dose threshold is counted as a nutrient warning below, not here.
+    // Condition/allergen guidance affects the safety tier, but is not a
+    // supplement or medication interaction.
     final interactionCount =
         countBy(Severity.contraindicated) +
         countBy(Severity.avoid) +
         countBy(Severity.caution) +
         countBy(Severity.monitor) -
-        nonInteractionAlertCount;
+        nonInteractionAlertCount -
+        allInteractions
+            .where(
+              (r) =>
+                  r.type == InteractionType.conditionSupplement &&
+                  (r.severity.isHard || r.severity.isActionable),
+            )
+            .length;
 
     final nutrientWarningCount =
         safetyReport.nutrientStatuses.where((n) => n.shouldWarn).length +
@@ -351,7 +367,10 @@ class StackIntelligenceEngine {
     return <InteractionResult>[
       ...safetyReport.medicationPairInteractions,
       ...safetyReport.medicationInteractions,
-      ...safetyReport.stackInteractions,
+      // Profile concerns are safety findings, not product quality deductions.
+      ...safetyReport.stackInteractions.where(
+        (r) => r.type != InteractionType.conditionSupplement,
+      ),
     ];
   }
 

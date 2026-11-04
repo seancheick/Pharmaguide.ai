@@ -176,6 +176,24 @@ FitScoreResult _personalDoseFit({
 }
 
 void main() {
+  test('unknown allergen presence preserves aggregate and row fallback', () {
+    const match = MatchedAllergen(
+      id: 'fixture',
+      displayName: 'Fixture',
+      presenceType: 'unknown',
+      severityLevel: 'high',
+    );
+    expect(
+      computeReviewTone(
+        warnings: const [],
+        allergens: const [match],
+        hasOnlyAffirmatives: false,
+        hasFreeFromCertified: false,
+      ),
+      PGReviewTone.info,
+    );
+    expect(toneForAllergen(match.presenceType), PGReviewTone.caution);
+  });
   group('confirmed personal upper limit', () {
     test('hard nutrient-only body names the already assessed nutrient', () {
       final fit = _personalDoseFit(amount: 1800);

@@ -6,6 +6,8 @@ import 'package:http/http.dart' as http;
 import 'package:http/testing.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
+
+import 'signed_feed_support.dart';
 import 'package:pharmaguide/services/safety_alerts/safety_alert_repository.dart';
 import 'package:pharmaguide/services/safety_alerts/safety_alert.dart';
 
@@ -110,6 +112,12 @@ void main() {
             jsonEncode({
               'feed_path': 'safety/feed.json',
               'checksum': 'sha256:${sha256.convert(utf8.encode(body))}',
+              'manifest': {
+                'signed_feed': await signedFeedBlock(
+                  path: 'safety/feed.json',
+                  checksum: 'sha256:${sha256.convert(utf8.encode(body))}',
+                ),
+              },
             }),
             200,
             headers: {'content-type': 'application/json'},
@@ -121,6 +129,7 @@ void main() {
       repository = SafetyAlertRepository(
         client: client,
         preferences: preferences,
+        verificationKeys: testAlertFeedKeys,
       );
     });
 
@@ -279,7 +288,16 @@ void main() {
             return http.Response(feed, 200, request: request);
           }
           return http.Response(
-            jsonEncode({'feed_path': 'safety/feed.json', 'checksum': checksum}),
+            jsonEncode({
+              'feed_path': 'safety/feed.json',
+              'checksum': checksum,
+              'manifest': {
+                'signed_feed': await signedFeedBlock(
+                  path: 'safety/feed.json',
+                  checksum: checksum,
+                ),
+              },
+            }),
             200,
             headers: {'content-type': 'application/json'},
             request: request,
@@ -290,6 +308,7 @@ void main() {
       return SafetyAlertRepository(
         client: client,
         preferences: _MemoryPreferences(),
+        verificationKeys: testAlertFeedKeys,
       ).loadCurrent();
     }
 
@@ -352,7 +371,16 @@ void main() {
             return http.Response(feed, 200, request: request);
           }
           return http.Response(
-            jsonEncode({'feed_path': 'safety/feed.json', 'checksum': checksum}),
+            jsonEncode({
+              'feed_path': 'safety/feed.json',
+              'checksum': checksum,
+              'manifest': {
+                'signed_feed': await signedFeedBlock(
+                  path: 'safety/feed.json',
+                  checksum: checksum,
+                ),
+              },
+            }),
             200,
             headers: {'content-type': 'application/json'},
             request: request,
@@ -363,6 +391,7 @@ void main() {
       final repository = SafetyAlertRepository(
         client: client,
         preferences: preferences,
+        verificationKeys: testAlertFeedKeys,
       );
       final current = await repository.loadCurrent();
       expect(current.isComplete, isTrue);

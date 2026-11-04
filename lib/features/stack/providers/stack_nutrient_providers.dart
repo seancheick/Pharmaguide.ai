@@ -418,7 +418,7 @@ final stackDoseThresholdAlertsProvider =
         );
       }
       return byIdentity.values.toList(growable: false);
-    });
+    }, retry: (_, _) => null);
 
 String? _rdaGroupForProfile(String? sex, List<String> conditions) {
   final normalizedConditions = conditions.map((c) => c.toLowerCase()).toSet();

@@ -71,6 +71,7 @@ void main() {
     Future<void> Function(UserDatabase userDb)? seedUser,
     bool signedIn = false,
     bool stackSafetyFails = false,
+    Future<void> Function()? profileLoader,
     bool coverageFails = false,
     bool recallFails = false,
     RecalledIngredientsReport recallReport = const RecalledIngredientsReport(
@@ -117,6 +118,8 @@ void main() {
               neverVerified: !alertFeedAvailable,
             ),
           ),
+          if (profileLoader != null)
+            profileLoadedProvider.overrideWith((ref) => profileLoader()),
           if (snapshotLoader != null)
             stackHealthSnapshotProvider.overrideWith((ref) => snapshotLoader()),
           if (pendingSnapshot != null)
@@ -444,6 +447,79 @@ void main() {
         expect(find.textContaining('threshold 200 mg'), findsOneWidget);
       },
     );
+
+    for (final home in [true, false]) {
+      testWidgets('${home ? 'Home' : 'Stack'} retries a failed profile read', (
+        tester,
+      ) async {
+        var fail = true;
+        var reads = 0;
+        await pumpWithStack(
+          tester,
+          home
+              ? const HomeV2Screen(showNavBar: false)
+              : const StackV2Screen(showNavBar: false),
+          stack: [
+            stackEntry(
+              id: 'supp',
+              name: 'Supplement',
+              type: 'supplement',
+              dsldId: '12345',
+            ),
+          ],
+          safetyReport: const StackSafetyReport(checksIncomplete: true),
+          profileLoader: () async {
+            reads++;
+            if (fail) throw StateError('profile unavailable');
+          },
+        );
+        expect(find.text('Retry profile checks'), findsOneWidget);
+        fail = false;
+        await tester.tap(find.text('Retry profile checks'));
+        await tester.pumpAndSettle();
+        expect(reads, greaterThan(1));
+        expect(find.text('Retry profile checks'), findsNothing);
+      });
+    }
+
+    for (final home in [true, false]) {
+      testWidgets(
+        '${home ? 'Home' : 'Stack'} does not count informational facility notes as review concerns',
+        (tester) async {
+          const note = InteractionResult(
+            id: 'allergen_fixture',
+            type: InteractionType.conditionSupplement,
+            severity: Severity.informational,
+            evidenceLevel: EvidenceLevel.ungraded,
+            agent1Name: 'Supplement',
+            agent2Name: 'Soy',
+            mechanism: 'Facility: Soy',
+            management: '',
+            doseDependant: false,
+            doseThreshold: null,
+            sourceUrls: [],
+            source: InteractionSource.pipeline,
+          );
+          await pumpWithStack(
+            tester,
+            home
+                ? const HomeV2Screen(showNavBar: false)
+                : const StackV2Screen(showNavBar: false),
+            stack: [
+              stackEntry(
+                id: 'supp-1',
+                name: 'Supplement',
+                type: 'supplement',
+                dsldId: '12345',
+              ),
+            ],
+            safetyReport: const StackSafetyReport(stackInteractions: [note]),
+          );
+          expect(find.text('1 safety signal to review'), findsNothing);
+          expect(find.text('1 Signal'), findsNothing);
+        },
+      );
+    }
 
     testWidgets('Home Stack Health uses the complete safety-signal count', (
       tester,

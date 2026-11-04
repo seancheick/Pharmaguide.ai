@@ -113,6 +113,8 @@ class _MedicationEntryV2ScreenState
   String _lastSavedDoseText = '';
   String _lastSavedFrequencyText = '';
   int _contextGeneration = 0;
+  // Identity hydration survives dose edits; only a new selection invalidates it.
+  int _selectionGeneration = 0;
   int _reviewGeneration = 0;
   String? _confirmedRoute;
   String? _confirmedUseContext;
@@ -139,6 +141,7 @@ class _MedicationEntryV2ScreenState
     _availableProcedures = {};
     _pairwiseChoiceProcedures = {};
     _contextGeneration++;
+    _selectionGeneration++;
     _reviewGeneration++;
     _resolvingClasses = false;
   }
@@ -234,6 +237,8 @@ class _MedicationEntryV2ScreenState
   // ───────── autocomplete plumbing ─────────
 
   void _onQueryChanged(String value) {
+    // A cleared/edited query invalidates work before the next debounce fires.
+    _searchVersion++;
     _resetMedicationContext();
     _debounce?.cancel();
     final trimmed = value.trim();
@@ -287,13 +292,13 @@ class _MedicationEntryV2ScreenState
     });
 
     if (results.isEmpty) {
-      await _loadOfflineFallback();
+      await _loadOfflineFallback(version);
     }
   }
 
-  Future<void> _loadOfflineFallback() async {
+  Future<void> _loadOfflineFallback(int version) async {
     final classes = await _service.offlineDrugClasses();
-    if (!mounted) return;
+    if (!mounted || version != _searchVersion) return;
     setState(() {
       _offlineClasses = classes;
       _offlineFallbackVisible = classes.isNotEmpty;
@@ -304,7 +309,7 @@ class _MedicationEntryV2ScreenState
 
   Future<void> _selectSuggestion(RxNormSuggestion suggestion) async {
     _resetMedicationContext();
-    final selectionGeneration = _contextGeneration;
+    final selectionGeneration = _selectionGeneration;
     final displayName = medicationDisplayName(suggestion.name);
     setState(() {
       _selectedName = displayName;
@@ -331,13 +336,13 @@ class _MedicationEntryV2ScreenState
 
     final classesResult = await classesFuture;
     if (!mounted ||
-        selectionGeneration != _contextGeneration ||
+        selectionGeneration != _selectionGeneration ||
         _selectedRxcui != suggestion.rxcui) {
       return;
     }
     final genericsResult = await genericsFuture;
     if (!mounted ||
-        selectionGeneration != _contextGeneration ||
+        selectionGeneration != _selectionGeneration ||
         _selectedRxcui != suggestion.rxcui) {
       return;
     }
@@ -354,7 +359,7 @@ class _MedicationEntryV2ScreenState
           runtimeClassIds: classesResult,
         );
     if (!mounted ||
-        selectionGeneration != _contextGeneration ||
+        selectionGeneration != _selectionGeneration ||
         _selectedRxcui != suggestion.rxcui) {
       return;
     }
@@ -433,8 +438,11 @@ class _MedicationEntryV2ScreenState
   }
 
   void _clearSelection() {
+    _debounce?.cancel();
+    _searchVersion++;
     _resetMedicationContext();
     setState(() {
+      _searching = false;
       _selectedName = null;
       _selectedRxcui = null;
       _selectedGenericRxcui = null;
@@ -1514,7 +1522,10 @@ class _MedicationProfileReviewCard extends StatelessWidget {
     if (!resolving && !unavailable && warnings.isEmpty) {
       return const SizedBox.shrink();
     }
-    final warning = warnings.isNotEmpty ? warnings.first : null;
+    final List<MedicationProfileWarning?> visibleWarnings =
+        !resolving && !unavailable && warnings.isNotEmpty
+        ? warnings
+        : const [null];
     final reviewStyle = context.v2.tintedLabel(
       context.v2.caution,
       borderAlpha: 0.32,
@@ -1551,33 +1562,43 @@ class _MedicationProfileReviewCard extends StatelessWidget {
               children: [
                 PGEyebrow('Profile review', color: reviewStyle.foreground),
                 const SizedBox(height: V2Spacing.space8),
-                Text(
-                  resolving
-                      ? 'Checking your profile'
-                      : unavailable
-                      ? 'Profile review unavailable'
-                      : warning?.headline ?? 'Review for your profile',
-                  style: V2Typography.titleSm(color: context.v2.fg),
-                ),
-                const SizedBox(height: V2Spacing.space8),
-                Text(
-                  resolving
-                      ? 'Looking for medication guidance tied to your profile.'
-                      : unavailable
-                      ? 'We couldn\'t complete this profile check. This is not '
-                            'an all-clear; try again before relying on it.'
-                      : warning?.body ?? '',
-                  style: V2Typography.bodySm(color: context.v2.fgMuted),
-                ),
-                if (!resolving &&
-                    !unavailable &&
-                    warning != null &&
-                    warning.management.trim().isNotEmpty) ...[
+                for (final (index, warning) in visibleWarnings.indexed) ...[
+                  if (index > 0) const SizedBox(height: V2Spacing.space16),
+                  Text(
+                    resolving
+                        ? 'Checking your profile'
+                        : unavailable
+                        ? 'Profile review unavailable'
+                        : warning?.headline ?? 'Review for your profile',
+                    style: V2Typography.titleSm(color: context.v2.fg),
+                  ),
                   const SizedBox(height: V2Spacing.space8),
                   Text(
-                    warning.management,
-                    style: V2Typography.caption(color: context.v2.fgMuted),
+                    resolving
+                        ? 'Looking for medication guidance tied to your profile.'
+                        : unavailable
+                        ? 'We couldn\'t complete this profile check. This is not '
+                              'an all-clear; try again before relying on it.'
+                        : warning?.body ?? '',
+                    style: V2Typography.bodySm(color: context.v2.fgMuted),
                   ),
+                  if (!resolving && !unavailable && warning != null) ...[
+                    const SizedBox(height: V2Spacing.space8),
+                    Text(
+                      warning.evidenceLevel.label,
+                      style: V2Typography.caption(color: context.v2.fgMuted),
+                    ),
+                  ],
+                  if (!resolving &&
+                      !unavailable &&
+                      warning != null &&
+                      warning.management.trim().isNotEmpty) ...[
+                    const SizedBox(height: V2Spacing.space8),
+                    Text(
+                      warning.management,
+                      style: V2Typography.caption(color: context.v2.fgMuted),
+                    ),
+                  ],
                 ],
               ],
             ),

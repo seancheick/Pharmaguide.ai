@@ -615,6 +615,27 @@ String initialAppLocation({
   return '${Routes.splashIntro}?next=${Uri.encodeComponent(Routes.onboarding)}';
 }
 
+/// Current bootstrap availability for the route tree. The router survives
+/// catalog replacement, so its builders must not capture the first boot state.
+class _CatalogAvailability extends InheritedWidget {
+  const _CatalogAvailability({
+    required this.available,
+    required this.reason,
+    required this.onRetry,
+    required super.child,
+  });
+
+  final bool available;
+  final String? reason;
+  final VoidCallback? onRetry;
+
+  @override
+  bool updateShouldNotify(_CatalogAvailability oldWidget) =>
+      available != oldWidget.available ||
+      reason != oldWidget.reason ||
+      onRetry != oldWidget.onRetry;
+}
+
 /// Single-instance app router. Created on first `_buildRouter` call and
 /// memoized so the global `_AuthEventListener` can call `.go(...)` after
 /// the auth round-trip lands (magic link return / Apple / Google native
@@ -622,21 +643,22 @@ String initialAppLocation({
 GoRouter? _appRouter;
 
 GoRouter _buildRouter({
-  required bool catalogAvailable,
   required bool hasSeenOnboarding,
-  String? catalogUnavailableReason,
-  VoidCallback? onRetryCatalogLoad,
   String? launchLocation,
 }) {
   if (_appRouter != null) return _appRouter!;
 
-  Widget catalogRoute(Widget child) {
-    if (catalogAvailable) return child;
-    return CatalogUnavailableScreen(
-      message: catalogUnavailableReason,
-      onRetry: onRetryCatalogLoad,
-    );
-  }
+  Widget catalogRoute(Widget child) => Builder(
+    builder: (context) {
+      final availability = context
+          .dependOnInheritedWidgetOfExactType<_CatalogAvailability>()!;
+      if (availability.available) return child;
+      return CatalogUnavailableScreen(
+        message: availability.reason,
+        onRetry: availability.onRetry,
+      );
+    },
+  );
 
   // DEV_ROUTE dart-define short-circuits the normal launch path so
   // `make run-v2` (or `flutter run --dart-define=DEV_ROUTE=/dev/v2`) lands
@@ -1284,10 +1306,7 @@ class PharmaGuideApp extends ConsumerWidget {
       // AppThemePreference.system still resolves to ThemeMode.system.
       themeMode: appPreferencesController.preferences.theme.themeMode,
       routerConfig: _buildRouter(
-        catalogAvailable: catalogAvailable,
         hasSeenOnboarding: hasSeenOnboarding,
-        catalogUnavailableReason: catalogUnavailableReason,
-        onRetryCatalogLoad: onRetryCatalogLoad,
         launchLocation: launchLocation,
       ),
       // Global Dynamic Type clamp.
@@ -1318,7 +1337,12 @@ class PharmaGuideApp extends ConsumerWidget {
         );
         return ReduceTransparencyScope(
           notifier: ReduceTransparency.enabled,
-          child: AppSwitcherCover(child: scaled),
+          child: _CatalogAvailability(
+            available: catalogAvailable,
+            reason: catalogUnavailableReason,
+            onRetry: onRetryCatalogLoad,
+            child: AppSwitcherCover(child: scaled),
+          ),
         );
       },
     );

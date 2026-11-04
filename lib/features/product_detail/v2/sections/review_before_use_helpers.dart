@@ -102,15 +102,18 @@ PGReviewTone computeReviewTone({
     }
   }
   for (final m in allergens) {
-    switch (m.presenceType) {
-      case 'contains':
-        hasDanger = true;
-      case 'may_contain':
-        hasCaution = true;
-      case 'manufactured_in_facility':
-        // Facility tier → info (default fallback).
-        break;
+    // Unknown presence historically has an amber row but does not promote
+    // the aggregate card. Preserve that compatibility until the data is known.
+    if (!const {
+      'contains',
+      'may_contain',
+      'manufactured_in_facility',
+    }.contains(m.presenceType)) {
+      continue;
     }
+    final severity = allergenPresenceSeverity(m.presenceType);
+    if (severity.isHard) hasDanger = true;
+    if (severity.isActionable) hasCaution = true;
   }
   if (hasDanger) return PGReviewTone.danger;
   if (hasCaution) return PGReviewTone.caution;
@@ -118,18 +121,8 @@ PGReviewTone computeReviewTone({
 }
 
 /// Per-row tone for an allergen match.
-PGReviewTone toneForAllergen(String presenceType) {
-  switch (presenceType) {
-    case 'contains':
-      return PGReviewTone.danger;
-    case 'may_contain':
-      return PGReviewTone.caution;
-    case 'manufactured_in_facility':
-      return PGReviewTone.info;
-    default:
-      return PGReviewTone.caution;
-  }
-}
+PGReviewTone toneForAllergen(String presenceType) =>
+    toneForWarning(allergenPresenceSeverity(presenceType));
 
 /// Per-row tone for an interaction warning.
 PGReviewTone toneForWarning(Severity severity) {
@@ -179,7 +172,7 @@ String affirmativeCopy(int count) {
 /// presence type + display name + optional evidence verbatim from the
 /// pipeline so users still see the source quote.
 PGReviewRow rowForAllergen(MatchedAllergen match) {
-  final tag = _allergenTag(match.presenceType);
+  final tag = allergenPresenceLabel(match.presenceType);
   final captionParts = <String>[
     tag,
     if (match.presenceType == 'contains' && match.severityLevel == 'high')
@@ -246,7 +239,7 @@ PGReviewRow _rowForAllergenGroup(
   }
 
   final captionParts = <String>[
-    _allergenTag(presenceType),
+    allergenPresenceLabel(presenceType),
     if (hasSevere) 'severe',
     ...evidence,
   ];
@@ -444,19 +437,6 @@ String? buildConflictFooterBody(List<String> conflicts) {
 // =========================================================================
 // Private helpers.
 // =========================================================================
-
-String _allergenTag(String presenceType) {
-  switch (presenceType) {
-    case 'contains':
-      return 'Contains';
-    case 'may_contain':
-      return 'May contain';
-    case 'manufactured_in_facility':
-      return 'Facility';
-    default:
-      return 'Allergen';
-  }
-}
 
 /// Pipeline-authored context is informational and has displayable copy.
 /// Shared by the notes renderer and the older-catalog history fallback.

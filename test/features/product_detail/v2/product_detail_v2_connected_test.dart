@@ -38,6 +38,8 @@ import 'package:pharmaguide/features/profile/profile_provider.dart';
 import 'package:pharmaguide/features/stack/providers/active_stack_provider.dart';
 import 'package:pharmaguide/features/stack/providers/stack_safety_providers.dart';
 
+import '../../../services/safety_alerts/signed_feed_support.dart';
+
 const _connectedDsldId = 'label-ledger-connected';
 const _connectedFingerprint =
     '0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef';
@@ -198,13 +200,14 @@ Future<void> _pumpConnectedScreen(
   Set<String> stackMedicationClassIds = const {},
   _Rules rules = _Rules.available,
   bool realWarnings = false,
+  UserDatabase? profileDatabase,
   List<SafetyAlert> liveAlerts = const [],
   bool qualityWithheld = false,
   SafetyAlertRepository Function()? buildAlertFeed,
   Stream<ConnectionStatus>? connection,
 }) async {
   final coreDb = CoreDatabase.memory(qualityWithheld: qualityWithheld);
-  final userDb = UserDatabase.memory();
+  final userDb = profileDatabase ?? UserDatabase.memory();
   final interactionDb = InteractionDatabase.memory();
   await _seedConnectedProduct(
     coreDb,
@@ -303,6 +306,16 @@ Future<void> _pumpConnectedScreen(
   }
 }
 
+class _RetryProfileDatabase extends UserDatabase {
+  _RetryProfileDatabase() : super.memory();
+  bool failReads = true;
+  @override
+  Future<UserProfile?> getProfile() {
+    if (failReads) throw StateError('profile unavailable');
+    return super.getProfile();
+  }
+}
+
 /// A feed that loaded and has nothing to say, for tests about something else.
 class _VerifiedNoAlerts implements SafetyAlertRepository {
   @override
@@ -386,15 +399,19 @@ class _AlertFeed {
             jsonEncode({
               'feed_path': 'safety/feed.json',
               'checksum': 'sha256:${sha256.convert(bytes)}',
-              'manifest': server == _FeedServer.extendedUnavailable
-                  ? {
-                      'extended_feed': {
-                        'path': 'safety/extended.json',
-                        'checksum':
-                            'sha256:${sha256.convert(_alertsForOtherProducts)}',
-                      },
-                    }
-                  : null,
+              'manifest': {
+                'signed_feed': await signedFeedBlock(
+                  path: 'safety/feed.json',
+                  checksum: 'sha256:${sha256.convert(bytes)}',
+                  extended: server == _FeedServer.extendedUnavailable
+                      ? {
+                          'path': 'safety/extended.json',
+                          'checksum':
+                              'sha256:${sha256.convert(_alertsForOtherProducts)}',
+                        }
+                      : null,
+                ),
+              },
             }),
             200,
             headers: {'content-type': 'application/json'},
@@ -407,6 +424,7 @@ class _AlertFeed {
   late final repository = SafetyAlertRepository(
     client: _client,
     preferences: saved,
+    verificationKeys: testAlertFeedKeys,
   );
 
   /// Fetches once, so this phone holds a verified copy, then loses the server.
@@ -750,7 +768,7 @@ void main() {
         mappedCoverage: 1,
       );
       const allClear = 'No known concerns';
-      const incomplete = 'Personalized checks are incomplete';
+      const incomplete = 'Recent safety alerts couldn’t load';
       final blob = <String, dynamic>{
         'ingredients': const <Map<String, dynamic>>[],
         'display_ingredients': [_activeLedgerRow('Active row', 0)],
@@ -1028,8 +1046,10 @@ void main() {
           await open(
             tester,
             null,
-            buildAlertFeed: () =>
-                SafetyAlertRepository(preferences: feed.saved),
+            buildAlertFeed: () => SafetyAlertRepository(
+              preferences: feed.saved,
+              verificationKeys: testAlertFeedKeys,
+            ),
           );
 
           expect(find.text(allClear), findsOneWidget);
@@ -1476,6 +1496,38 @@ void main() {
       expect(find.text('No comparable alternatives found'), findsNothing);
       expect(find.text('See higher-quality options'), findsNothing);
     });
+
+    testWidgets(
+      'Retry recovers the saved profile after a database read failure',
+      (tester) async {
+        final db = _RetryProfileDatabase();
+        await db.saveProfile(
+          const ProfileState(
+            nickname: 'Saved',
+            conditions: ['pregnancy'],
+          ).toCompanion(),
+        );
+        await _pumpConnectedScreen(
+          tester,
+          profileDatabase: db,
+          initialSection: null,
+          detailBlob: {'ingredients': const <Map<String, dynamic>>[]},
+        );
+        final container = ProviderScope.containerOf(
+          tester.element(find.byType(ProductDetailV2ConnectedScreen)),
+        );
+        expect(container.read(profileLoadedProvider).hasError, isTrue);
+        expect(find.text('Personalized checks are incomplete'), findsOneWidget);
+        db.failReads = false;
+        await tester.ensureVisible(find.text('Retry'));
+        await tester.tap(find.text('Retry'));
+        await tester.pumpAndSettle();
+        expect(container.read(profileLoadedProvider).hasError, isFalse);
+        expect(container.read(profileProvider).conditions, ['pregnancy']);
+        expect(container.read(profileProvider).nickname, 'Saved');
+        expect(find.text('Personalized checks are incomplete'), findsNothing);
+      },
+    );
 
     testWidgets('failed checks offer a Retry that runs them again', (
       tester,
