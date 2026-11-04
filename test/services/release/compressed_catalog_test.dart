@@ -29,6 +29,14 @@ String _shaOf(List<int> bytes) => sha256.convert(bytes).toString();
 
 /// Storage as a phone sees it: an object by path, Range included, or the 400 the
 /// real public endpoint answers for an object that isn't there.
+class _StorageClient extends http.BaseClient {
+  _StorageClient(this.current);
+  final _FakeStorage Function() current;
+  @override
+  Future<http.StreamedResponse> send(http.BaseRequest request) =>
+      current().send(request);
+}
+
 class _FakeStorage extends http.BaseClient {
   final Map<String, List<int>> objects = {};
   final List<String> requested = [];
@@ -36,11 +44,23 @@ class _FakeStorage extends http.BaseClient {
   /// Paths whose body stops after this many bytes, then fails.
   final Map<String, int> dropAfter = {};
   final List<String?> ranges = [];
+  final Map<String, (int, String)> failures = {};
 
   @override
   Future<http.StreamedResponse> send(http.BaseRequest request) async {
     final key = request.url.path.split('/pharmaguide/').last;
     requested.add(key);
+    final failure = failures[key];
+    if (failure != null) {
+      // Denied public access exercises the real authenticated SDK fallback.
+      if (request.url.path.contains('/object/public/')) {
+        return http.StreamedResponse(const Stream.empty(), 403);
+      }
+      return http.StreamedResponse(
+        Stream.value(utf8.encode(failure.$2)),
+        failure.$1,
+      );
+    }
     final range = request.headers['range'];
     ranges.add(range);
     final bytes = objects[key];
@@ -101,6 +121,7 @@ void main() {
     await Supabase.initialize(
       url: 'https://example.test',
       publishableKey: 'test',
+      httpClient: _StorageClient(() => storage),
     );
   });
 
@@ -348,6 +369,48 @@ void main() {
       open.add((result as ReleaseActivated).generation);
       expect(result.generation.record.catalogVersion, _version);
     }, timeout: const Timeout(Duration(minutes: 2)));
+
+    test(
+      'a storage server failure keeps compressed download retryable',
+      () async {
+        publish();
+        final phone = await launch();
+        storage.failures[gzPath] = (503, '{"error":"internal_server_error"}');
+        await expectLater(
+          service().stageCatalog(
+            downloads: phone.store.downloads,
+            version: _version,
+            expectedSha256: catalogSha,
+          ),
+          throwsA(isA<StorageException>()),
+        );
+        expect(storage.requested, isNot(contains(rawPath)));
+        await expectLastGoodActive(phone.store);
+      },
+      timeout: const Timeout(Duration(minutes: 2)),
+    );
+
+    test(
+      'a missing compressed object still uses verified plain bytes',
+      () async {
+        publish();
+        final phone = await launch();
+        storage.failures[gzPath] = (
+          400,
+          '{"error":"not_found","message":"Object not found"}',
+        );
+        final staged = await service().stageCatalog(
+          downloads: phone.store.downloads,
+          version: _version,
+          expectedSha256: catalogSha,
+        );
+        expect(storage.requested, contains(rawPath));
+        final activated = await phone.store.activate(candidateFrom(staged));
+        open.add((activated as ReleaseActivated).generation);
+        expect(activated.generation.record.catalogVersion, _version);
+      },
+      timeout: const Timeout(Duration(minutes: 2)),
+    );
 
     test(
       'a transient failure does not spend the plain 66 MB download',

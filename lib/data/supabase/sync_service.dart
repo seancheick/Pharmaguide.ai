@@ -430,7 +430,24 @@ class SyncService {
       await discard();
       return false;
     } on StorageException catch (error) {
-      // Neither the public path nor the authed one has it.
+      // A failed storage service is not proof the compressed object is absent.
+      // Preserve partial bytes and let the normal updater retry those failures.
+      var code = error.error;
+      if (error.statusCode == '400' && code == null) {
+        // The pinned storage SDK leaves download error JSON in message.
+        try {
+          final payload = jsonDecode(error.message);
+          if (payload is Map && payload['error'] is String) {
+            code = payload['error'] as String;
+          }
+        } on FormatException {
+          // An unrecognized response is not evidence of a missing object.
+        }
+      }
+      final missing =
+          error.statusCode == '404' ||
+          (error.statusCode == '400' && code == 'not_found');
+      if (!missing) rethrow;
       CrashReportingService().log('catalog gz missing: ${error.statusCode}');
       await discard();
       return false;
