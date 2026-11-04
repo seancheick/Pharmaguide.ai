@@ -63,6 +63,13 @@ DoseSafety resolveDoseSafety({
   if (_hasConfirmedUlExceedance(entry, ingredient: ingredient)) {
     return DoseSafety.exceedsUl;
   }
+  final rangeRow = _ulRangeRow(entry, ingredient: ingredient);
+  if (rangeRow != null) {
+    final high = _rangePctOfUl(rangeRow, entry, high: true);
+    return high != null && high <= 100.0
+        ? DoseSafety.withinLimits
+        : DoseSafety.skip;
+  }
   if (_hasStructuredUlDecision(entry)) return DoseSafety.withinLimits;
 
   final pct = _quantityPctOfUl(entry, ingredient: ingredient);
@@ -84,6 +91,11 @@ bool _hasConfirmedUlExceedance(
 
   final overUl = entry['over_ul'];
   if (overUl == true) return true;
+  // A range is read ahead of a decision made on the row's single figure.
+  final rangeRow = _ulRangeRow(entry, ingredient: ingredient);
+  if (rangeRow != null) {
+    return (_rangePctOfUl(rangeRow, entry, high: false) ?? 0) > 100.0;
+  }
   if (overUl == false) return false;
 
   final pctUl = asFiniteDouble(entry['pct_ul']);
@@ -92,6 +104,29 @@ bool _hasConfirmedUlExceedance(
   if (_hasStructuredUlDecision(entry)) return false;
 
   return (_quantityPctOfUl(entry, ingredient: ingredient) ?? 0) > 100.0;
+}
+
+Map<String, dynamic>? _ulRangeRow(
+  Map<String, dynamic> entry, {
+  Map<String, dynamic>? ingredient,
+}) {
+  if (hasUlDoseRange(entry)) return entry;
+  if (entry.containsKey('safety_exposure')) return null;
+  return ingredient != null && hasUlDoseRange(ingredient) ? ingredient : null;
+}
+
+double? _rangePctOfUl(
+  Map<String, dynamic> rangeRow,
+  Map<String, dynamic> entry, {
+  required bool high,
+}) {
+  final range = readUlDoseRange(rangeRow);
+  if (range == null) return null;
+  return _amountPctOfUl(
+    high ? range.high : range.low,
+    unit: readUlDoseUnit(rangeRow),
+    entry: entry,
+  );
 }
 
 bool _hasStructuredUlDecision(Map<String, dynamic> entry) {
@@ -113,6 +148,20 @@ double? _quantityPctOfUl(
             asFiniteDouble(ingredient?['quantity']);
   if (quantity == null || quantity <= 0) return null;
 
+  return _amountPctOfUl(
+    quantity,
+    unit: exposureRow != null
+        ? readUlDoseUnit(exposureRow)
+        : (entry['unit'] ?? ingredient?['unit'] ?? '').toString(),
+    entry: entry,
+  );
+}
+
+double? _amountPctOfUl(
+  double quantity, {
+  required String unit,
+  required Map<String, dynamic> entry,
+}) {
   // UL resolution order honoring the pipeline contract:
   //   1. ul_for_default_profile — age/sex-aware UL when the pipeline
   //      resolved one for the anonymous default (adult 19-30).
@@ -132,14 +181,11 @@ double? _quantityPctOfUl(
   // blobs) assume it already matches the disclosed unit (legacy behavior);
   // when the units differ and cannot be reconciled (e.g. IU ↔ mg, which is
   // form-dependent) NEVER guess — decline to flag.
-  final quantityUnit = exposureRow != null
-      ? readUlDoseUnit(exposureRow)
-      : (entry['unit'] ?? ingredient?['unit'] ?? '').toString();
   final ulUnit = (entry['nutrient_unit'] ?? entry['converted_unit'] ?? '')
       .toString();
   final comparableQuantity = _quantityInUlUnit(
     quantity,
-    quantityUnit: quantityUnit,
+    quantityUnit: unit,
     ulUnit: ulUnit,
   );
   if (comparableQuantity == null) return null;
@@ -160,7 +206,9 @@ double? _quantityInUlUnit(
   final to = normalizeDoseUnit(ulUnit);
   // No UL unit disclosed (or no quantity unit) → assume same reference unit,
   // matching the historical same-unit comparison.
-  if (from.isEmpty || to.isEmpty || from == to) return quantity;
+  if (from.isEmpty || to.isEmpty || doseUnitMatchesReference(from, to)) {
+    return quantity;
+  }
 
   final fromGrams = massGramsFactor(from);
   final toGrams = massGramsFactor(to);

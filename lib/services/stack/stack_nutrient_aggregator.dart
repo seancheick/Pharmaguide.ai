@@ -192,7 +192,11 @@ class StackNutrientAggregator {
           final ulAmount = readUlDoseAmount(row);
           final ulUnit = readUlDoseUnit(row);
           if (ulAmount != null && ulAmount >= 0 && ulUnit.isNotEmpty) {
-            total.addUlComparableAmount(ulAmount, ulUnit);
+            total.addUlComparableAmount(
+              ulAmount,
+              ulUnit,
+              range: readUlDoseRange(row),
+            );
           } else {
             total.hasUnresolvedUlContribution = true;
           }
@@ -286,6 +290,8 @@ class StackNutrientAggregator {
           excludedContributions: List.unmodifiable(value.excludedContributions),
           ulComparableTotalAmount: value.ulComparableTotalAmount,
           ulComparableUnit: value.ulComparableUnit,
+          ulComparableLowAmount: value.hasUlRange ? value.ulLowAmount : null,
+          ulComparableHighAmount: value.hasUlRange ? value.ulHighAmount : null,
           hasUlExposureContract: value.hasUlExposureContract,
           hasUnresolvedUlContribution:
               value.hasUnresolvedUlContribution &&
@@ -628,13 +634,20 @@ class _MutableTotal {
   double minimumTotalAmount = 0.0;
   double? ulComparableTotalAmount;
   String? ulComparableUnit;
+  double ulLowAmount = 0;
+  double ulHighAmount = 0;
+  bool hasUlRange = false;
   bool hasUlExposureContract = false;
   bool hasUnresolvedUlContribution = false;
   bool hasUnitConflict = false;
   final List<NutrientContribution> contributions = [];
   final List<ExcludedNutrientContribution> excludedContributions = [];
 
-  void addUlComparableAmount(double amount, String unit) {
+  void addUlComparableAmount(
+    double amount,
+    String unit, {
+    ({double low, double high})? range,
+  }) {
     if (unit.isEmpty) {
       hasUnresolvedUlContribution = true;
       return;
@@ -643,6 +656,9 @@ class _MutableTotal {
     if (targetUnit == null || targetUnit.isEmpty) {
       ulComparableUnit = unit;
       ulComparableTotalAmount = amount;
+      ulLowAmount = range?.low ?? amount;
+      ulHighAmount = range?.high ?? amount;
+      hasUlRange = hasUlRange || range != null;
       return;
     }
     final converted = amountInMass(amount, from: unit, to: targetUnit);
@@ -651,6 +667,13 @@ class _MutableTotal {
       return;
     }
     ulComparableTotalAmount = (ulComparableTotalAmount ?? 0) + converted;
+    ulLowAmount += range == null
+        ? converted
+        : amountInMass(range.low, from: unit, to: targetUnit) ?? converted;
+    ulHighAmount += range == null
+        ? converted
+        : amountInMass(range.high, from: unit, to: targetUnit) ?? converted;
+    hasUlRange = hasUlRange || range != null;
   }
 
   bool get hasCompleteUlCoverage {

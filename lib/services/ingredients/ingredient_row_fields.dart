@@ -110,7 +110,30 @@ double? readUlDoseAmount(Map<String, dynamic> row) {
   if (!row.containsKey('safety_exposure')) return readDoseAmount(row);
   final exposure = row['safety_exposure'];
   if (exposure is! Map || readUlDoseUnit(row).isEmpty) return null;
+  if (hasUlDoseRange(row) && readUlDoseRange(row) == null) return null;
   return asFiniteDouble(exposure['per_day']);
+}
+
+/// Whether [row]'s `safety_exposure` is a form range rather than one figure.
+bool hasUlDoseRange(Map<String, dynamic> row) {
+  final exposure = row['safety_exposure'];
+  return exposure is Map &&
+      (exposure.containsKey('low_per_day') ||
+          exposure.containsKey('high_per_day'));
+}
+
+/// The bounds of a form-range row, at maximum servings in the row's UL unit, or
+/// null when it has no range or a malformed one. A low above a limit establishes
+/// an excess, a high at or below it rules one out, and anything between is
+/// unresolved. `per_day` is not a stand-in: 64845 reads 60.3 mg beside 80-176.3.
+({double low, double high})? readUlDoseRange(Map<String, dynamic> row) {
+  if (!hasUlDoseRange(row) || hasUnresolvedDoseUnit(row)) return null;
+  final exposure = row['safety_exposure'] as Map;
+  final low = asFiniteDouble(exposure['low_per_day']);
+  final high = asFiniteDouble(exposure['high_per_day']);
+  if (low == null || high == null || low < 0 || high < low) return null;
+  if (readUlDoseUnit(row).isEmpty) return null;
+  return (low: low, high: high);
 }
 
 String readUlDoseUnit(Map<String, dynamic> row) {

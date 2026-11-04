@@ -141,6 +141,8 @@ class NutrientTotal {
     this.excludedContributions = const [],
     this.ulComparableTotalAmount,
     this.ulComparableUnit,
+    this.ulComparableLowAmount,
+    this.ulComparableHighAmount,
     this.hasUlExposureContract = false,
     this.hasUnresolvedUlContribution = false,
   });
@@ -165,6 +167,11 @@ class NutrientTotal {
   /// Vitamin E are common examples).
   final double? ulComparableTotalAmount;
   final String? ulComparableUnit;
+
+  /// Bounds of [ulComparableTotalAmount] in [ulComparableUnit], when a row in
+  /// the total carries a form range; null when every row states one figure.
+  final double? ulComparableLowAmount;
+  final double? ulComparableHighAmount;
 
   /// True when the total came through the pipeline's explicit UL-eligibility
   /// contract on at least one row. Per-contribution provenance distinguishes

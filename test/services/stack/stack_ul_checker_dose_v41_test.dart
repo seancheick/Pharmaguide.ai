@@ -453,6 +453,85 @@ void main() {
     },
   );
 
+  group('a form-range row against the limit', () {
+    const rangeChecker = StackUlChecker(
+      rdaData: {
+        'nutrient_recommendations': [
+          {
+            'id': 'vitamin_e',
+            'standard_name': 'Vitamin E',
+            'unit': 'mg alpha-tocopherol',
+            'data': [
+              {'group': 'Male', 'age_range': '19-30', 'rda_ai': 15, 'ul': 1000},
+            ],
+          },
+        ],
+      },
+    );
+
+    NutrientStatus status(List<StackItemNutrients> stack) {
+      const aggregator = StackNutrientAggregator();
+      return rangeChecker
+          .check(
+            aggregator.aggregate(stack),
+            ageBracket: '19-30',
+            sex: 'Male',
+            pipelineVerdicts: aggregator.extractPipelineUlVerdicts(stack),
+          )
+          .single;
+    }
+
+    test('a low above the limit establishes the excess', () {
+      final result = status([_rangeItem('a', 1005, 1200)]);
+
+      expect(result.tier, NutrientTier.exceedsUl);
+      expect(result.pctOfUl, closeTo(100.5, 0.001));
+      expect(result.ulAssessmentIndeterminate, isFalse);
+    });
+
+    test('a high at or below the limit rules the excess out', () {
+      final result = status([_rangeItem('a', 80, 176.3)]);
+
+      expect(result.pctOfUl, closeTo(17.63, 0.001));
+      expect(result.tier, isNot(NutrientTier.exceedsUl));
+      expect(result.ulAssessmentIndeterminate, isFalse);
+    });
+
+    test('a range across the limit is unresolved and keeps the intake', () {
+      final result = status([_rangeItem('a', 26, 1776)]);
+
+      expect(result.ulAssessmentIndeterminate, isTrue);
+      expect(result.pctOfUl, isNull);
+      expect(result.tier, isNot(NutrientTier.exceedsUl));
+      expect(result.tier, isNot(NutrientTier.approachingUl));
+      expect(result.total.totalAmount, 26);
+    });
+
+    test('bounds add across a stack with an exact product', () {
+      List<StackItemNutrients> stack(double exact) => [
+        _rangeItem('a', 80, 176.3),
+        _rangeItem('b', exact, exact, range: false),
+      ];
+
+      final across = status(stack(900));
+      expect(across.ulAssessmentIndeterminate, isTrue);
+      expect(across.pctOfUl, isNull);
+
+      expect(status(stack(925)).tier, NutrientTier.exceedsUl);
+
+      final below = status(stack(800));
+      expect(below.ulAssessmentIndeterminate, isFalse);
+      expect(below.pctOfUl, closeTo(97.63, 0.001));
+    });
+
+    test('a pipeline excess is not reduced by the range', () {
+      final result = status([_rangeItem('a', 26, 1776, overUl: true)]);
+
+      expect(result.tier, NutrientTier.exceedsUl);
+      expect(result.ulAssessmentIndeterminate, isFalse);
+    });
+  });
+
   test(
     'a percentage-only verdict exceeds above 100%, matching the pipeline',
     () {
@@ -461,6 +540,36 @@ void main() {
     },
   );
 }
+
+StackItemNutrients _rangeItem(
+  String id,
+  double low,
+  double high, {
+  bool range = true,
+  bool? overUl,
+}) => StackItemNutrients(
+  stackEntryId: id,
+  productName: id,
+  ingredients: [
+    {
+      'canonical_id': 'vitamin_e',
+      'name': 'Vitamin E',
+      'dose_role': 'declared_total',
+      'per_day_min': low,
+      'per_day_max': low,
+      'converted_unit': 'mg',
+      'skip_ul_check': false,
+      'ul_gate_eligible': true,
+      'ul_assessment_status': 'evaluated',
+      'over_ul': ?overUl,
+      'safety_exposure': {
+        'per_day': low,
+        'unit': 'mg',
+        if (range) ...{'low_per_day': low, 'high_per_day': high},
+      },
+    },
+  ],
+);
 
 NutrientTotal _total(String id, double amount) => NutrientTotal(
   canonicalId: id,

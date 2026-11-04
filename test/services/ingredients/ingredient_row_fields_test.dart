@@ -280,4 +280,40 @@ void main() {
       );
     });
   });
+
+  group('readUlDoseRange', () {
+    Map<String, dynamic> row(Map<String, dynamic> exposure) => {
+      'canonical_id': 'vitamin_e',
+      'per_day_max': 60.3,
+      'converted_unit': 'mg',
+      'safety_exposure': {'per_day': 60.3, 'unit': 'mg', ...exposure},
+    };
+
+    test('reads both bounds, with per_day kept for existing readers', () {
+      final range = row({'low_per_day': 80.0, 'high_per_day': '176.3'});
+
+      expect(readUlDoseRange(range)?.low, 80);
+      expect(readUlDoseRange(range)?.high, 176.3);
+      expect(readUlDoseAmount(range), 60.3);
+    });
+
+    test('an exact row has no range', () {
+      expect(hasUlDoseRange(row({})), isFalse);
+      expect(readUlDoseRange(row({})), isNull);
+      expect(readUlDoseAmount(row({})), 60.3);
+    });
+
+    test('a malformed range does not fall back to per_day', () {
+      for (final exposure in [
+        {'low_per_day': 80.0},
+        {'high_per_day': 176.3},
+        {'low_per_day': 'bad', 'high_per_day': 176.3},
+        {'low_per_day': 200.0, 'high_per_day': 176.3},
+      ]) {
+        expect(hasUlDoseRange(row(exposure)), isTrue, reason: '$exposure');
+        expect(readUlDoseRange(row(exposure)), isNull, reason: '$exposure');
+        expect(readUlDoseAmount(row(exposure)), isNull, reason: '$exposure');
+      }
+    });
+  });
 }
