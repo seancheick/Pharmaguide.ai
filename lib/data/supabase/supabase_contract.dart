@@ -47,12 +47,6 @@ abstract final class SupabaseContract {
   static String detailIndexPath(String version) =>
       'v$version/detail_index.json';
 
-  /// Product image object key inside the [productImageBucket] bucket.
-  /// NOTE: the returned value is the object path *within* the bucket —
-  /// callers must target [productImageBucket], not [storageBucket].
-  /// Full URL: `{productImageBucket}/{dsldId}.webp`
-  static String productImagePath(String dsldId) => '$dsldId.webp';
-
   // ---- Tables ----
 
   /// Pipeline manifest table — tracks current DB version.
