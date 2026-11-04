@@ -221,8 +221,10 @@ void main() {
     await tester.pump();
     await tester.tap(find.text('Not now'), warnIfMissed: false);
     await tester.pump();
-    await tester.tapAt(const Offset(10, 10));
-    await tester.pump();
+    await tester.binding.handlePopRoute();
+    // Long enough for a dismissal to finish, with the erase still running.
+    await tester.pump(const Duration(milliseconds: 100));
+    await tester.pump(const Duration(milliseconds: 600));
     expect(erases, 1);
     expect(find.byType(FilledButton), findsOneWidget, reason: 'stays open');
 
