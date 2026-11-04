@@ -664,6 +664,7 @@ void main() {
         String conditionId = 'hypertension',
         String comparator = '>',
         double threshold = 400,
+        String? profileFlag,
       }) => {
         'type': 'interaction',
         'severity': 'caution',
@@ -674,11 +675,11 @@ void main() {
         'condition_ids': [conditionId],
         'direction': 'harmful',
         'profile_gate': {
-          'gate_type': 'condition',
+          'gate_type': profileFlag == null ? 'condition' : 'profile_flag',
           'requires': {
-            'conditions_any': [conditionId],
+            'conditions_any': profileFlag == null ? [conditionId] : <String>[],
             'drug_classes_any': <String>[],
-            'profile_flags_any': <String>[],
+            'profile_flags_any': [?profileFlag],
           },
           'excludes': <String, Object?>{},
           'dose': null,
@@ -712,6 +713,7 @@ void main() {
       Future<ProviderContainer> stack(
         Map<String, Map<String, Object?>> blobs, {
         List<String> conditions = const ['hypertension'],
+        Set<String> profileFlags = const <String>{},
       }) async {
         final coreDb = CoreDatabase.memory();
         final userDb = UserDatabase.memory();
@@ -740,7 +742,7 @@ void main() {
             coreDatabaseProvider.overrideWithValue(coreDb),
             userDatabaseProvider.overrideWithValue(userDb),
             evaluatorProfileFlagsProvider.overrideWith(
-              (ref) async => const <String>{},
+              (ref) async => profileFlags,
             ),
           ],
         );
@@ -768,6 +770,86 @@ void main() {
           ),
         ],
       };
+
+      group('the replay labels', () {
+        final caffeineAt400 = card('form_unknown');
+        // 249741 prints 180 mg of caffeine anhydrous and 30 mg of di-caffeine
+        // malate, and the malate's caffeine share is not on the label.
+        final bulkRows = [row('Caffeine', 180), row('Caffeine', 30)];
+        final cases =
+            <
+              String,
+              ({Map<String, Object?> blob, String condition, Set<String> flags})
+            >{
+              '27808 hypertension': (
+                blob: {
+                  'ingredients': [row('Caffeine', 650)],
+                  'warnings': [caffeineAt400],
+                },
+                condition: 'hypertension',
+                flags: const {},
+              ),
+              '28993 hypertension': (
+                blob: {
+                  'ingredients': [row('Caffeine', 600)],
+                  'warnings': [caffeineAt400],
+                },
+                condition: 'hypertension',
+                flags: const {},
+              ),
+              '249741 pregnancy': (
+                blob: {
+                  'ingredients': bulkRows,
+                  'warnings': [
+                    card(
+                      'form_unknown',
+                      conditionId: 'pregnancy',
+                      threshold: 200,
+                      profileFlag: 'pregnant',
+                    ),
+                  ],
+                },
+                condition: 'pregnancy',
+                flags: const {'pregnant'},
+              ),
+              '249741 ttc': (
+                blob: {
+                  'ingredients': bulkRows,
+                  'warnings': [
+                    card(
+                      'form_unknown',
+                      disposition: 'suppress',
+                      conditionId: 'ttc',
+                      comparator: '>=',
+                      threshold: 200,
+                    ),
+                  ],
+                },
+                condition: 'ttc',
+                flags: const {},
+              ),
+            };
+
+        for (final MapEntry(key: name, value: label) in cases.entries) {
+          test('$name claims no number and reads as incomplete', () async {
+            final container = await stack(
+              {'LABEL': label.blob},
+              conditions: [label.condition],
+              profileFlags: label.flags,
+            );
+
+            final alerts = await container.read(
+              stackDoseThresholdAlertsProvider.future,
+            );
+
+            expect(alerts.map((alert) => alert.totalValue), isEmpty);
+            expect(
+              await container.read(stackDoseRulesUnreadProvider.future),
+              isTrue,
+            );
+          });
+        }
+      });
 
       test(
         'claims no crossing from the rows and reads as incomplete',
