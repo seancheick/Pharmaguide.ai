@@ -9,7 +9,7 @@ import 'package:pharmaguide/core/models/interaction_result.dart';
 import 'package:pharmaguide/core/models/timing_optimization.dart';
 import 'package:pharmaguide/core/scoring/coverage.dart';
 import 'package:pharmaguide/core/utils/product_canonical_ids.dart'
-    show normalizeCanonicalId;
+    show normalizeCanonicalId, canonicalIdsFromJsonString;
 import 'package:pharmaguide/data/database/core_database.dart';
 import 'package:pharmaguide/data/database/user_database.dart';
 import 'package:pharmaguide/data/providers/database_providers.dart';
@@ -133,22 +133,33 @@ final safetyCheckForAddProvider = FutureProvider.family
           .where((e) => e.type == 'medication')
           .toList(growable: false);
 
-      var checksIncomplete = false;
+      final candidateIds = canonicalIdsForProduct(candidate);
+      var checksIncomplete =
+          isLowCoverage(candidate.mappedCoverage) || candidateIds.isEmpty;
 
       // Missing catalog identities still make a check incomplete, even though
       // clinical findings come only from authored interaction rows.
       for (final entry in supplementRows) {
         final id = entry.dsldId;
-        if (id == null || id.isEmpty) continue;
+        if (id == null || id.isEmpty) {
+          checksIncomplete = true;
+          continue;
+        }
+        if (canonicalIdsFromJsonString(entry.ingredientKeys).isEmpty) {
+          checksIncomplete = true;
+        }
         try {
           final product = await coreDb.findById(id);
-          if (product == null) checksIncomplete = true;
+          if (product == null ||
+              isLowCoverage(product.mappedCoverage) ||
+              canonicalIdsForProduct(product).isEmpty) {
+            checksIncomplete = true;
+          }
         } on Object {
           checksIncomplete = true;
         }
       }
 
-      final candidateIds = canonicalIdsForProduct(candidate);
       final checker = StackInteractionChecker();
       final pairwiseDoseResult = await _pairwiseDoseTotalsFor(
         ref,
