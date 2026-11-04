@@ -921,6 +921,105 @@ void main() {
     });
   });
 
+  group('a dose rule nobody could read is no all-clear', () {
+    const onCholesterolCare = ProfileState(
+      ageBracket: '31-50',
+      sex: 'Female',
+      conditions: ['high_cholesterol'],
+    );
+
+    // The shape the pipeline gives a suppressed niacin threshold whose amount it
+    // could not read.
+    Map<String, dynamic> withUnreadRule(Map<String, dynamic> blob) => {
+      ...blob,
+      'warnings': [
+        ...blob['warnings'] as List<dynamic>,
+        {
+          'type': 'interaction',
+          'severity': 'caution',
+          'title': 'Niacin / dose',
+          'ingredient_name': 'Niacin',
+          'condition_ids': const ['high_cholesterol'],
+          'drug_class_ids': const <String>[],
+          'profile_gate': {
+            'gate_type': 'condition',
+            'requires': {
+              'conditions_any': const ['high_cholesterol'],
+              'drug_classes_any': const <String>[],
+              'profile_flags_any': const <String>[],
+            },
+            'excludes': {
+              'conditions_any': const <String>[],
+              'drug_classes_any': const <String>[],
+              'profile_flags_any': const <String>[],
+              'product_forms_any': const <String>[],
+              'nutrient_forms_any': const <String>[],
+            },
+            'dose': {
+              'basis': 'per_day',
+              'comparator': '>=',
+              'value': 1500,
+              'unit': 'mg',
+              'severity_if_met': 'caution',
+              'severity_if_not_met': 'informational',
+            },
+          },
+          'dose_decision': {
+            'clinical_severity': 'caution',
+            'evaluation_status': 'amount_unknown',
+            'consumer_disposition': 'suppress',
+          },
+        },
+      ],
+    };
+
+    testWidgets('it applies to this person: no all-clear, and the suppressed '
+        'rule stays hidden', (tester) async {
+      await pumpPage(
+        tester,
+        catalog: await _catalog(safetyAssessment: 'complete'),
+        phone: await _phone(
+          profile: onCholesterolCare,
+          cachedBlob: withUnreadRule(_stJohnsWortBlob()),
+        ),
+      );
+
+      expect(find.text(_allClear), findsNothing);
+      expect(find.text(_qualifiedClear), findsNothing);
+      expect(find.text('Niacin / dose'), findsNothing);
+    });
+
+    testWidgets('it applies to someone else: the all-clear stays', (
+      tester,
+    ) async {
+      await pumpPage(
+        tester,
+        catalog: await _catalog(safetyAssessment: 'complete'),
+        phone: await _phone(
+          profile: _noMatch,
+          cachedBlob: withUnreadRule(_stJohnsWortBlob()),
+        ),
+      );
+
+      expect(find.text(_allClear), findsOneWidget);
+    });
+
+    testWidgets('the same person with no such rule keeps the all-clear', (
+      tester,
+    ) async {
+      await pumpPage(
+        tester,
+        catalog: await _catalog(safetyAssessment: 'complete'),
+        phone: await _phone(
+          profile: onCholesterolCare,
+          cachedBlob: _stJohnsWortBlob(),
+        ),
+      );
+
+      expect(find.text(_allClear), findsOneWidget);
+    });
+  });
+
   group('the catalog can name why safety checks are unfinished (ADR-016)', () {
     const reason = 'upper_limit_amount_undisclosed';
 
