@@ -315,6 +315,49 @@ void main() {
     },
   );
 
+  group('a label statement', () {
+    const label = 'Do not use Moringa if you are pregnant or nursing.';
+    const report = StackSafetyReport(
+      stackInteractions: [
+        InteractionResult(
+          id: 'LABEL_1_x',
+          type: InteractionType.conditionSupplement,
+          severity: Severity.avoid,
+          evidenceLevel: EvidenceLevel.ungraded,
+          agent1Name: 'Moringa',
+          agent2Name: 'Label warning',
+          mechanism: label,
+          management: '',
+          doseDependant: false,
+          doseThreshold: null,
+          sourceUrls: [],
+          source: InteractionSource.pipeline,
+        ),
+      ],
+    );
+
+    test(
+      'stays out when profile sharing is off, since it reveals a pregnancy',
+      () {
+        final text = builder.build(
+          _data(safetyReport: report),
+          AiShareScope.detailedReport,
+        );
+        expect(text, isNot(contains(label)));
+      },
+    );
+
+    test('goes in verbatim, with its grade, when profile sharing is on', () {
+      final text = builder.build(
+        _data(safetyReport: report),
+        const AiShareScope(profile: true),
+      );
+      expect(text, contains(label));
+      expect(text, contains('Evidence level: ungraded'));
+      expect(text, isNot(contains('Management:')));
+    });
+  });
+
   test('findings cannot disclose excluded supplement names', () {
     final text = builder.build(
       _data(),

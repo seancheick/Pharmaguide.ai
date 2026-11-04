@@ -18,6 +18,95 @@ import 'package:pharmaguide/services/stack/stack_ul_checker.dart';
 void main() {
   const checker = StackUlChecker(rdaData: _rda);
 
+  group('age unknown and only the 14-18 limit is crossed', () {
+    final ageChecker = StackUlChecker(
+      rdaData: {
+        'consumer_ul_warnings': {
+          'vitamin_e': {'message': 'Pipeline-authored vitamin E warning.'},
+          'zinc': {'message': 'Pipeline-authored zinc warning.'},
+        },
+        'nutrient_recommendations': [
+          for (final id in const ['vitamin_e', 'zinc'])
+            {
+              'id': id,
+              'standard_name': id,
+              'unit': 'mg',
+              'nutrient_class': 'ceiling',
+              'data': [
+                for (final group in const ['Male', 'Female', 'Pregnancy']) ...[
+                  {'group': group, 'age_range': '14-18', 'ul': 800},
+                  {'group': group, 'age_range': '19-30', 'ul': 1000},
+                ],
+              ],
+            },
+        ],
+      },
+    );
+    const aggregator = StackNutrientAggregator();
+
+    NutrientStatus statusFor(
+      double amount, {
+      String id = 'vitamin_e',
+      String? ageBracket,
+      String? sex,
+    }) => ageChecker
+        .check(
+          aggregator.aggregate([_ulItem('typed', id, amount, typed: true)]),
+          ageBracket: ageBracket,
+          sex: sex,
+        )
+        .single;
+
+    for (final sex in const [null, 'Pregnancy']) {
+      test('between the limits is a review, sex $sex', () {
+        for (final amount in const [801.0, 900.0, 1000.0]) {
+          final status = statusFor(amount, sex: sex);
+          expect(status.ulAssessmentIndeterminate, isTrue, reason: '$amount');
+          expect(status.pctOfUl, isNull, reason: '$amount');
+          expect(status.tier, isNot(NutrientTier.exceedsUl));
+        }
+      });
+
+      test('at or below the teen limit stays a plain read, sex $sex', () {
+        final status = statusFor(800, sex: sex);
+        expect(status.ulAssessmentIndeterminate, isFalse);
+        expect(status.pctOfUl, closeTo(80, 0.0001));
+      });
+
+      test('above the adult limit is an excess at every age, sex $sex', () {
+        final status = statusFor(1001, sex: sex);
+        expect(status.ulAssessmentIndeterminate, isFalse);
+        expect(status.tier, NutrientTier.exceedsUl);
+      });
+    }
+
+    // 'Prefer not to say' is what the profile's age sheet stores when age is
+    // declined, so the page and Stack have to read it as the same unknown age.
+    for (final declared in const ['Prefer not to say', '', 'teen']) {
+      test('"$declared" is no age: the same review as none', () {
+        final status = statusFor(900, ageBracket: declared, sex: 'Pregnancy');
+        expect(status.ulAssessmentIndeterminate, isTrue);
+        expect(status.pctOfUl, isNull);
+        expect(status.tier, isNot(NutrientTier.exceedsUl));
+      });
+    }
+
+    test('a known age reads its own limit, not a review', () {
+      final teen = statusFor(900, ageBracket: '14-18', sex: 'Pregnancy');
+      expect(teen.ulAssessmentIndeterminate, isFalse);
+      expect(teen.tier, NutrientTier.exceedsUl);
+      final adult = statusFor(900, ageBracket: '19-30', sex: 'Pregnancy');
+      expect(adult.ulAssessmentIndeterminate, isFalse);
+      expect(adult.tier, isNot(NutrientTier.exceedsUl));
+    });
+
+    test('a nutrient outside her ruling keeps the adult screen', () {
+      final status = statusFor(900, id: 'zinc');
+      expect(status.ulAssessmentIndeterminate, isFalse);
+      expect(status.pctOfUl, closeTo(90, 0.0001));
+    });
+  });
+
   group('source-owned form-scoped UL provenance', () {
     final scopedChecker = StackUlChecker(
       rdaData: {

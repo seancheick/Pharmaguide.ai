@@ -98,68 +98,58 @@ final detailBlobServiceProvider = Provider<DetailBlobService>((ref) {
   );
 });
 
-// Settle failures immediately so callers can show unavailable data and retry
-// explicitly on reconnect. Both providers own their retry lifecycle.
-Duration? _retryDetailBlob(int retryCount, Object error) => null;
-
 /// Reads the current detail blob for a product ID.
 final detailBlobProvider = FutureProvider.family
     .autoDispose<Map<String, dynamic>?, String>((ref, dsldId) async {
       final coreDb = ref.watch(coreDatabaseProvider);
-      final userDb = ref.watch(userDatabaseProvider);
-      final service = ref.watch(detailBlobServiceProvider);
       final product = await coreDb.findById(dsldId);
-      return _loadDetailBlob(
+      if (!ref.mounted || product == null) return null;
+      final detail = detailBlobForRowProvider((
         dsldId: dsldId,
-        expectedSha: product?.detailBlobSha256,
-        userDb: userDb,
-        service: service,
-      );
-    }, retry: _retryDetailBlob);
+        expectedSha: product.detailBlobSha256,
+      ));
+      // Reconnecting invalidates the ID-based read. Retry a failed hash
+      // read as well, while sharing its in-flight work with pinned callers.
+      if (ref.read(detail).hasError) ref.invalidate(detail);
+      return ref.watch(detail.future);
+    }, retry: (_, _) => null);
 
 /// Reads the immutable blob identified by the caller's catalog row.
 final detailBlobForRowProvider = FutureProvider.family
     .autoDispose<Map<String, dynamic>?, ({String dsldId, String? expectedSha})>(
-      (ref, key) => _loadDetailBlob(
-        dsldId: key.dsldId,
-        expectedSha: key.expectedSha,
-        userDb: ref.watch(userDatabaseProvider),
-        service: ref.watch(detailBlobServiceProvider),
-      ),
-      retry: _retryDetailBlob,
-    );
+      (ref, key) async {
+        final (:dsldId, :expectedSha) = key;
+        final userDb = ref.watch(userDatabaseProvider);
+        final service = ref.watch(detailBlobServiceProvider);
+        if (expectedSha == null || expectedSha.isEmpty) return null;
+        final cached = await userDb.getCachedDetail(dsldId);
+        if (cached != null &&
+            cachedDetailIsServable(
+              cachedSha256: cached.sha256,
+              productSha256: expectedSha,
+            )) {
+          try {
+            final decoded = jsonDecode(cached.blobJson);
+            if (decoded is Map<String, dynamic>) return decoded;
+            if (decoded is Map) return Map<String, dynamic>.from(decoded);
+          } on FormatException {
+            // Fall through to network fetch below.
+          }
+        }
 
-Future<Map<String, dynamic>?> _loadDetailBlob({
-  required String dsldId,
-  required String? expectedSha,
-  required UserDatabase userDb,
-  required DetailBlobService service,
-}) async {
-  if (expectedSha == null || expectedSha.isEmpty) return null;
-  final cached = await userDb.getCachedDetail(dsldId);
-  if (cached != null &&
-      cachedDetailIsServable(
-        cachedSha256: cached.sha256,
-        productSha256: expectedSha,
-      )) {
-    try {
-      final decoded = jsonDecode(cached.blobJson);
-      if (decoded is Map<String, dynamic>) return decoded;
-      if (decoded is Map) return Map<String, dynamic>.from(decoded);
-    } on FormatException {
-      // Fall through to network fetch below.
-    }
-  }
-
-  final blob = await service.fetchDetailBlobByHash(expectedSha);
-  if (blob == null) {
-    throw const DetailBlobUnavailableException(
-      'detail service returned no payload for a declared blob',
+        final blob = await service.fetchDetailBlobByHash(expectedSha);
+        if (blob == null) {
+          throw const DetailBlobUnavailableException(
+            'detail service returned no payload for a declared blob',
+          );
+        }
+        // Persist the sha alongside the blob: the fetch path verified
+        // sha256(bytes) == expectedSha, so the cached row stays
+        // re-checkable against products_core on every later read.
+        await userDb.cacheDetail(dsldId, jsonEncode(blob), expectedSha);
+        return blob;
+      },
+      // Surface an unavailable blob immediately. An explicit refresh or
+      // reconnect retries the same content hash.
+      retry: (_, _) => null,
     );
-  }
-  // Persist the sha alongside the blob: the fetch path verified
-  // sha256(bytes) == expectedSha, so the cached row stays
-  // re-checkable against products_core on every later read.
-  await userDb.cacheDetail(dsldId, jsonEncode(blob), expectedSha);
-  return blob;
-}

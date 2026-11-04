@@ -1,0 +1,78 @@
+{
+ "type": "interaction",
+ "severity": "avoid",
+ "severity_contextual": "informational",
+ "display_mode_default": "informational",
+ "title": "Caffeine Anhydrous / pregnancy",
+ "detail": "Caffeine crosses the placenta and higher daily intake is associated with pregnancy risk concerns.",
+ "action": "Avoid this high-caffeine supplement during pregnancy unless your prenatal care professional advises otherwise.",
+ "alert_headline": "High caffeine intake during pregnancy",
+ "alert_body": "This supplement may provide 200 mg or more of caffeine a day. ACOG recommends keeping total daily caffeine intake below 200 mg during pregnancy, including caffeine from drinks, foods and supplements. Avoid this high-caffeine supplement during pregnancy unless your prenatal care professional advises otherwise.",
+ "informational_note": "Caffeine crosses the placenta and reaches breast milk — relevant to anyone pregnant or breastfeeding.",
+ "ingredient_name": "Caffeine Anhydrous",
+ "ingredient_canonical_id": "caffeine",
+ "evidence_level": "established",
+ "sources": [
+  "https://www.acog.org/womens-health/experts-and-stories/ask-acog/how-much-coffee-can-i-drink-while-pregnant"
+ ],
+ "dose_threshold_evaluation": null,
+ "dose_decision": {
+  "clinical_severity": "avoid",
+  "evaluation_status": "form_unknown",
+  "consumer_disposition": "block",
+  "release_blocking": false,
+  "evaluated_daily_amount": null,
+  "evaluated_unit": null,
+  "normalized_per_serving_amount": null,
+  "normalized_per_serving_unit": null,
+  "evaluated_serving_multiplier": null,
+  "threshold": null,
+  "threshold_unit": null,
+  "comparator": null,
+  "conversion_method": null,
+  "dose_source": null,
+  "form_context": null,
+  "decision_rule": {
+   "basis": "per_day",
+   "comparator": ">=",
+   "threshold": 200.0,
+   "threshold_unit": "mg",
+   "consumer_disposition_if_met": "review",
+   "consumer_disposition_if_not_met": "suppress",
+   "amount_missing_disposition": "review",
+   "unknown_form_disposition": "block",
+   "conversion_failure_policy": "release_block"
+  }
+ },
+ "direction": "harmful",
+ "materiality": "presence",
+ "min_effective_dose": null,
+ "dose_floor_status": null,
+ "source": "interaction_rules",
+ "source_rule_id": "RULE_INGREDIENT_CAFFEINE",
+ "profile_gate": {
+  "gate_type": "profile_flag",
+  "requires": {
+   "conditions_any": [],
+   "drug_classes_any": [],
+   "profile_flags_any": [
+    "pregnant"
+   ]
+  },
+  "excludes": {
+   "conditions_any": [],
+   "drug_classes_any": [],
+   "profile_flags_any": [],
+   "product_forms_any": [],
+   "nutrient_forms_any": []
+  },
+  "dose": null
+ },
+ "source_producers": [
+  "interaction_rules"
+ ],
+ "condition_ids": [
+  "pregnancy"
+ ],
+ "drug_class_ids": []
+}

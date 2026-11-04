@@ -88,6 +88,7 @@ Future<void> _seedConnectedProduct(
   bool blocked = false,
   double mappedCoverage = 1,
   double catalogScore = 88,
+  String? qualityAssessmentStatus,
 }) async {
   await _seedProduct(
     coreDb,
@@ -96,6 +97,7 @@ Future<void> _seedConnectedProduct(
     blocked: blocked,
     mappedCoverage: mappedCoverage,
     catalogScore: catalogScore,
+    qualityAssessmentStatus: qualityAssessmentStatus,
   );
 }
 
@@ -106,6 +108,7 @@ Future<void> _seedProduct(
   bool blocked = false,
   double mappedCoverage = 1,
   double catalogScore = 88,
+  String? qualityAssessmentStatus,
 }) async {
   await coreDb
       .into(coreDb.productsCore)
@@ -117,9 +120,12 @@ Future<void> _seedProduct(
           exportedAt: '2026-07-19T00:00:00Z',
           qualityScoreV4100: Value(catalogScore),
           qualityScoreStatus: const Value('scored'),
+          qualityAssessmentStatus: Value(qualityAssessmentStatus),
           mappedCoverage: Value(mappedCoverage),
           verdict: Value(blocked ? 'BLOCKED' : 'SAFE'),
-          productSafetyStatus: Value(blocked ? 'blocked' : null),
+          productSafetyStatus: Value(
+            blocked ? 'blocked' : 'no_known_catalog_concern',
+          ),
           blockingReason: Value(blocked ? 'banned_ingredient' : null),
           hasBannedSubstance: Value(blocked ? 1 : 0),
           topWarnings: Value(
@@ -195,6 +201,7 @@ Future<void> _pumpConnectedScreen(
   bool blocked = false,
   double mappedCoverage = 1,
   double catalogScore = 88,
+  String? qualityAssessmentStatus,
   FitScoreResult? fitResult,
   bool profiled = false,
   bool warningsFail = false,
@@ -218,6 +225,7 @@ Future<void> _pumpConnectedScreen(
     blocked: blocked,
     mappedCoverage: mappedCoverage,
     catalogScore: catalogScore,
+    qualityAssessmentStatus: qualityAssessmentStatus,
   );
   if (qualityWithheld) await coreDb.withholdQualityScores();
   addTearDown(() async {
@@ -2067,6 +2075,23 @@ void main() {
         expect(find.text('12/20'), findsOneWidget);
       },
     );
+
+    testWidgets('an incomplete quality assessment keeps the total withheld', (
+      tester,
+    ) async {
+      await _pumpConnectedScreen(
+        tester,
+        initialSection: null,
+        qualityAssessmentStatus: 'partial',
+        detailBlob: {'quality_pillars_v4': _connectedV4Pillars()},
+      );
+      expect(find.text('Quality assessment incomplete'), findsOneWidget);
+      final breakdown = find.byType(PGScoreBreakdownCard);
+      await _scrollConnectedTowardBottomUntil(tester, breakdown);
+      expect(breakdown, findsOneWidget);
+      expect(find.text('Why this scored 88'), findsNothing);
+      expect(find.text('Quality score breakdown'), findsOneWidget);
+    });
 
     testWidgets(
       'connected screen uses stored pillars despite legacy cap metadata',

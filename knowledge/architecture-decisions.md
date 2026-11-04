@@ -442,3 +442,42 @@ OS encryption protects a locked phone. It does nothing about two people using th
 **Limits:** builds from before this change don't check. A signature can't prove a release is the latest, nor that it is clinically correct.
 
 **Steps:** the pipeline's `docs/RELEASE_SIGNING_RUNBOOK.md`, "The safety-alert feed".
+
+## ADR-016: Safety checks decide "No known concerns"; each incomplete message speaks for its own assessment
+
+**Date:** 2026-11-03
+**Status:** DECIDED. Implemented in PR #177, on the contract in pipeline PR #338. They land together.
+
+**Context:** PR #177 first withheld "No known concerns" unless the public quality score was complete, using quality completion as a stand-in for safety completion. Sean then answered, asked "May a product missing only evidence review say 'no known concerns' once its safety checks are done?": "Yes, safety checks decide." On reviewing the page, where "Assessment incomplete" sat directly above "No known concerns", he answered six open questions:
+
+1. Caution products: "No. Caution products should not say "No known concerns." Use the proposed qualified wording and investigate the 17 informational "avoid" interactions and the critical warning before treating those cases as correct."
+2. Evidence-only products: "No. Don't pair "Assessment incomplete" with "No known concerns." Show the incomplete assessment without the all-clear."
+3. Products with no safety signal and no barcode: "Keep them in search, can't be scanned without a barcode."
+4. A hard interaction with no warning row: "Leave for now. No current product reaches that state; revisit the wording when one does."
+5. The For You card going away on withheld products: "Accept if the incomplete status remains clear elsewhere on the product."
+6. Unknown safety status with no incomplete copy: "Leave for now, but add coverage so an unknown safety status can't accidentally appear as an all-clear."
+
+**Decision:** Sean then narrowed decision 2: "A quality evidence gap alone must not imply that safety checks failed; genuinely unavailable or incomplete required safety checks must still withhold an all-clear." The ambiguous wording was the problem, so it is replaced rather than paired. He set these two messages, relayed through the integrator:
+
+- Quality assessment incomplete: "We haven't finished assessing this product's quality yet."
+- Safety checks incomplete: "We haven't finished this product's safety checks yet."
+
+Each shows only when that assessment is incomplete, so a finished quality score never gets the quality message. Missing safety checks must have an explanation, including when no quality score is available. Existing concerns stay visible.
+
+**What this means in the code:**
+
+- `catalogProductCanReportNoConcerns` reads a known catalog safety status and `safety_assessment_status`, not quality completion. Only `complete` allows the all-clear; any other value withholds it.
+- A null value means a catalog older than the column: the app backfills it as null and accepts that catalog, so those rows keep the stricter rule of a finished public assessment. A release build cannot write null (`--strict`, pipeline PR #338).
+- `catalogProductSafetyChecksIncomplete` decides the safety note, whatever the quality state. It is true for a `not_assessed` catalog safety status and for any declared `safety_assessment_status` other than `complete`.
+- `safety_assessment_reason` (nullable, Sean, November 4) can name why checks are unfinished. Its one value is `upper_limit_amount_undisclosed`, and only beside `incomplete` does the note use Sean's words: "Dose safety could not be fully assessed. This product contains a nutrient with an established upper intake limit, but the label does not disclose enough information to evaluate the amount. This does not establish that the product exceeds the limit." Null, any other value or an older catalog keeps the generic text. It doesn't change the all-clear, a caution, a block or quality. Labels printing a %DV stay null on purpose; that decision is still with Sean.
+- A null status with a finished score keeps the older rule and gets no note. A suppressed score with no number doesn't count as finished. With a partial score or no score, the all-clear is withheld and the note explains it, under Sean's rule that missing safety checks must have an explanation.
+- An unknown catalog safety status gets no note unless the status says unfinished (decision 6). It withholds the all-clear without making that claim.
+- A folder an older build prepared lacks the column when the rebuild can't run, such as on a full phone. Typed reads use `SELECT *` and read a missing nullable column as null, so that phone keeps working under the older-catalog rule. A test pins this.
+- The quality message is the hero's, and Compare uses the same title. A product with no score keeps "Product quality score unavailable."
+- `quality_assessment_status` says whether the quality assessment finished, and `catalogProductHasCompletePublicScore` stays as it is for ranking and quality surfaces. A product with a quality gap still shows no completed score or tier.
+- A block keeps the page to itself: `safety_assessment_status` never lifts or hides one, and a blocked product gets neither the all-clear nor the note.
+- A catalog caution with no personal finding reads "Nothing specific to your profile" / "This product has general safety notes." Only a product with a Product Safety card adds "See Product Safety below." It gets this wording only when its checks can report, so unfinished checks show the note instead.
+- A concern the checks found always leads, on any of these products. Failed personal checks, an unreadable alert feed, missing rules (ADR-014) and coverage below the floor still withhold the all-clear.
+- The clinician line (`kLifeStageClinicianNote`) stays for a pregnant or breastfeeding user, because it's advice for the life stage and not a finding about the product.
+
+**Not changed:** the pipeline's `safety_assessment_status` field and its rule, and the page's wording for a hard interaction with no warning row (decision 4). Product counts for each state belong to the measured release build, not this record.

@@ -458,7 +458,7 @@ class _ProductDetailV2ConnectedState
     final isBlocked = productIsBlocked(_product);
     final isNotScored = productIsNotScored(_product);
     // scored + partial: a number exists, but a pillar the rubric requires was
-    // never assessed. The breakdown still renders; the headline tier does not.
+    // never assessed. The pillars can explain the inputs while the total is withheld.
     final assessmentIncomplete = productAssessmentIncomplete(_product);
 
     // -------------------------------------------------------------
@@ -536,6 +536,7 @@ class _ProductDetailV2ConnectedState
       productStatus: _product?.productStatus,
       personalizedWarnings: personalizedWarnings,
       resolvedRuleWarnings: profileRuleWarnings,
+      ageBracket: profile.ageBracket,
       userConditions: userConditionsSet,
       userDrugClasses: userDrugClassesSet,
       userProfileFlags: userProfileFlagsSet,
@@ -731,6 +732,7 @@ class _ProductDetailV2ConnectedState
       // A threshold that applies here and couldn't be read is no all-clear.
       checksFailed:
           personalizedChecksFailed ||
+          !catalogProductCanReportNoConcerns(_product) ||
           hasUnreadDoseRule(
             [
               ...personalizedWarnings,
@@ -739,7 +741,7 @@ class _ProductDetailV2ConnectedState
                 detailBlob,
                 productStatus: _product?.productStatus,
               ),
-            ],
+            ].map((warning) => warning.resolvedForAge(profile.ageBracket)),
             userConditions: userConditionsSet,
             userDrugClasses: userDrugClassesSet,
             userProfileFlags: userProfileFlagsSet,
@@ -754,6 +756,13 @@ class _ProductDetailV2ConnectedState
       hasPregnancyOrBreastfeeding:
           userConditionsSet.contains('pregnancy') ||
           userConditionsSet.contains('lactation'),
+      hasCatalogCaution:
+          _product != null &&
+          catalogProductSafetyStatus(_product!) ==
+              CatalogProductSafetyStatus.caution,
+      hasMaterialSafetyNotes: partitionedWarnings.general.any(
+        isMaterialSafetyNote,
+      ),
       hasProfileInformation:
           profile.ageBracket != null ||
           profile.sex != null ||
@@ -915,6 +924,30 @@ class _ProductDetailV2ConnectedState
                         const SizedBox(height: V2Spacing.space12),
                       ],
 
+                      // Nothing else explains the missing all-clear, whatever
+                      // the quality state (ADR-016).
+                      if (catalogProductSafetyChecksIncomplete(_product)) ...[
+                        PGSeverityBanner(
+                          key: const Key('safety-checks-incomplete-banner'),
+                          tone: PGBannerTone.info,
+                          title: 'Safety checks incomplete',
+                          body:
+                              catalogProductSafetyGapIsUndisclosedUpperLimit(
+                                _product,
+                              )
+                              ? 'Dose safety could not be fully assessed. This '
+                                    'product contains a nutrient with an '
+                                    'established upper intake limit, but the '
+                                    'label does not disclose enough information '
+                                    'to evaluate the amount. This does not '
+                                    'establish that the product exceeds the '
+                                    'limit.'
+                              : 'We haven\'t finished this product\'s safety '
+                                    'checks yet.',
+                        ),
+                        const SizedBox(height: V2Spacing.space12),
+                      ],
+
                       // ---- 2b. Blocked allergen alert ------------------
                       // A blocked verdict hides ProfileRelevance, but an
                       // allergen match is an independent safety signal that
@@ -1057,6 +1090,7 @@ class _ProductDetailV2ConnectedState
                       if (showScoreBreakdown) ...[
                         buildScoreBreakdownSection(
                           heroScore: score100,
+                          showTotal: !assessmentIncomplete,
                           qualityTier: _product?.qualityTier,
                           qualityPillarsV4: qualityPillarsV4,
                           onPillarTap: onPillarTap,

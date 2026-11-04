@@ -1,0 +1,261 @@
+{
+ "211459": {
+  "severity": "monitor",
+  "title": "Vitamin E / pregnancy",
+  "alert_headline": "Limit depends on age",
+  "alert_body": "This amount could be above the upper limit for ages 14–18 but is below the limit for adults. Add your age range to your profile for an answer that fits you.",
+  "action": "Keep total daily vitamin E intake within guideline ranges and avoid megadosing.",
+  "condition_ids": [
+   "pregnancy"
+  ],
+  "profile_gate": {
+   "gate_type": "profile_flag",
+   "requires": {
+    "conditions_any": [],
+    "drug_classes_any": [],
+    "profile_flags_any": [
+     "pregnant"
+    ]
+   },
+   "excludes": {
+    "conditions_any": [],
+    "drug_classes_any": [],
+    "profile_flags_any": [],
+    "product_forms_any": [],
+    "nutrient_forms_any": []
+   },
+   "dose": null
+  },
+  "ingredient_name": "Vitamin E",
+  "ingredient_canonical_id": "vitamin_e",
+  "evidence_level": "established",
+  "dose_decision": {
+   "clinical_severity": "monitor",
+   "evaluation_status": "age_dependent",
+   "consumer_disposition": "review",
+   "release_blocking": false,
+   "evaluated_daily_amount": 670.0,
+   "evaluated_unit": "mg",
+   "normalized_per_serving_amount": 670.0,
+   "normalized_per_serving_unit": "mg",
+   "evaluated_serving_multiplier": 1.0,
+   "threshold": 1000.0,
+   "threshold_unit": "mg",
+   "comparator": ">",
+   "conversion_method": "ul_exposure_bound",
+   "dose_source": "distinct_vitamin_e_range",
+   "form_context": "vitamin e (unspecified)",
+   "decision_rule": {
+    "basis": "per_day",
+    "comparator": ">",
+    "threshold": 1000.0,
+    "threshold_unit": "mg",
+    "consumer_disposition_if_met": "review",
+    "consumer_disposition_if_not_met": "suppress",
+    "amount_missing_disposition": "review",
+    "unknown_form_disposition": "review",
+    "conversion_failure_policy": "release_block"
+   },
+   "age_outcomes": {
+    "14-18": {
+     "clinical_severity": "monitor",
+     "evaluation_status": "form_unknown",
+     "consumer_disposition": "review",
+     "release_blocking": false,
+     "evaluated_daily_amount": null,
+     "evaluated_unit": null,
+     "normalized_per_serving_amount": null,
+     "normalized_per_serving_unit": null,
+     "evaluated_serving_multiplier": null,
+     "threshold": null,
+     "threshold_unit": null,
+     "comparator": null,
+     "conversion_method": null,
+     "dose_source": null,
+     "form_context": null,
+     "decision_rule": {
+      "basis": "per_day",
+      "comparator": ">",
+      "threshold": 800.0,
+      "threshold_unit": "mg",
+      "consumer_disposition_if_met": "review",
+      "consumer_disposition_if_not_met": "suppress",
+      "amount_missing_disposition": "review",
+      "unknown_form_disposition": "review",
+      "conversion_failure_policy": "release_block"
+     },
+     "alert_headline": "Keep vitamin E within prenatal range",
+     "alert_body": "Vitamin E is dose-sensitive in pregnancy; high intakes can raise adverse-effect risk over time. If you are pregnant or breastfeeding, monitor total intake and talk to your clinician.",
+     "action": "Keep total daily vitamin E intake within guideline ranges and avoid megadosing."
+    },
+    "19+": {
+     "clinical_severity": "monitor",
+     "evaluation_status": "below_threshold",
+     "consumer_disposition": "suppress",
+     "release_blocking": false,
+     "evaluated_daily_amount": 670.0,
+     "evaluated_unit": "mg",
+     "normalized_per_serving_amount": 670.0,
+     "normalized_per_serving_unit": "mg",
+     "evaluated_serving_multiplier": 1.0,
+     "threshold": 1000.0,
+     "threshold_unit": "mg",
+     "comparator": ">",
+     "conversion_method": "ul_exposure_bound",
+     "dose_source": "distinct_vitamin_e_range",
+     "form_context": "vitamin e (unspecified)",
+     "decision_rule": {
+      "basis": "per_day",
+      "comparator": ">",
+      "threshold": 1000.0,
+      "threshold_unit": "mg",
+      "consumer_disposition_if_met": "review",
+      "consumer_disposition_if_not_met": "suppress",
+      "amount_missing_disposition": "review",
+      "unknown_form_disposition": "review",
+      "conversion_failure_policy": "release_block"
+     },
+     "alert_headline": "Keep vitamin E within prenatal range",
+     "alert_body": "Vitamin E is dose-sensitive in pregnancy; high intakes can raise adverse-effect risk over time. If you are pregnant or breastfeeding, monitor total intake and talk to your clinician.",
+     "action": "Keep total daily vitamin E intake within guideline ranges and avoid megadosing."
+    }
+   }
+  },
+  "source": "interaction_rules",
+  "source_rule_id": "RULE_IQM_VITAMIN_E_PREGNANCY_EXCESS",
+  "direction": "harmful",
+  "materiality": "presence",
+  "type": "interaction"
+ },
+ "4340": {
+  "severity": "caution",
+  "title": "Vitamin A / pregnancy",
+  "alert_headline": "Limit depends on age",
+  "alert_body": "This amount is above the upper limit for ages 14–18 but not for adults. Add your age range to your profile for an answer that fits you.",
+  "action": "Avoid high-dose preformed vitamin A in pregnancy unless clinician-directed.",
+  "condition_ids": [
+   "pregnancy"
+  ],
+  "profile_gate": {
+   "gate_type": "profile_flag",
+   "requires": {
+    "conditions_any": [],
+    "drug_classes_any": [],
+    "profile_flags_any": [
+     "pregnant"
+    ]
+   },
+   "excludes": {
+    "conditions_any": [],
+    "drug_classes_any": [],
+    "profile_flags_any": [],
+    "product_forms_any": [],
+    "nutrient_forms_any": [
+     "beta_carotene",
+     "mixed_carotenoids"
+    ]
+   },
+   "dose": null
+  },
+  "ingredient_name": "Vitamin A",
+  "ingredient_canonical_id": "vitamin_a",
+  "evidence_level": "established",
+  "dose_decision": {
+   "clinical_severity": "caution",
+   "evaluation_status": "age_dependent",
+   "consumer_disposition": "review",
+   "release_blocking": false,
+   "evaluated_daily_amount": 10000.0,
+   "evaluated_unit": "iu",
+   "normalized_per_serving_amount": 10000.0,
+   "normalized_per_serving_unit": "iu",
+   "evaluated_serving_multiplier": 1.0,
+   "threshold": 10000.0,
+   "threshold_unit": "iu",
+   "comparator": ">",
+   "conversion_method": "identity",
+   "dose_source": "suggested_daily_serving",
+   "form_context": "retinyl palmitate",
+   "decision_rule": {
+    "basis": "per_day",
+    "comparator": ">",
+    "threshold": 10000.0,
+    "threshold_unit": "iu",
+    "consumer_disposition_if_met": "review",
+    "consumer_disposition_if_not_met": "suppress",
+    "amount_missing_disposition": "review",
+    "unknown_form_disposition": "review",
+    "conversion_failure_policy": "release_block"
+   },
+   "age_outcomes": {
+    "14-18": {
+     "clinical_severity": "contraindicated",
+     "evaluation_status": "above_threshold",
+     "consumer_disposition": "block",
+     "release_blocking": false,
+     "evaluated_daily_amount": 3000.0,
+     "evaluated_unit": "mcg rae",
+     "normalized_per_serving_amount": 3000.0,
+     "normalized_per_serving_unit": "mcg rae",
+     "evaluated_serving_multiplier": 1.0,
+     "threshold": 2800.0,
+     "threshold_unit": "mcg rae",
+     "comparator": ">",
+     "conversion_method": "vitamin_a_retinol",
+     "dose_source": "suggested_daily_serving",
+     "form_context": "retinyl palmitate",
+     "decision_rule": {
+      "basis": "per_day",
+      "comparator": ">",
+      "threshold": 2800.0,
+      "threshold_unit": "mcg rae",
+      "consumer_disposition_if_met": "review",
+      "consumer_disposition_if_not_met": "suppress",
+      "amount_missing_disposition": "review",
+      "unknown_form_disposition": "review",
+      "conversion_failure_policy": "release_block"
+     },
+     "alert_headline": "Keep preformed vitamin A within prenatal range",
+     "alert_body": "Preformed vitamin A (retinol) is dose-sensitive in pregnancy; beta-carotene is not. If you are pregnant or nursing, monitor total preformed retinol intake from all sources and talk to your clinician.",
+     "action": "Avoid high-dose preformed vitamin A in pregnancy unless clinician-directed."
+    },
+    "19+": {
+     "clinical_severity": "caution",
+     "evaluation_status": "below_threshold",
+     "consumer_disposition": "suppress",
+     "release_blocking": false,
+     "evaluated_daily_amount": 10000.0,
+     "evaluated_unit": "iu",
+     "normalized_per_serving_amount": 10000.0,
+     "normalized_per_serving_unit": "iu",
+     "evaluated_serving_multiplier": 1.0,
+     "threshold": 10000.0,
+     "threshold_unit": "iu",
+     "comparator": ">",
+     "conversion_method": "identity",
+     "dose_source": "suggested_daily_serving",
+     "form_context": "retinyl palmitate",
+     "decision_rule": {
+      "basis": "per_day",
+      "comparator": ">",
+      "threshold": 10000.0,
+      "threshold_unit": "iu",
+      "consumer_disposition_if_met": "review",
+      "consumer_disposition_if_not_met": "suppress",
+      "amount_missing_disposition": "review",
+      "unknown_form_disposition": "review",
+      "conversion_failure_policy": "release_block"
+     },
+     "alert_headline": "Keep preformed vitamin A within prenatal range",
+     "alert_body": "Preformed vitamin A (retinol) is dose-sensitive in pregnancy; beta-carotene is not. If you are pregnant or nursing, monitor total preformed retinol intake from all sources and talk to your clinician.",
+     "action": "Avoid high-dose preformed vitamin A in pregnancy unless clinician-directed."
+    }
+   }
+  },
+  "source": "interaction_rules",
+  "source_rule_id": "RULE_IQM_VITAMIN_A_PREGNANCY_DOSE",
+  "direction": "harmful",
+  "materiality": "presence",
+  "type": "interaction"
+ }
+}

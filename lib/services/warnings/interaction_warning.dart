@@ -1,4 +1,5 @@
 import 'package:pharmaguide/core/constants/consumer_disposition.dart';
+import 'package:pharmaguide/core/constants/schema_ids.dart';
 import 'package:pharmaguide/core/constants/severity.dart';
 import 'package:pharmaguide/services/warnings/profile_gate_evaluator.dart';
 
@@ -68,6 +69,7 @@ class DoseDecision {
     this.doseSource,
     this.formContext,
     this.decisionRule,
+    this.ageOutcomes = const {},
   });
 
   final String? clinicalSeverity;
@@ -87,10 +89,16 @@ class DoseDecision {
   final String? formContext;
   final DoseDecisionRule? decisionRule;
 
-  /// The pipeline could not read this product's amount or form for the rule.
+  /// What each age reads where the limit differs by age, keyed `14-18` and
+  /// `19+`. Empty when age does not change this product's result.
+  final Map<String, AgeOutcome> ageOutcomes;
+
+  /// The pipeline could not read this product's amount or form for the rule,
+  /// or the answer turns on an age this person has not given.
   bool get amountUnread =>
       evaluationStatus == 'amount_unknown' ||
-      evaluationStatus == 'form_unknown';
+      evaluationStatus == 'form_unknown' ||
+      evaluationStatus == 'age_dependent';
 
   /// The rule names other forms, so this product's form is outside it. That was
   /// read, not left unknown.
@@ -121,8 +129,44 @@ class DoseDecision {
       decisionRule: rawRule is Map
           ? DoseDecisionRule.fromJson(Map<String, dynamic>.from(rawRule))
           : null,
+      ageOutcomes: AgeOutcome.parseAll(json['age_outcomes']),
     );
   }
+}
+
+/// One age's whole answer: its decision, with its own limit, and its card.
+class AgeOutcome {
+  const AgeOutcome({
+    required this.decision,
+    this.alertHeadline,
+    this.alertBody,
+    this.action,
+  });
+
+  final DoseDecision decision;
+  final String? alertHeadline;
+  final String? alertBody;
+  final String? action;
+
+  static Map<String, AgeOutcome> parseAll(dynamic raw) {
+    if (raw is! Map) return const {};
+    return {
+      for (final entry in raw.entries)
+        if (entry.value case final Map<dynamic, dynamic> value
+            when ConsumerDisposition.values.any(
+              (disposition) =>
+                  disposition.wireValue == value['consumer_disposition'],
+            ))
+          entry.key.toString(): _parse(Map<String, dynamic>.from(value)),
+    };
+  }
+
+  static AgeOutcome _parse(Map<String, dynamic> json) => AgeOutcome(
+    decision: DoseDecision.fromJson(json),
+    alertHeadline: json['alert_headline']?.toString(),
+    alertBody: json['alert_body']?.toString(),
+    action: json['action']?.toString(),
+  );
 }
 
 double? _asDouble(dynamic value) {
@@ -386,10 +430,18 @@ class InteractionWarning {
   /// Legacy aliases `mechanism`/`management`/`source_urls` are also
   /// accepted for backward compat with older cached blobs.
   factory InteractionWarning.fromJson(Map<String, dynamic> json) {
-    final rawUrls = json['sources'] ?? json['source_urls'];
-    final urls = rawUrls is List
-        ? rawUrls.map((e) => e.toString()).toList()
-        : <String>[];
+    final urls = <String>{};
+    for (final citations in [json['sources'], json['source_urls']]) {
+      if (citations is! List) continue;
+      for (final citation in citations) {
+        final url = switch (citation) {
+          final String url => url,
+          {'url': final String url} => url,
+          _ => '',
+        };
+        if (url.trim().isNotEmpty) urls.add(url.trim());
+      }
+    }
 
     final sevContextualRaw = json['severity_contextual']?.toString();
     final sevContextual =
@@ -459,7 +511,7 @@ class InteractionWarning {
       title: json['title']?.toString() ?? '',
       mechanism: (json['detail'] ?? json['mechanism'])?.toString() ?? '',
       management: (json['action'] ?? json['management'])?.toString() ?? '',
-      sourceUrls: urls,
+      sourceUrls: urls.toList(growable: false),
       alertHeadline: alertHeadline,
       alertBody: alertBody,
       informationalNote: json['informational_note']?.toString(),
@@ -573,6 +625,50 @@ class InteractionWarning {
       if (legacy != null && drugClassIds.contains(legacy)) return true;
     }
     return false;
+  }
+
+  /// This warning as a person of [ageBracket] reads it. An unknown age keeps the
+  /// pipeline's review: neither a clearance nor an adult excess.
+  InteractionWarning resolvedForAge(String? ageBracket) {
+    final outcomes = doseDecision?.ageOutcomes ?? const <String, AgeOutcome>{};
+    if (outcomes.isEmpty || !SchemaIds.ageBrackets.contains(ageBracket)) {
+      return this;
+    }
+    final outcome = outcomes[ageBracket == '14-18' ? '14-18' : '19+'];
+    if (outcome == null) return this;
+    final clinicalSeverity = outcome.decision.clinicalSeverity;
+    return InteractionWarning(
+      severity: clinicalSeverity == null
+          ? severity
+          : Severity.fromString(clinicalSeverity),
+      evidenceLevel: evidenceLevel,
+      title: title,
+      mechanism: mechanism,
+      management: outcome.action ?? management,
+      warningType: warningType,
+      matchedOnDevice: matchedOnDevice,
+      sourceUrls: sourceUrls,
+      severityContextual: severityContextual,
+      displayModeDefault: displayModeDefault,
+      alertHeadline: outcome.alertHeadline ?? alertHeadline,
+      alertBody: outcome.alertBody ?? alertBody,
+      informationalNote: informationalNote,
+      conditionIds: conditionIds,
+      drugClassIds: drugClassIds,
+      banContext: banContext,
+      populationWarnings: populationWarnings,
+      doseThresholdEvaluation: doseThresholdEvaluation,
+      doseDecision: outcome.decision,
+      additiveCategory: additiveCategory,
+      identifiers: identifiers,
+      ingredientName: ingredientName,
+      ingredientCanonicalId: ingredientCanonicalId,
+      profileGate: profileGate,
+      direction: direction,
+      materiality: materiality,
+      doseFloorStatus: doseFloorStatus,
+      severityRaw: clinicalSeverity ?? severityRaw,
+    );
   }
 
   /// Composite dedup key for FLTR-12. Two warnings with the same key

@@ -11,6 +11,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:pharmaguide/core/components/pg_compare_pillar_row.dart';
+import 'package:pharmaguide/core/components/pg_hero_section.dart'
+    show kQualityAssessmentIncompleteTitle;
 import 'package:pharmaguide/core/components/pg_score_breakdown_card.dart'
     show PGScoreBreakdownCard;
 import 'package:pharmaguide/core/components/pg_score_line.dart';
@@ -167,11 +169,15 @@ class _CompareBody extends StatelessWidget {
         isLowCoverage(productA.mappedCoverage) ||
         isLowCoverage(productB.mappedCoverage);
 
+    // An unfinished total isn't shown, so nothing here may compare it either.
+    final totalA = scorableA && !productAssessmentIncomplete(productA);
+    final totalB = scorableB && !productAssessmentIncomplete(productB);
+
     final delta = _largestPillarGap(
       pillarsA: pillarsA,
       pillarsB: pillarsB,
-      scoreA: scorableA ? productA.qualityScoreV4100 : null,
-      scoreB: scorableB ? productB.qualityScoreV4100 : null,
+      scoreA: totalA ? productA.qualityScoreV4100 : null,
+      scoreB: totalB ? productB.qualityScoreV4100 : null,
     );
 
     return ListView(
@@ -227,7 +233,7 @@ class _CompareBody extends StatelessWidget {
                 ),
                 const SizedBox(height: V2Spacing.space4),
                 Text(
-                  'Six pillars behind each quality score.',
+                  'Six pillars, out of 100.',
                   style: V2Typography.caption(color: context.v2.fgMuted),
                 ),
                 const SizedBox(height: V2Spacing.space16),
@@ -386,7 +392,7 @@ class _ProductHeader extends StatelessWidget {
         // tier, because the unassessed pillar could still move it.
         else if (productAssessmentIncomplete(product))
           Text(
-            'Assessment incomplete',
+            kQualityAssessmentIncompleteTitle,
             style: V2Typography.caption(color: context.v2.fgMuted),
           )
         else

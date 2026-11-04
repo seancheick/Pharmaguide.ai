@@ -77,6 +77,7 @@ List<InteractionWarning> composeGuardedWarnings({
   required Set<String> userConditions,
   required Set<String> userDrugClasses,
   required Set<String> userProfileFlags,
+  String? ageBracket,
 }) {
   final blobWarnings = parseBlobWarnings(
     detailBlob,
@@ -89,7 +90,7 @@ List<InteractionWarning> composeGuardedWarnings({
   ];
   return filterProductDetailWarningsForProfile(
     detailBlob: detailBlob,
-    warnings: merged,
+    warnings: [for (final w in merged) w.resolvedForAge(ageBracket)],
     userConditions: userConditions,
     userDrugClasses: userDrugClasses,
     userProfileFlags: userProfileFlags,

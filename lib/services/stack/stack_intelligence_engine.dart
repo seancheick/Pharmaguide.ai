@@ -206,7 +206,11 @@ class StackIntelligenceEngine {
             .length;
 
     final reviewDoseAlerts = doseThresholdAlerts
-        .where((alert) => alert.consumerDisposition.requiresReview)
+        .where(
+          (alert) =>
+              alert.consumerDisposition.requiresReview &&
+              safetyReport.showsDoseThresholdAlert(alert),
+        )
         .toList(growable: false);
     int doseCountBy(Severity severity) => reviewDoseAlerts
         .where((alert) => alert.clinicalSeverity == severity)

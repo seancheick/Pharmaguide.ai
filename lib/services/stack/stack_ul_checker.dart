@@ -63,6 +63,7 @@
 // score and stack nutrient panel use the same nutrient identity, unit, and
 // demographic rules.
 
+import 'package:pharmaguide/core/constants/schema_ids.dart';
 import 'package:pharmaguide/core/units/dose_units.dart';
 import 'package:pharmaguide/core/utils/num_parse.dart';
 import 'package:pharmaguide/services/stack/stack_nutrient_aggregator.dart';
@@ -233,6 +234,7 @@ class StackUlChecker {
     // the low as all that is known of the exposure. Anything between is
     // unresolved: no percentage, and the intake stays counted.
     var rangeUnresolved = false;
+    var highestAmount = safetyAmountInReferenceUnit;
     final rangeLow = total.ulComparableLowAmount;
     final rangeHigh = total.ulComparableHighAmount;
     if (rangeLow != null && rangeHigh != null && ul != null && ul > 0) {
@@ -250,6 +252,7 @@ class StackUlChecker {
 
       final low = bound(rangeLow);
       final high = bound(rangeHigh);
+      highestAmount = high;
       if (low != null && low > ul) {
         safetyAmountInReferenceUnit = low;
       } else if (high != null && high <= ul) {
@@ -258,6 +261,25 @@ class StackUlChecker {
         safetyAmountInReferenceUnit = null;
         rangeUnresolved = verdict?.overUl != true;
       }
+    }
+    // With no age, an amount above only the 14-18 limit is neither a clearance
+    // nor an adult excess (Dr Pham, 2026-11-03). A declined age is stored as
+    // 'Prefer not to say', which is no age, as in `resolvedForAge`.
+    if (!SchemaIds.ageBrackets.contains(ageBracket) &&
+        ul != null &&
+        highestAmount != null &&
+        highestAmount <= ul &&
+        verdict?.overUl != true &&
+        _kAgeSplitUlIds.contains(resolved.id)) {
+      final teenUl = _lowestUl(
+        (entry['data'] as List?) ?? const [],
+        (g) =>
+            g['age_range'] == '14-18' &&
+            (sex == null
+                ? _kAdultGroups.contains(g['group'])
+                : g['group'] == sex),
+      );
+      if (teenUl != null && highestAmount > teenUl) rangeUnresolved = true;
     }
 
     final pctOfRda =
@@ -550,6 +572,7 @@ class StackUlChecker {
     return const _UlLookup(null, false);
   }
 
+  static const _kAgeSplitUlIds = {'vitamin_a', 'vitamin_e'};
   static const _kAdultGroups = {'Male', 'Female'};
   static const _kAdultAges = {'19-30', '31-50', '51-70', '71+'};
 

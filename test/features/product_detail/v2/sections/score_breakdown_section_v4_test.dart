@@ -529,7 +529,7 @@ void nativeScaleTests() {
 
     expect(find.text('Why this scored 94'), findsOneWidget);
     expect(find.text('= 94/100'), findsNothing);
-    expect(find.text('Six pillars behind this quality score.'), findsOneWidget);
+    expect(find.text('Six pillars, out of 100.'), findsOneWidget);
   });
 
   testWidgets('v4: breakdown hidden when any pillar lacks a score', (

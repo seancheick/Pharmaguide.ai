@@ -241,8 +241,11 @@ final stackDoseRulesUnreadProvider = FutureProvider<bool>((ref) async {
       blob,
       resolvedRuleWarnings: resolvedRuleWarnings,
     );
+    final warnings = facts.warnings
+        .map((warning) => warning.resolvedForAge(profile.ageBracket))
+        .toList(growable: false);
     if (hasUnreadDoseRule(
-      facts.warnings,
+      warnings,
       userConditions: userConditions,
       userDrugClasses: userDrugClasses,
       userProfileFlags: userProfileFlags,
@@ -251,7 +254,7 @@ final stackDoseRulesUnreadProvider = FutureProvider<bool>((ref) async {
       return true;
     }
     products.add((
-      warnings: facts.warnings,
+      warnings: warnings,
       rows: facts.activeIngredients.isNotEmpty
           ? facts.activeIngredients
           : facts.nutrients,
@@ -312,14 +315,17 @@ final stackDoseThresholdAlertsProvider =
           blob,
           resolvedRuleWarnings: resolvedRuleWarnings,
         );
+        final warnings = facts.warnings
+            .map((warning) => warning.resolvedForAge(profile.ageBracket))
+            .toList(growable: false);
         productWarnings.add((
           stackEntryId: entry.id,
           productName: entry.name,
-          warnings: facts.warnings,
+          warnings: warnings,
         ));
         thresholdRules.addAll(
           stackDoseThresholdRulesFromWarnings(
-            facts.warnings,
+            warnings,
             stackEntryId: entry.id,
             productName: entry.name,
           ),

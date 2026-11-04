@@ -345,15 +345,7 @@ class ClinicalSignal {
         '${alert.targetType}:${alert.conditionId}:'
         '${alert.canonicalId}:$comparator:'
         '${_formatDose(alert.thresholdValue)}:$normalizedThresholdUnit';
-    final canonical = canonicalSignalId(
-      family: SignalFamily.doseThreshold,
-      nutrientId: alert.canonicalId,
-      targetType: alert.targetType,
-      targetId: alert.conditionId,
-      comparator: comparator,
-      thresholdValue: alert.thresholdValue,
-      thresholdUnit: normalizedThresholdUnit,
-    );
+    final canonical = alert.signalId;
     final reportedTotal =
         '${alert.totalIsStrictLowerBound ? 'more than ' : ''}'
         '${_formatDose(alert.totalValue)}';

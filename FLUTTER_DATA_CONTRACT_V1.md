@@ -107,7 +107,8 @@ The detail blob reads:
 
 Product Detail and Compare read the blob identified by the headline row's
 `detail_blob_sha256`. They show the six pillars only when the pillar values
-reconcile with the catalog score at its shipped precision.
+reconcile with the catalog score at its shipped precision. An incomplete quality
+assessment can show the reconciled pillars while withholding the total.
 
 ## Search And Lists
 

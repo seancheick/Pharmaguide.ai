@@ -55,7 +55,8 @@ class ProfileRelevanceSummary {
   final bool needsGoals;
   final bool startExpanded;
 
-  /// Small muted line under an all-clear (see [kLifeStageClinicianNote]).
+  /// Small muted line under an all-clear, and all that shows when the all-clear
+  /// is withheld (see [kLifeStageClinicianNote]).
   final String? footnote;
 
   const ProfileRelevanceSummary({
@@ -84,9 +85,32 @@ class ProfileRelevanceSummary {
     footnote: note,
   );
 
-  /// A defensive low-coverage state remains silent in consumer UI. Catalog
-  /// completeness is enforced by the release gate, not explained here.
-  bool get shouldRender => status != ProfileRelevanceStatus.coverageLimited;
+  /// The all-clear's place on a catalog caution (ADR-016): nothing personal
+  /// came up, and the product still has notes for everyone. The body shows
+  /// without a tap because it's the point of the wording.
+  ProfileRelevanceSummary withGeneralSafetyNotes({
+    required bool onProductSafetyCard,
+  }) => ProfileRelevanceSummary(
+    status: status,
+    tone: PGReviewTone.info,
+    headline: kNothingSpecificHeadline,
+    body: onProductSafetyCard
+        ? '$kGeneralSafetyNotesBody See Product Safety below.'
+        : 'The catalog flags this product for caution.',
+    rows: rows,
+    whyThisFitsReasons: whyThisFitsReasons,
+    profileIncomplete: profileIncomplete,
+    needsGoals: needsGoals,
+    startExpanded: true,
+    footnote: footnote,
+  );
+
+  bool get isWithheld => status == ProfileRelevanceStatus.coverageLimited;
+
+  /// A withheld all-clear remains silent in consumer UI, except for the
+  /// clinician line. Catalog completeness is enforced by the release gate, not
+  /// explained here.
+  bool get shouldRender => !isWithheld || footnote != null;
 }
 
 ProfileRelevanceSummary buildProfileRelevanceSummary({
@@ -116,6 +140,10 @@ ProfileRelevanceSummary buildProfileRelevanceSummary({
   // not a warning (no_data stays suppressed), so the all-clear carries one
   // small clinician line instead (Sean, 2026-10-11).
   bool hasPregnancyOrBreastfeeding = false,
+  // The catalog says caution, so "no known concerns" would overstate it.
+  bool hasCatalogCaution = false,
+  // The page has a Product Safety card for the wording to point to.
+  bool hasMaterialSafetyNotes = false,
 }) {
   final summary = _buildProfileRelevanceSummary(
     fitResult: fitResult,
@@ -131,10 +159,15 @@ ProfileRelevanceSummary buildProfileRelevanceSummary({
     checksFailed: checksFailed,
     onTapCitations: onTapCitations,
   );
-  return hasPregnancyOrBreastfeeding &&
-          summary.headline == kNoProfileConcernsHeadline
-      ? summary.withFootnote(kLifeStageClinicianNote)
+  final isClean = summary.headline == kNoProfileConcernsHeadline;
+  final shown = isClean && (hasCatalogCaution || hasMaterialSafetyNotes)
+      ? summary.withGeneralSafetyNotes(
+          onProductSafetyCard: hasMaterialSafetyNotes,
+        )
       : summary;
+  return hasPregnancyOrBreastfeeding && (isClean || shown.isWithheld)
+      ? shown.withFootnote(kLifeStageClinicianNote)
+      : shown;
 }
 
 ProfileRelevanceSummary _buildProfileRelevanceSummary({
@@ -317,7 +350,7 @@ ProfileRelevanceSummary _buildProfileRelevanceSummary({
       fitReasons: fitResult?.reasons ?? const [],
       rows: rows,
     ),
-    FitLimitedFit() || FitNotRecommended() => _cleanProfileSummary(
+    FitLimitedFit() => _cleanProfileSummary(
       status: ProfileRelevanceStatus.neutral,
       tone: hasCriticalGlobalNote ? PGReviewTone.info : PGReviewTone.safe,
       topGoalLabel: null,
@@ -325,7 +358,9 @@ ProfileRelevanceSummary _buildProfileRelevanceSummary({
       fitReasons: const [],
       rows: rows,
     ),
-    FitHidden() => ProfileRelevanceSummary(
+    // FitScoreService returns notRecommended only for a hard severity, which
+    // holds even when the blob carries no warning row to explain it.
+    FitHidden() || FitNotRecommended() => ProfileRelevanceSummary(
       status: ProfileRelevanceStatus.notRecommended,
       tone: PGReviewTone.danger,
       headline: 'Not recommended for your profile',
@@ -394,6 +429,12 @@ class ProfileRelevanceSection extends StatelessWidget {
     if (!summary.shouldRender) {
       return const SizedBox.shrink();
     }
+    if (summary.isWithheld) {
+      return Text(
+        summary.footnote!,
+        style: V2Typography.caption(color: context.v2.fgMuted),
+      );
+    }
 
     final actionLabel = summary.profileIncomplete
         ? 'Add profile information'
@@ -440,6 +481,12 @@ class ProfileRelevanceSection extends StatelessWidget {
   }
 }
 
+/// A note the Product Safety card shows.
+bool isMaterialSafetyNote(InteractionWarning warning) =>
+    isSourcedWatchlistSafetyNote(warning) ||
+    (warning.severity.isActionable &&
+        isCriticalDisplayMode(warning.displayModeDefault));
+
 /// Material global safety notes from the [partitionProfileWarnings] general
 /// bucket. Neutral education, benefits, and unmatched FYIs do not become
 /// warning cards; only actionable rows explicitly marked critical remain.
@@ -449,10 +496,7 @@ Widget? buildGeneralNotesSection({
   void Function(List<String> sourceUrls)? onTapCitations,
 }) {
   final materialWarnings = warnings
-      .where((warning) {
-        return warning.severity.isActionable &&
-            isCriticalDisplayMode(warning.displayModeDefault);
-      })
+      .where(isMaterialSafetyNote)
       .toList(growable: false);
   final profileNotes = warnings
       .where(
@@ -603,6 +647,9 @@ bool _shouldExpandInformationalRows(List<PGReviewRow> rows) {
 /// device, which flattened the hierarchy against the 14px body.
 // We report what we found, not a guarantee: "No known concerns".
 const String kNoProfileConcernsHeadline = 'No known concerns';
+
+const String kNothingSpecificHeadline = 'Nothing specific to your profile';
+const String kGeneralSafetyNotesBody = 'This product has general safety notes.';
 
 const String kLifeStageClinicianNote =
     'Pregnant or breastfeeding? Check new supplements with your obstetrician.';

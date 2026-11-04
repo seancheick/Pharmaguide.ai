@@ -153,6 +153,65 @@ bool catalogProductHasCompletePublicScore(ProductsCoreData? product) {
   return catalogAssessmentStatus(product) == CatalogAssessmentStatus.complete;
 }
 
+/// Whether a check that found nothing may be reported as "no known concerns".
+///
+/// The safety checks decide, not quality completion (ADR-016): a known catalog
+/// safety status and `safety_assessment_status` of `complete`. A quality gap
+/// belongs to the quality message, and any status other than `complete`
+/// withholds. Concerns the checks did find still show.
+///
+/// An older catalog has no such column, so the row reads null, and a finished
+/// public assessment is all it can offer.
+bool catalogProductCanReportNoConcerns(ProductsCoreData? product) {
+  if (product == null ||
+      catalogProductIsBlocked(product) ||
+      catalogProductSafetyStatus(product) ==
+          CatalogProductSafetyStatus.notAssessed) {
+    return false;
+  }
+  final safetyChecks = product.safetyAssessmentStatus;
+  return safetyChecks == null
+      ? _hasFinishedScoreNumber(product)
+      : safetyChecks == 'complete';
+}
+
+// Suppression counts as a finished assessment but leaves no number, so it gives
+// an older catalog nothing to stand on.
+bool _hasFinishedScoreNumber(ProductsCoreData product) =>
+    catalogProductHasCompletePublicScore(product) &&
+    product.qualityScoreV4100 != null;
+
+/// Whether the page should say this product's safety checks are unfinished.
+///
+/// True whenever the catalog says so, whatever the quality state. An older
+/// catalog has no status: a finished public score still decides there, and
+/// without one the missing all-clear needs this explanation. An unknown catalog
+/// safety status withholds without this claim, and a block is its own answer.
+bool catalogProductSafetyChecksIncomplete(ProductsCoreData? product) {
+  if (product == null || catalogProductIsBlocked(product)) return false;
+  if (product.productSafetyStatus?.trim().toLowerCase() == 'not_assessed') {
+    return true;
+  }
+  final safetyChecks = product.safetyAssessmentStatus;
+  if (safetyChecks != null) return safetyChecks != 'complete';
+  return catalogProductSafetyStatus(product) !=
+          CatalogProductSafetyStatus.notAssessed &&
+      !_hasFinishedScoreNumber(product);
+}
+
+/// Whether the unfinished safety checks come from a nutrient with an upper
+/// intake limit whose amount the label doesn't disclose (ADR-016).
+///
+/// Only an `incomplete` status can carry this reason, and any other value
+/// counts as none, so the page keeps its generic text.
+bool catalogProductSafetyGapIsUndisclosedUpperLimit(
+  ProductsCoreData? product,
+) =>
+    product != null &&
+    !catalogProductIsBlocked(product) &&
+    product.safetyAssessmentStatus == 'incomplete' &&
+    product.safetyAssessmentReason == 'upper_limit_amount_undisclosed';
+
 /// Whether the catalog has no usable quality number for this product.
 ///
 /// Narrow by design. A `partial` assessment is deliberately NOT not-scored:

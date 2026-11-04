@@ -16,12 +16,16 @@ ProductsCoreData _p({
   String? qualityAssessmentStatus,
   double? qualityScoreV4100,
   String? productSafetyStatus = 'no_known_catalog_concern',
+  String? safetyAssessmentStatus,
+  String? safetyAssessmentReason,
 }) => ProductsCoreData(
   dsldId: 'TEST-1',
   productName: 'Test Supplement',
   mappedCoverage: 1.0,
   qualityScoreV4100: qualityScoreV4100,
   productSafetyStatus: productSafetyStatus,
+  safetyAssessmentStatus: safetyAssessmentStatus,
+  safetyAssessmentReason: safetyAssessmentReason,
   qualityScoreStatus: qualityScoreStatus,
   qualityAssessmentStatus: qualityAssessmentStatus,
   exportVersion: 'test',
@@ -132,5 +136,79 @@ void main() {
       );
       expect(catalogProductHasCompletePublicScore(p), isFalse);
     });
+  });
+
+  group('an older catalog needs a number before an all-clear (ADR-016)', () {
+    test('a suppressed score with no number withholds, and says why', () {
+      final p = _p(
+        qualityScoreStatus: 'suppressed_safety',
+        qualityAssessmentStatus: 'complete',
+      );
+      expect(catalogProductCanReportNoConcerns(p), isFalse);
+      expect(catalogProductSafetyChecksIncomplete(p), isTrue);
+    });
+
+    test('a finished score still clears', () {
+      final p = _p(
+        qualityScoreStatus: 'scored',
+        qualityAssessmentStatus: 'complete',
+        qualityScoreV4100: 90,
+      );
+      expect(catalogProductCanReportNoConcerns(p), isTrue);
+      expect(catalogProductSafetyChecksIncomplete(p), isFalse);
+    });
+  });
+
+  group('the undisclosed upper-limit reason (ADR-016)', () {
+    const reason = 'upper_limit_amount_undisclosed';
+
+    for (final (name, status, value, expected)
+        in <(String, String?, String?, bool)>[
+          ('named beside incomplete', 'incomplete', reason, true),
+          ('no reason', 'incomplete', null, false),
+          (
+            'an unknown reason counts as none',
+            'incomplete',
+            'new_reason',
+            false,
+          ),
+          ('finished checks', 'complete', reason, false),
+          ('an older catalog', null, reason, false),
+        ]) {
+      test(name, () {
+        final p = _p(
+          safetyAssessmentStatus: status,
+          safetyAssessmentReason: value,
+        );
+        expect(catalogProductSafetyGapIsUndisclosedUpperLimit(p), expected);
+      });
+    }
+
+    test('a missing product', () {
+      expect(catalogProductSafetyGapIsUndisclosedUpperLimit(null), isFalse);
+    });
+
+    test('a block', () {
+      final p = _p(
+        productSafetyStatus: 'blocked',
+        safetyAssessmentStatus: 'incomplete',
+        safetyAssessmentReason: reason,
+      );
+      expect(catalogProductSafetyGapIsUndisclosedUpperLimit(p), isFalse);
+    });
+  });
+
+  // The page hides the For You card on a block, so only this can see the rule.
+  group('finished safety checks never clear a block (ADR-016)', () {
+    for (final status in ['blocked', 'unsafe']) {
+      test(status, () {
+        final p = _p(
+          qualityScoreStatus: 'suppressed_safety',
+          productSafetyStatus: status,
+          safetyAssessmentStatus: 'complete',
+        );
+        expect(catalogProductCanReportNoConcerns(p), isFalse);
+      });
+    }
   });
 }

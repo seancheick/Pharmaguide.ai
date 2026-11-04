@@ -6,6 +6,7 @@ import 'package:pharmaguide/core/scoring/v4_pillars.dart';
 /// Renders the optional explanation of a scored catalog product.
 Widget buildScoreBreakdownSection({
   required double? heroScore,
+  bool showTotal = true,
   String? qualityTier,
   Map<String, dynamic>? qualityPillarsV4,
 
@@ -23,7 +24,7 @@ Widget buildScoreBreakdownSection({
       pillars: pillars,
       // Preserve the source value; the card owns the shared whole-number
       // consumer presentation used by the hero, headline, and total.
-      heroScore: heroScore,
+      heroScore: showTotal ? heroScore : null,
       qualityTier: qualityTier,
       onHowScoringWorks: () => showTrustReceiptsSheet(context),
     ),

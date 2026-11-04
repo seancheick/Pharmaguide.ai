@@ -204,7 +204,7 @@ class _PGScoreBreakdownCardState extends State<PGScoreBreakdownCard> {
                         ),
                       )
                     : Text(
-                        'Why this scored',
+                        'Quality score breakdown',
                         style: V2Typography.titleSm(color: context.v2.fg),
                       ),
               ),
@@ -212,7 +212,7 @@ class _PGScoreBreakdownCardState extends State<PGScoreBreakdownCard> {
           ),
           const SizedBox(height: V2Spacing.space4),
           Text(
-            'Six pillars behind this quality score.',
+            'Six pillars, out of 100.',
             style: V2Typography.caption(color: context.v2.fgMuted),
           ),
           const SizedBox(height: V2Spacing.space16),
