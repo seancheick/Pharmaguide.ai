@@ -62,4 +62,11 @@ void main() {
       expect(signOutAt, greaterThan(purgeAt));
     },
   );
+
+  test('start over purges only the erased account\'s snapshots', () {
+    final source = File(
+      'lib/services/auth/pg_auth_service.dart',
+    ).readAsStringSync();
+    expect(source, contains('purgeAiShareData(onlyFor: uid)'));
+  });
 }

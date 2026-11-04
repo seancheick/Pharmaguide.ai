@@ -267,6 +267,20 @@ void main() {
         );
       });
 
+      // Known limit (ADR-013): nothing on disk tells this file from an encrypted
+      // one, and the store has reported the key gone.
+      test(
+        'a damaged plain file whose key is gone too reads as lost',
+        () async {
+          File(path).writeAsBytesSync(List.filled(4096, 7));
+          vault.keys.clear();
+          await expectLater(
+            launch().prepare(path),
+            throwsA(isA<AccountKeyLost>()),
+          );
+        },
+      );
+
       test('a damaged plain file with no key id is not a lost key', () async {
         idFile().deleteSync();
         File(path).writeAsBytesSync(List.filled(4096, 7));

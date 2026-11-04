@@ -72,9 +72,11 @@ class _UndeletableStorage extends AccountStorage {
   }
 
   @override
-  Future<void> sweepErased(Future<void> Function(String) removeRest) async {
+  Future<void> sweepErased(
+    Map<String, Future<bool> Function(String)> owed,
+  ) async {
     if (sweepFails) throw const FileSystemException('delete refused');
-    await super.sweepErased(removeRest);
+    await super.sweepErased(owed);
   }
 }
 
@@ -164,7 +166,7 @@ void main() {
       String? Function()? readSessionUid,
       bool askBeforeAdoptingGuest = false,
       Future<void> Function()? clearSharedReport,
-      Future<void> Function()? purgeAiShare,
+      Future<bool> Function(String uid)? purgeAiShare,
       Future<void> Function(String uid)? onAccountRemoved,
       AccountStorage? storageOverride,
     }) {
@@ -176,7 +178,7 @@ void main() {
         readSessionUid: readSessionUid,
         askBeforeAdoptingGuest: askBeforeAdoptingGuest,
         clearSharedReport: clearSharedReport ?? () async {},
-        purgeAiShare: purgeAiShare ?? () async {},
+        purgeAiShare: purgeAiShare ?? (_) async => true,
         onAccountRemoved: onAccountRemoved,
       );
       addTearDown(guard.close);
@@ -594,6 +596,13 @@ void main() {
         ),
       );
 
+      List<Directory> erasingFolders() =>
+          Directory(p.join(support.path, 'users'))
+              .listSync()
+              .whereType<Directory>()
+              .where((entry) => p.basename(entry.path).contains('.erasing.'))
+              .toList();
+
       setUp(() {
         failure = null;
         failingScope = null;
@@ -603,7 +612,7 @@ void main() {
       /// A guard on the locked account, its data on disk.
       Future<AccountSwitchGuard> lockedGuard({
         Future<void> Function()? onOwnerChange,
-        Future<void> Function()? purgeAiShare,
+        Future<bool> Function(String uid)? purgeAiShare,
         Future<void> Function(String uid)? onAccountRemoved,
         String? Function()? readSessionUid,
         AccountStorage? storageOverride,
@@ -637,7 +646,10 @@ void main() {
           var purges = 0;
           final guard = await lockedGuard(
             error: error,
-            purgeAiShare: () async => purges++,
+            purgeAiShare: (_) async {
+              purges++;
+              return true;
+            },
           );
           final before = databaseOf(_a).readAsBytesSync();
 
@@ -792,7 +804,10 @@ void main() {
         final removed = <String>[];
         final guard = await lockedGuard(
           onOwnerChange: () async => ownerWork++,
-          purgeAiShare: () async => purges++,
+          purgeAiShare: (_) async {
+            purges++;
+            return true;
+          },
           onAccountRemoved: (uid) async => removed.add(uid),
           storageOverride: _UndeletableStorage(
             supportDirectory: () async => support,
@@ -827,7 +842,7 @@ void main() {
         'once the database is gone, a failed cleanup never leaves the person locked',
         () async {
           final guard = await lockedGuard(
-            purgeAiShare: () async => throw StateError('purge failed'),
+            purgeAiShare: (_) async => throw StateError('purge failed'),
             onAccountRemoved: (_) async => throw StateError('drafts failed'),
             storageOverride: _UndeletableStorage(
               supportDirectory: () async => support,
@@ -895,7 +910,10 @@ void main() {
           final guard = guardWith(
             open: openOrFail,
             onOwnerChange: () async => ownerWork++,
-            purgeAiShare: () async => purges++,
+            purgeAiShare: (_) async {
+              purges++;
+              return true;
+            },
             onAccountRemoved: (uid) async => removed.add(uid),
           );
           await guard.boot(sessionUid: _a);
@@ -919,13 +937,17 @@ void main() {
           final guard = guardWith(
             open: openOrFail,
             readSessionUid: () => null,
-            purgeAiShare: () async => purges++,
+            purgeAiShare: (_) async {
+              purges++;
+              return true;
+            },
             onAccountRemoved: (uid) async => removed.add(uid),
           );
           await guard.boot(sessionUid: null);
 
           expect(removed, [_a]);
           expect(purges, 0);
+          expect(erasingFolders(), hasLength(1), reason: 'still owed');
         },
       );
 
@@ -962,7 +984,6 @@ void main() {
 
           final guard = await lockedGuard(onAccountRemoved: drafts);
           final scope = guard.account.scope;
-          final moved = Directory(p.join(support.path, 'users'));
           File(
             p.join(p.dirname(databaseOf(_a).path), 'attachments', 'scan.jpg'),
           ).createSync(recursive: true);
@@ -970,14 +991,14 @@ void main() {
 
           await guard.startOver();
 
-          final marked = moved
-              .listSync()
-              .whereType<Directory>()
-              .where((entry) => p.basename(entry.path).contains('.erasing.'))
-              .toList();
+          final marked = erasingFolders();
           expect(marked, hasLength(1), reason: 'the rest is still owed');
           expect(p.basename(marked.single.path), startsWith(scope));
-          expect(marked.single.listSync(), isEmpty);
+          expect(
+            marked.single.listSync().map((entry) => p.basename(entry.path)),
+            everyElement(endsWith('.done')),
+            reason: 'nothing of the health data is left',
+          );
           expect(await _names(guard.database!), isEmpty);
           await guard.close();
 
@@ -997,7 +1018,10 @@ void main() {
           var purges = 0;
           final guard = await lockedGuard(
             readSessionUid: () => session,
-            purgeAiShare: () async => purges++,
+            purgeAiShare: (_) async {
+              purges++;
+              return true;
+            },
             storageOverride: _UndeletableStorage(
               supportDirectory: () async => support,
               documentsDirectory: () async => documents,
@@ -1009,6 +1033,103 @@ void main() {
           await guard.startOver();
 
           expect(purges, 0);
+          expect(erasingFolders(), hasLength(1), reason: 'still owed');
+        },
+      );
+
+      test(
+        'a purge that can not finish offline is retried next launch, and the folder goes last',
+        () async {
+          var online = false;
+          var purges = 0;
+          Future<bool> purge(String uid) async {
+            purges++;
+            return online;
+          }
+
+          final guard = await lockedGuard(purgeAiShare: purge);
+          failure = null;
+
+          await guard.startOver();
+
+          expect(await _names(guard.database!), isEmpty);
+          expect(erasingFolders(), hasLength(1));
+          await guard.close();
+
+          final stillOffline = guardWith(open: openOrFail, purgeAiShare: purge);
+          await stillOffline.boot(sessionUid: _a);
+          expect(purges, 2);
+          expect(erasingFolders(), hasLength(1));
+          await stillOffline.close();
+
+          online = true;
+          final next = guardWith(open: openOrFail, purgeAiShare: purge);
+          await next.boot(sessionUid: _a);
+          expect(purges, 3);
+          expect(erasingFolders(), isEmpty);
+        },
+      );
+
+      test(
+        'a retry leaves alone what the person saved since the erase',
+        () async {
+          var fail = true;
+          var ownerWork = 0;
+          final removed = <String>[];
+          Future<void> drafts(String uid) async {
+            if (fail) throw StateError('drafts failed');
+            removed.add(uid);
+          }
+
+          final guard = await lockedGuard(
+            onOwnerChange: () async => ownerWork++,
+            onAccountRemoved: drafts,
+          );
+          final scope = guard.account.scope;
+          failure = null;
+
+          await guard.startOver();
+
+          await RecentSearchesService(scope: scope).addSearch('magnesium');
+          final ownerWorkAfterErase = ownerWork;
+          await guard.close();
+
+          fail = false;
+          final next = guardWith(
+            open: openOrFail,
+            onOwnerChange: () async => ownerWork++,
+            onAccountRemoved: drafts,
+          );
+          await next.boot(sessionUid: _a);
+
+          expect(removed, [_a], reason: 'only the failed step ran again');
+          expect(ownerWork, ownerWorkAfterErase, reason: 'reminders set since');
+          expect(await RecentSearchesService(scope: scope).getRecent(), [
+            'magnesium',
+          ]);
+          expect(erasingFolders(), isEmpty);
+        },
+      );
+
+      test(
+        'a purge bound to one account leaves another session alone',
+        () async {
+          final calls = <Object?>[];
+          final done = await purgeAiShareData(
+            prefs: AiSharePrefsStore(MemoryPreferencesStore()),
+            snapshots: AiShareSnapshotClient(
+              isSignedIn: () => true,
+              currentUserId: () => _b,
+              invoke: (_, body) async {
+                calls.add(body);
+                return const AiShareInvokeResponse(status: 204, data: null);
+              },
+            ),
+            onlyFor: _a,
+          );
+
+          expect(done, isFalse);
+          expect(calls, isEmpty);
         },
       );
 
@@ -1042,7 +1163,12 @@ void main() {
           final before = databaseOf(_a).readAsBytesSync();
           final removed = <String>[];
 
-          await storage.sweepErased((scope) async => removed.add(scope));
+          await storage.sweepErased({
+            'step': (scope) async {
+              removed.add(scope);
+              return true;
+            },
+          });
 
           expect(removed, isEmpty);
           expect(databaseOf(_a).readAsBytesSync(), before);
@@ -1078,7 +1204,7 @@ void main() {
         await prefs.recordShare('c-1', AiShareScope.detailedReport, 24);
         await prefs.setKeepUpdated('c-1', true);
         final guard = await lockedGuard(
-          purgeAiShare: () =>
+          purgeAiShare: (_) =>
               purgeAiShareData(prefs: prefs, snapshots: backend.client()),
         );
         failure = null;
@@ -1104,7 +1230,7 @@ void main() {
         final backend = FakeAiShareBackend();
         final prefs = AiSharePrefsStore(MemoryPreferencesStore());
         final guard = await lockedGuard(
-          purgeAiShare: () =>
+          purgeAiShare: (_) =>
               purgeAiShareData(prefs: prefs, snapshots: backend.client()),
         );
         failure = null;

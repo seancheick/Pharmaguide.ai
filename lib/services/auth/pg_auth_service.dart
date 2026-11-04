@@ -108,9 +108,12 @@ class AccountOwnerStore {
 /// Stops every opt-in AI-share refresh, then deletes this user's snapshots
 /// while the session can still authorize it. Best-effort and bounded, so an
 /// offline phone gets through: the snapshots then stay until they expire.
-Future<void> purgeAiShareData({
+/// Returns whether the snapshots are gone. With [onlyFor], any other session's
+/// are left alone.
+Future<bool> purgeAiShareData({
   AiSharePrefsStore? prefs,
   AiShareSnapshotClient? snapshots,
+  String? onlyFor,
 }) async {
   // Stop every opt-in refresh first so nothing re-uploads after the purge.
   try {
@@ -126,19 +129,24 @@ Future<void> purgeAiShareData({
   }
   try {
     // Bounded so an offline device can still sign out.
-    await (snapshots ?? AiShareSnapshotClient.production()).deleteAll().timeout(
-      const Duration(seconds: 10),
-    );
+    await (snapshots ?? AiShareSnapshotClient.production())
+        .deleteAll(onlyFor: onlyFor)
+        .timeout(const Duration(seconds: 10));
+    return true;
   } on AiShareNotSignedIn {
     // No session: nothing this device can authorize deleting.
+    return false;
   } on Object catch (error, stackTrace) {
     CrashReportingService().recordError(
       error,
       stackTrace,
       hint: 'ai_share:signout_purge_failed',
     );
+    return false;
   }
 }
+
+Future<bool> _purgeAiShareOf(String uid) => purgeAiShareData(onlyFor: uid);
 
 /// The one owner of switching between people on a device (ADR-013). Holds the
 /// open user database, and applies [decideAccountAction] to live auth events.
@@ -160,7 +168,7 @@ class AccountSwitchGuard {
     this._readSessionUid,
     this._askBeforeAdoptingGuest = false,
     this._clearSharedReport = clearSharedClinicianReport,
-    this._purgeAiShare = purgeAiShareData,
+    this._purgeAiShare = _purgeAiShareOf,
   });
 
   factory AccountSwitchGuard.production({
@@ -188,7 +196,7 @@ class AccountSwitchGuard {
 
   final Future<void> Function() _clearSharedReport;
 
-  final Future<void> Function() _purgeAiShare;
+  final Future<bool> Function(String uid) _purgeAiShare;
 
   final AccountOwnerStore _ownerStore;
   final AccountStorage _storage;
@@ -346,15 +354,39 @@ class AccountSwitchGuard {
   });
 
   /// The data is out of reach by now, so nothing here may leave the person
-  /// locked. What fails is retried at the next launch.
+  /// locked. What doesn't finish is retried at the next launch.
   Future<void> _finishErasing(Set<String?> known) async {
+    // The folder is named by a hash, so only a known uid can match it. A step
+    // with no match waits for a launch that knows the account.
+    Future<bool> Function(String) forOwner(
+      Future<bool> Function(String? uid) step,
+    ) => (scope) async {
+      for (final uid in known) {
+        if (AccountStorage.scopeFor(uid) == scope) return step(uid);
+      }
+      return false;
+    };
     try {
-      await _storage.sweepErased((scope) async {
-        await RecentSearchesService.deleteScope(scope);
-        // The folder is named by a hash, so only a known uid can match it.
-        for (final uid in known) {
-          if (AccountStorage.scopeFor(uid) == scope) await _removeRest(uid);
-        }
+      await _storage.sweepErased({
+        // Their scheduled reminders outlive the folder.
+        'reminders': forOwner((uid) async {
+          await _endOwnerWork(previousOwner: uid, incomingUid: uid);
+          return true;
+        }),
+        'drafts': forOwner((uid) async {
+          if (uid != null) await _onAccountRemoved?.call(uid);
+          return true;
+        }),
+        'ai_share': forOwner((uid) async {
+          if (uid == null) return true;
+          // It acts on whoever is signed in, which must be them.
+          if (_readSessionUid != null && _readSessionUid() != uid) return false;
+          return _purgeAiShare(uid);
+        }),
+        'searches': (scope) async {
+          await RecentSearchesService.deleteScope(scope);
+          return true;
+        },
       });
     } on Object catch (error, stackTrace) {
       CrashReportingService().recordError(
@@ -362,20 +394,6 @@ class AccountSwitchGuard {
         stackTrace,
         hint: 'account_switch:start_over_cleanup',
       );
-    }
-  }
-
-  /// What an erased account has outside its folder.
-  Future<void> _removeRest(String? uid) async {
-    // Their scheduled reminders outlive the folder.
-    await _endOwnerWork(previousOwner: uid, incomingUid: uid);
-    try {
-      if (uid != null) await _onAccountRemoved?.call(uid);
-    } finally {
-      // The purge acts on whoever is signed in now, which must be them.
-      if (_readSessionUid == null || _readSessionUid() == uid) {
-        await _purgeAiShare();
-      }
     }
   }
 
