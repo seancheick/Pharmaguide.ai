@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:convert';
 import 'dart:typed_data';
 
@@ -50,6 +51,7 @@ class SafetyAlertRepository {
   final SupabaseClient? _givenClient;
   final SharedPreferencesAsync _preferences;
   final Map<String, String> _keys;
+  Future<void> _cacheWrite = Future<void>.value();
 
   /// Read inside the fetch: Supabase failing to start is a failed fetch, and a
   /// saved copy still counts.
@@ -70,14 +72,7 @@ class SafetyAlertRepository {
         throw const FormatException('No current safety-alert release.');
       }
       final remote = await _decodeRemote(Map<String, dynamic>.from(row));
-      final release = remote.keeping(
-        (await _loadCached())?.rowsFor(remote.unreadableIds) ?? const [],
-      );
-      await _preferences.setString(
-        _cacheKey,
-        jsonEncode(_cachePayload(release)),
-      );
-      return await _withWatermark(release, isComplete: !release.hasUnsupported);
+      return await _storeCurrent(remote);
     } on Object {
       final cached = await _loadCached();
       if (cached == null) {
@@ -89,6 +84,35 @@ class SafetyAlertRepository {
         );
       }
       return await _withWatermark(cached, isComplete: false);
+    }
+  }
+
+  // Downloads may overlap, but checking the sequence floor and committing its
+  // bytes must be one operation. Otherwise a slow older download can erase a
+  // newer warning after both requests passed the early replay check.
+  Future<SafetyAlertRelease> _storeCurrent(_DecodedRelease remote) async {
+    final previous = _cacheWrite;
+    final finished = Completer<void>();
+    _cacheWrite = finished.future;
+    await previous;
+    try {
+      final cached = await _loadCached();
+      final held = cached?.signed?.sequence;
+      if (held != null && remote.signed!.sequence < held) {
+        throw const FormatException(
+          'Safety-alert release is older than this copy.',
+        );
+      }
+      final release = remote.keeping(
+        cached?.rowsFor(remote.unreadableIds) ?? const [],
+      );
+      await _preferences.setString(
+        _cacheKey,
+        jsonEncode(_cachePayload(release)),
+      );
+      return await _withWatermark(release, isComplete: !release.hasUnsupported);
+    } finally {
+      finished.complete();
     }
   }
 

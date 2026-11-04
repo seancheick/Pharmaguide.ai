@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
 
@@ -62,6 +63,7 @@ class _Server {
     _extendedPath: _extendedBytes,
   };
   bool offline = false;
+  Future<void> Function(String path)? beforeDownload;
   final List<http.Request>? requests;
   final downloads = <String>[];
 
@@ -74,6 +76,7 @@ class _Server {
         if (offline) throw http.ClientException('offline');
         if (request.url.path.contains('/storage/')) {
           downloads.add(request.url.path);
+          await beforeDownload?.call(request.url.path);
           for (final file in files.entries) {
             if (request.url.path.endsWith(file.key)) {
               return http.Response.bytes(file.value, 200, request: request);
@@ -411,6 +414,50 @@ void main() {
       checksum: _checksum(_baseBytes),
       extended: _extendedEntry,
       sequence: sequence,
+    );
+
+    test(
+      'slow older download cannot replace a newer concurrent release',
+      () async {
+        final empty = utf8.encode('{"alerts":[]}');
+        const oldPath = 'safety/old.json';
+        final oldSigned = await signedFeedBlock(
+          path: oldPath,
+          checksum: _checksum(empty),
+          sequence: 4,
+        );
+        final server = _Server(signed: oldSigned);
+        server.files[oldPath] = empty;
+        final entered = Completer<void>();
+        final resume = Completer<void>();
+        server.beforeDownload = (path) async {
+          if (path.endsWith(oldPath)) {
+            entered.complete();
+            await resume.future;
+          }
+        };
+        final preferences = _MemoryPreferences();
+        final repository = _repository(server, preferences);
+        final older = repository.loadCurrent();
+        await entered.future;
+        server.signed = await signedAt(5);
+        final newer = await repository.loadCurrent();
+        expect(_ids(newer), _allAlerts);
+        expect(newer.isComplete, isTrue);
+        final saved = Map.of(preferences.values);
+        resume.complete();
+        final late = await older;
+        expect(_ids(late), _allAlerts);
+        expect(late.isComplete, isFalse);
+        expect(preferences.values, saved);
+        expect(
+          (await repository.loadCachedAlerts()).map((alert) => alert.alertId),
+          containsAll(_allAlerts),
+        );
+        server.beforeDownload = null;
+        server.signed = oldSigned;
+        expect((await repository.loadCurrent()).isComplete, isFalse);
+      },
     );
 
     test('replayed: refused, and the newer copy stays', () async {
