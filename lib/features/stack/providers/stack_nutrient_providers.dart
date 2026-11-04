@@ -222,10 +222,11 @@ final stackDoseRulesUnreadProvider = FutureProvider<bool>((ref) async {
     final Map<String, dynamic>? blob;
     try {
       blob = await ref.watch(detailBlobProvider(dsldId).future);
-    } on Exception {
-      continue;
+    } on Object {
+      return true;
     }
-    if (blob == null) continue;
+    // Its rules can't be read, so the check can't claim to have run them.
+    if (blob == null) return true;
     final resolvedRuleWarnings = await ref.watch(
       profileWarningRuleWarningsProvider(dsldId).future,
     );

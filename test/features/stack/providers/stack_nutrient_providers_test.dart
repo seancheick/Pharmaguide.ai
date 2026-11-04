@@ -9,6 +9,7 @@ import 'package:pharmaguide/core/constants/severity.dart';
 import 'package:pharmaguide/data/database/core_database.dart';
 import 'package:pharmaguide/data/database/user_database.dart';
 import 'package:pharmaguide/data/providers/database_providers.dart';
+import 'package:pharmaguide/data/providers/detail_blob_provider.dart';
 import 'package:pharmaguide/core/models/stack_intelligence.dart';
 import 'package:pharmaguide/features/profile/profile_provider.dart';
 import 'package:pharmaguide/features/stack/providers/stack_nutrient_providers.dart';
@@ -142,6 +143,61 @@ void main() {
         await container.read(stackDoseRulesUnreadProvider.future),
         isFalse,
       );
+    });
+    group('a product whose detail could not be loaded', () {
+      Future<ProviderContainer> failing(
+        Future<Map<String, dynamic>?> Function() blob,
+      ) async {
+        final coreDb = CoreDatabase.memory();
+        final userDb = UserDatabase.memory();
+        addTearDown(() async {
+          await coreDb.close();
+          await userDb.close();
+        });
+        // Nothing filled in: no condition could have made a rule apply.
+        await userDb.saveProfile(const ProfileState().toCompanion());
+        await _seedProduct(coreDb, dsldId: 'LOST', name: 'Lost');
+        await _seedStack(userDb, dsldId: 'LOST', name: 'Lost');
+        final container = ProviderContainer(
+          overrides: [
+            coreDatabaseProvider.overrideWithValue(coreDb),
+            userDatabaseProvider.overrideWithValue(userDb),
+            evaluatorProfileFlagsProvider.overrideWith(
+              (ref) async => const <String>{},
+            ),
+            detailBlobProvider.overrideWith((ref, dsldId) => blob()),
+          ],
+        );
+        addTearDown(container.dispose);
+        return container;
+      }
+
+      test('a failed fetch reads as incomplete', () async {
+        final container = await failing(() async => throw Exception('offline'));
+
+        expect(
+          await container.read(stackDoseRulesUnreadProvider.future),
+          isTrue,
+        );
+      });
+
+      test('a failure that is not an Exception reads as incomplete', () async {
+        final container = await failing(() async => throw StateError('bad'));
+
+        expect(
+          await container.read(stackDoseRulesUnreadProvider.future),
+          isTrue,
+        );
+      });
+
+      test('an absent blob reads as incomplete', () async {
+        final container = await failing(() async => null);
+
+        expect(
+          await container.read(stackDoseRulesUnreadProvider.future),
+          isTrue,
+        );
+      });
     });
   });
 
