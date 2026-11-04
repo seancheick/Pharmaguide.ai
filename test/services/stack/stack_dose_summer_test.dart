@@ -884,7 +884,10 @@ void main() {
   group('cards for one rule on one product', () {
     const summer = StackDoseSummer();
 
-    InteractionWarning card(num? amount) => InteractionWarning.fromJson({
+    InteractionWarning card(
+      num? amount, {
+      String unreadDisposition = 'review',
+    }) => InteractionWarning.fromJson({
       'type': 'interaction',
       'severity': 'caution',
       'title': 'Vitamin A / smokers',
@@ -896,7 +899,7 @@ void main() {
         'evaluation_status': amount == null
             ? 'amount_unknown'
             : 'below_threshold',
-        'consumer_disposition': 'suppress',
+        'consumer_disposition': amount == null ? unreadDisposition : 'suppress',
         'evaluated_daily_amount': amount,
         'evaluated_unit': amount == null ? null : 'mcg rae',
         'decision_rule': {
@@ -937,10 +940,18 @@ void main() {
       expect(result.single.amountUnresolved, isFalse);
     });
 
-    test('a card with no amount alone stays for the row total', () {
+    test('a card with no amount alone carries none and stays unresolved', () {
       final result = rules([card(null), card(null)]);
 
       expect(result.single.normalizedDailyAmount, isNull);
+      expect(result.single.amountUnresolved, isTrue);
+    });
+
+    test('a card the pipeline suppressed adds nothing to the amount', () {
+      final suppressed = card(null, unreadDisposition: 'suppress');
+
+      expect(rules([suppressed]), isEmpty);
+      expect(rules([suppressed, card(4500)]).single.amountUnresolved, isFalse);
     });
 
     test('220806 + 178431 stays 12,000 and keeps the unresolved mark', () {
@@ -1232,7 +1243,7 @@ void main() {
       expect(alert, isNull);
     });
 
-    test('an unread card keeps the known amount and the unresolved mark', () {
+    test('an unread suppressed card adds nothing and leaves it complete', () {
       for (final cards in [
         [doseCard(amount: 4500), doseCard()],
         [doseCard(), doseCard(amount: 4500)],
@@ -1247,7 +1258,7 @@ void main() {
 
         expect(alert, isNotNull);
         expect(alert!.totalValue, 12000);
-        expect(alert.isIncomplete, isTrue);
+        expect(alert.isIncomplete, isFalse);
         expect(
           ClinicalSignal.fromDoseThreshold(alert).body,
           kBetaCaroteneStackCardBody,

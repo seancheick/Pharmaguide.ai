@@ -69,6 +69,7 @@ bool hasUnreadDoseRule(
     final decision = warning.doseDecision;
     if (decision == null ||
         !decision.amountUnread ||
+        warning.unreadBetaCaroteneAddsNothing ||
         warning.direction == 'beneficial' ||
         (cardsShown &&
             consumerDispositionFromWire(decision.consumerDisposition) !=

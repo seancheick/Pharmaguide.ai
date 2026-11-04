@@ -1023,6 +1023,260 @@ void main() {
       });
     });
 
+    group('a beta-carotene mixture with no stated fraction', () {
+      Future<ProviderContainer> stack(
+        Map<String, Map<String, Object?>> blobs, {
+        List<String> conditions = const ['current_smoker'],
+      }) async {
+        final coreDb = CoreDatabase.memory();
+        final userDb = UserDatabase.memory();
+        addTearDown(() async {
+          await coreDb.close();
+          await userDb.close();
+        });
+        await userDb.saveProfile(
+          ProfileState(
+            ageBracket: '31-50',
+            sex: 'Male',
+            conditions: conditions,
+          ).toCompanion(),
+        );
+        for (final entry in blobs.entries) {
+          await _seedProduct(coreDb, dsldId: entry.key, name: entry.key);
+          await _seedStack(userDb, dsldId: entry.key, name: entry.key);
+          await userDb.cacheDetail(
+            entry.key,
+            jsonEncode(entry.value),
+            _blobSha,
+          );
+        }
+        final container = ProviderContainer(
+          overrides: [
+            coreDatabaseProvider.overrideWithValue(coreDb),
+            userDatabaseProvider.overrideWithValue(userDb),
+            evaluatorProfileFlagsProvider.overrideWith(
+              (ref) async => const <String>{},
+            ),
+          ],
+        );
+        addTearDown(container.dispose);
+        return container;
+      }
+
+      Future<void> expectRead(
+        ProviderContainer container, {
+        required List<double> totals,
+        required bool incomplete,
+      }) async {
+        final alerts = await container.read(
+          stackDoseThresholdAlertsProvider.future,
+        );
+        expect(alerts.map((alert) => alert.totalValue), totals);
+        expect(alerts.where((alert) => alert.consumerBody != null), isEmpty);
+        expect(
+          await container.read(stackDoseRulesUnreadProvider.future),
+          incomplete,
+        );
+      }
+
+      // 184325-style: mcg RAE with no mass, so a range of nothing.
+      Map<String, Object?> raeOnly(double rae) => {
+        'ingredients': [_mixtureRow(rae: rae, maximum: 0)],
+        'warnings': [
+          _betaCaroteneCard(status: 'amount_unknown', disposition: 'suppress'),
+          _betaCaroteneCard(
+            status: 'amount_unknown',
+            disposition: 'suppress',
+            threshold: 10000,
+            everyViewer: true,
+          ),
+        ],
+      };
+
+      // 293269 and 328639: a vitamin A row, whose figure is real but is not
+      // beta-carotene, and no range.
+      Map<String, Object?> vitaminARow(double rae) => {
+        'ingredients': [
+          {
+            'name': 'Vitamin A',
+            'standard_name': 'Vitamin A',
+            'canonical_id': 'vitamin_a',
+            'quantity': rae,
+            'unit': 'mcg RAE',
+          },
+        ],
+        'warnings': [
+          _betaCaroteneCard(status: 'amount_unknown', disposition: 'suppress'),
+          _betaCaroteneCard(
+            status: 'amount_unknown',
+            disposition: 'suppress',
+            threshold: 10000,
+            everyViewer: true,
+          ),
+        ],
+      };
+
+      // 10 mg confirmed + 8 mg mixture: 5,000 and at most 9,000 mcg RAE.
+      Map<String, Object?> confirmedAndMixture() => {
+        'ingredients': [_mixtureRow(maximum: 4000)],
+        'warnings': [
+          _betaCaroteneCard(status: 'form_unknown', disposition: 'review'),
+          _betaCaroteneCard(
+            status: 'below_threshold',
+            disposition: 'suppress',
+            threshold: 10000,
+            amount: 5000,
+            everyViewer: true,
+          ),
+        ],
+      };
+
+      // 25 mg mixture: at most 12,500 mcg RAE.
+      Map<String, Object?> largeMixture() => {
+        'ingredients': [_mixtureRow(maximum: 12500)],
+        'warnings': [
+          _betaCaroteneCard(status: 'form_unknown', disposition: 'review'),
+          _betaCaroteneCard(
+            status: 'form_unknown',
+            disposition: 'suppress',
+            threshold: 10000,
+            everyViewer: true,
+          ),
+        ],
+      };
+
+      Map<String, Object?> smallMixture(double maximum) => {
+        'ingredients': [_mixtureRow(maximum: maximum)],
+        'warnings': [
+          _betaCaroteneCard(status: 'amount_unknown', disposition: 'suppress'),
+        ],
+      };
+
+      Map<String, Object?> confirmed(double amount) => {
+        'warnings': [
+          _betaCaroteneCard(
+            status: amount >= 7500 ? 'above_threshold' : 'below_threshold',
+            disposition: amount >= 7500 ? 'review' : 'suppress',
+            amount: amount,
+          ),
+        ],
+      };
+
+      for (final conditions in const [
+        ['current_smoker'],
+        <String>[],
+      ]) {
+        final who = conditions.isEmpty ? 'no risk factor' : 'a smoker';
+
+        test('a mcg RAE figure adds nothing, for $who', () async {
+          await expectRead(
+            await stack({'RAE': raeOnly(7500)}, conditions: conditions),
+            totals: const [],
+            incomplete: false,
+          );
+        });
+
+        test('293269 and 328639 add nothing, for $who', () async {
+          await expectRead(
+            await stack({
+              'A': vitaminARow(700),
+              'B': vitaminARow(900),
+            }, conditions: conditions),
+            totals: const [],
+            incomplete: false,
+          );
+        });
+      }
+
+      test('10 mg + 8 mg reads as a review, not an exceedance', () async {
+        await expectRead(
+          await stack({'MIX': confirmedAndMixture()}),
+          totals: const [],
+          incomplete: true,
+        );
+      });
+
+      test('a 25 mg mixture reads as a review and claims no dose', () async {
+        await expectRead(
+          await stack({'MIX': largeMixture()}),
+          totals: const [],
+          incomplete: true,
+        );
+      });
+
+      test('an unresolved amount does not reach every viewer', () async {
+        for (final blob in [largeMixture(), confirmedAndMixture()]) {
+          await expectRead(
+            await stack({'MIX': blob}, conditions: const []),
+            totals: const [],
+            incomplete: false,
+          );
+        }
+      });
+
+      test('two mixtures under the line alone can reach it together', () async {
+        await expectRead(
+          await stack({'A': smallMixture(3000)}),
+          totals: const [],
+          incomplete: false,
+        );
+        await expectRead(
+          await stack({'A': smallMixture(4000), 'B': smallMixture(4000)}),
+          totals: const [],
+          incomplete: true,
+        );
+      });
+
+      test(
+        'a maximum added to a confirmed amount can reach the line',
+        () async {
+          await expectRead(
+            await stack({'A': confirmed(5000), 'B': smallMixture(1000)}),
+            totals: const [],
+            incomplete: false,
+          );
+          await expectRead(
+            await stack({'A': confirmed(5000), 'B': smallMixture(2500)}),
+            totals: const [],
+            incomplete: true,
+          );
+        },
+      );
+
+      test('a confirmed crossing reads its confirmed amount alone', () async {
+        await expectRead(
+          await stack({'A': confirmed(7500), 'B': smallMixture(1000)}),
+          totals: const [7500],
+          incomplete: false,
+        );
+      });
+
+      test('a mcg RAE partner leaves a confirmed crossing complete', () async {
+        final container = await stack({
+          'A': confirmed(7500),
+          'RAE': raeOnly(7500),
+        });
+
+        final alerts = await container.read(
+          stackDoseThresholdAlertsProvider.future,
+        );
+
+        expect(alerts.single.totalValue, 7500);
+        expect(alerts.single.isIncomplete, isFalse);
+      });
+
+      test('someone with no card for it reads complete', () async {
+        await expectRead(
+          await stack(
+            {'MIX': largeMixture()},
+            conditions: const ['hypertension'],
+          ),
+          totals: const [],
+          incomplete: false,
+        );
+      });
+    });
+
     group('beta-carotene at 20 mg across a stack', () {
       Future<List<StackDoseThresholdAlert>> alertsFor(
         List<String> conditions,
@@ -1109,6 +1363,72 @@ void main() {
 
 /// A `/ dose` card as the pipeline ships it: for every viewer, naming the risk
 /// factors that share its tier.
+Map<String, Object?> _mixtureRow({double? rae, required double maximum}) => {
+  'name': 'Mixed Carotenoids',
+  'standard_name': 'Mixed Carotenoids',
+  'canonical_id': 'beta_carotene',
+  'quantity': ?rae,
+  'unit': 'mcg RAE',
+  'safety_exposure': {
+    'low_per_day': 0.0,
+    'high_per_day': maximum,
+    'per_day': maximum,
+    'unit': 'mcg RAE',
+  },
+};
+
+Map<String, Object?> _betaCaroteneCard({
+  required String status,
+  required String disposition,
+  double threshold = 7500,
+  double? amount,
+  bool everyViewer = false,
+}) => {
+  'type': 'interaction',
+  'severity': 'caution',
+  'evidence_level': 'established',
+  'title': everyViewer ? 'Vitamin A / dose' : 'Vitamin A / current_smoker',
+  'ingredient_name': 'Vitamin A',
+  'ingredient_canonical_id': 'beta_carotene',
+  'condition_ids': everyViewer
+      ? const ['asbestos_exposure', 'current_smoker', 'former_smoker']
+      : const ['current_smoker'],
+  'direction': 'harmful',
+  'profile_gate': {
+    'gate_type': everyViewer ? 'dose' : 'condition',
+    'requires': {
+      'conditions_any': everyViewer ? <String>[] : const ['current_smoker'],
+      'drug_classes_any': <String>[],
+      'profile_flags_any': <String>[],
+    },
+    'excludes': <String, Object?>{},
+    'dose': everyViewer
+        ? {
+            'basis': 'per_day',
+            'comparator': '>=',
+            'value': threshold,
+            'unit': 'mcg RAE',
+            'severity_if_met': 'caution',
+            'severity_if_not_met': 'informational',
+          }
+        : null,
+  },
+  'dose_decision': {
+    'clinical_severity': 'caution',
+    'evaluation_status': status,
+    'consumer_disposition': disposition,
+    'evaluated_daily_amount': amount,
+    'evaluated_unit': amount == null ? null : 'mcg rae',
+    'decision_rule': {
+      'comparator': '>=',
+      'threshold': threshold,
+      'threshold_unit': 'mcg RAE',
+      'consumer_disposition_if_met': 'review',
+      'consumer_disposition_if_not_met': 'suppress',
+    },
+  },
+};
+
 Map<String, Object?> _betaCaroteneDoseCard(double amount) => {
   ..._compactThresholdWarning(
     targetId: 'current_smoker',

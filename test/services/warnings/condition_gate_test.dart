@@ -1786,6 +1786,42 @@ void main() {
       );
     });
 
+    test('a beta-carotene rule the pipeline suppressed adds nothing', () {
+      Map<String, dynamic> carotene(String disposition) => {
+        ...card(
+          status: 'amount_unknown',
+          disposition: disposition,
+          conditions: const ['current_smoker'],
+        ),
+        'ingredient_canonical_id': 'beta_carotene',
+      };
+
+      for (final cardsShown in [true, false]) {
+        expect(
+          hasUnreadDoseRule(
+            parseBlobWarnings({
+              'warnings': [carotene('suppress')],
+            }),
+            userConditions: {'current_smoker'},
+            userDrugClasses: const {},
+            cardsShown: cardsShown,
+          ),
+          isFalse,
+        );
+      }
+      expect(
+        hasUnreadDoseRule(
+          parseBlobWarnings({
+            'warnings': [carotene('review')],
+          }),
+          userConditions: {'current_smoker'},
+          userDrugClasses: const {},
+          cardsShown: false,
+        ),
+        isTrue,
+      );
+    });
+
     test('a surface that shows no card counts one the pipeline kept', () {
       for (final disposition in ['review', 'block', 'suppress']) {
         expect(

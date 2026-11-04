@@ -22,7 +22,10 @@ List<StackDoseThresholdRule> stackDoseThresholdRulesFromWarnings(
     final ingredientName = warning.ingredientName?.trim();
     if (ingredientName == null || ingredientName.isEmpty) continue;
     final decision = warning.doseDecision;
-    if (decision != null && decision.formExcluded) continue;
+    if (decision != null &&
+        (decision.formExcluded || warning.unreadBetaCaroteneAddsNothing)) {
+      continue;
+    }
     final emittedCanonicalId = warning.ingredientCanonicalId?.trim() ?? '';
     // New declarative rules must use the pipeline-owned identity. Name-based
     // canonicalization remains only for pre-contract cached blobs.
@@ -433,7 +436,7 @@ class StackDoseSummer {
         if (amount == null ||
             amount <= 0 ||
             amountUnit != _betaCaroteneCardUnit) {
-          hasUnread = true;
+          hasUnread = hasUnread || !warning.unreadBetaCaroteneAddsNothing;
         } else if (productAmount == null || amount > productAmount) {
           productAmount = amount;
         }
@@ -478,6 +481,81 @@ class StackDoseSummer {
       consumerDisposition: disposition,
       consumerBody: comparatorKnown ? kBetaCaroteneStackCardBody : null,
     );
+  }
+
+  /// Whether the most a stack's beta-carotene mixtures could hold reaches a tier
+  /// for this person that its confirmed amounts don't.
+  ///
+  /// The two stay apart: an amount on a decision is confirmed and can cross a
+  /// tier, and a mixture row's `safety_exposure` high is only the maximum, so it
+  /// can leave the check unresolved but never make an alert or a card. The
+  /// pipeline owns the conversion, and a mcg RAE row with no mass has a high of 0.
+  bool betaCaroteneMaximumUnresolved({
+    required Iterable<String> userConditions,
+    required Iterable<
+      ({
+        Iterable<InteractionWarning> warnings,
+        Iterable<Map<String, dynamic>> rows,
+      })
+    >
+    products,
+  }) {
+    final activeConditions = userConditions
+        .map((value) => value.trim().toLowerCase())
+        .toSet();
+    var maximum = 0.0;
+    final tiers = <({double threshold, String comparator})>{};
+    final confirmedByProduct =
+        <Map<({double threshold, String comparator}), double>>[];
+
+    for (final product in products) {
+      for (final row in product.rows) {
+        if (readCanonicalId(row) != 'beta_carotene' ||
+            readUlDoseUnit(row) != _betaCaroteneCardUnit) {
+          continue;
+        }
+        maximum += readUlDoseRange(row)?.high ?? 0;
+      }
+      final confirmed = <({double threshold, String comparator}), double>{};
+      for (final warning in product.warnings) {
+        final decision = warning.doseDecision;
+        final rule = decision?.decisionRule;
+        final threshold = rule?.threshold ?? decision?.threshold;
+        final unit = rule?.thresholdUnit ?? decision?.thresholdUnit;
+        final comparator = (rule?.comparator ?? decision?.comparator)?.trim();
+        if (decision == null ||
+            warning.ingredientCanonicalId?.trim() != 'beta_carotene' ||
+            !warning.conditionIds.any(
+              (id) => activeConditions.contains(id.trim().toLowerCase()),
+            ) ||
+            threshold == null ||
+            comparator == null ||
+            !_isKnownComparator(comparator) ||
+            normalizeDoseUnit(unit ?? '') != _betaCaroteneCardUnit) {
+          continue;
+        }
+        final tier = (threshold: threshold, comparator: comparator);
+        tiers.add(tier);
+        final amount = decision.evaluatedDailyAmount;
+        if (amount != null &&
+            amount > (confirmed[tier] ?? 0) &&
+            normalizeDoseUnit(decision.evaluatedUnit ?? '') ==
+                _betaCaroteneCardUnit) {
+          confirmed[tier] = amount;
+        }
+      }
+      confirmedByProduct.add(confirmed);
+    }
+
+    if (maximum <= 0) return false;
+    return tiers.any((tier) {
+      final confirmed = confirmedByProduct.fold<double>(
+        0,
+        (total, product) => total + (product[tier] ?? 0),
+      );
+      return !_compareDose(confirmed, tier.comparator, tier.threshold) &&
+          _compareDose(confirmed + maximum, tier.comparator, tier.threshold);
+    });
   }
 
   bool _compareDose(double amount, String comparator, double threshold) {

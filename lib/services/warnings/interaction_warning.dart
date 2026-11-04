@@ -1,3 +1,4 @@
+import 'package:pharmaguide/core/constants/consumer_disposition.dart';
 import 'package:pharmaguide/core/constants/severity.dart';
 import 'package:pharmaguide/services/warnings/profile_gate_evaluator.dart';
 
@@ -252,6 +253,19 @@ class InteractionWarning {
   /// Pipeline-owned canonical identity for [ingredientName]. New declarative
   /// dose rules use this value directly instead of reinterpreting display copy.
   final String? ingredientCanonicalId;
+
+  /// A beta-carotene rule the pipeline left unread and suppressed: no beta-
+  /// carotene mass to count, such as a vitamin A activity figure. It adds
+  /// nothing and leaves the check complete. An unresolved mass it kept as a
+  /// review stays unread.
+  bool get unreadBetaCaroteneAddsNothing {
+    final decision = doseDecision;
+    return decision != null &&
+        decision.amountUnread &&
+        ingredientCanonicalId?.trim() == 'beta_carotene' &&
+        consumerDispositionFromWire(decision.consumerDisposition) ==
+            ConsumerDisposition.suppress;
+  }
 
   /// v6.0 `profile_gate` — deterministic predicate the evaluator runs
   /// against (user_profile, product_context) to decide whether this

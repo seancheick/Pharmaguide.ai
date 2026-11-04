@@ -216,6 +216,13 @@ final stackDoseRulesUnreadProvider = FutureProvider<bool>((ref) async {
   );
   final userConditions = profile.conditionsForEvaluator.toSet();
   final userDrugClasses = _activeDrugClasses(profile, stackEntries);
+  final products =
+      <
+        ({
+          Iterable<InteractionWarning> warnings,
+          Iterable<Map<String, dynamic>> rows,
+        })
+      >[];
   for (final entry in stackEntries) {
     final dsldId = entry.dsldId;
     if (dsldId == null || dsldId.isEmpty) continue;
@@ -243,8 +250,17 @@ final stackDoseRulesUnreadProvider = FutureProvider<bool>((ref) async {
     )) {
       return true;
     }
+    products.add((
+      warnings: facts.warnings,
+      rows: facts.activeIngredients.isNotEmpty
+          ? facts.activeIngredients
+          : facts.nutrients,
+    ));
   }
-  return false;
+  return const StackDoseSummer().betaCaroteneMaximumUnresolved(
+    userConditions: userConditions,
+    products: products,
+  );
 });
 
 final stackDoseThresholdAlertsProvider =
