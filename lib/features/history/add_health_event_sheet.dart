@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:intl/intl.dart';
+import 'package:pharmaguide/services/history/health_attachment_store.dart';
 import 'package:pharmaguide/core/components/pg_pill_button.dart';
 import 'package:pharmaguide/core/components/pg_toast.dart';
 import 'package:pharmaguide/core/theme/v2/v2_palette.dart';
@@ -51,6 +52,8 @@ class _AddHealthEventSheetState extends ConsumerState<_AddHealthEventSheet> {
 
   @override
   void dispose() {
+    // An in-flight save still needs the copy; it discards the copy itself.
+    if (!_saving) _discardSelection();
     _titleController.dispose();
     _noteController.dispose();
     super.dispose();
@@ -164,10 +167,7 @@ class _AddHealthEventSheetState extends ConsumerState<_AddHealthEventSheet> {
           const SizedBox(height: V2Spacing.space8),
           ListTile(
             contentPadding: EdgeInsets.zero,
-            leading: Icon(
-              Icons.attach_file_rounded,
-              color: context.v2.accent,
-            ),
+            leading: Icon(Icons.attach_file_rounded, color: context.v2.accent),
             title: Text(
               _selectedAttachment == null
                   ? 'Attach a photo (optional)'
@@ -179,7 +179,7 @@ class _AddHealthEventSheetState extends ConsumerState<_AddHealthEventSheet> {
                 : IconButton(
                     tooltip: 'Remove attachment',
                     icon: const Icon(Icons.close_rounded),
-                    onPressed: () => setState(() => _selectedAttachment = null),
+                    onPressed: () => setState(_discardSelection),
                   ),
             onTap: _pickAttachment,
           ),
@@ -323,6 +323,7 @@ class _AddHealthEventSheetState extends ConsumerState<_AddHealthEventSheet> {
               attachments: [if (importedAttachment != null) importedAttachment],
             ),
           );
+      _discardSelection();
       var reminderAvailable = true;
       if (reminderRequested) {
         ref.invalidate(healthReminderSyncProvider);
@@ -352,7 +353,10 @@ class _AddHealthEventSheetState extends ConsumerState<_AddHealthEventSheet> {
           // clears the private attachment directory as a final backstop.
         }
       }
-      if (!mounted) return;
+      if (!mounted) {
+        _discardSelection();
+        return;
+      }
       setState(() => _saving = false);
       PGToast.show(
         context,
@@ -364,9 +368,21 @@ class _AddHealthEventSheetState extends ConsumerState<_AddHealthEventSheet> {
 
   Future<void> _pickAttachment() async {
     final selected = await ImagePicker().pickImage(source: ImageSource.gallery);
-    if (selected != null && mounted) {
-      setState(() => _selectedAttachment = selected);
+    if (selected == null) return;
+    if (!mounted) {
+      HealthAttachmentStore.discardPicked(selected);
+      return;
     }
+    setState(() {
+      _discardSelection();
+      _selectedAttachment = selected;
+    });
+  }
+
+  void _discardSelection() {
+    final selected = _selectedAttachment;
+    if (selected != null) HealthAttachmentStore.discardPicked(selected);
+    _selectedAttachment = null;
   }
 }
 
@@ -385,10 +401,7 @@ class _DateRow extends StatelessWidget {
   Widget build(BuildContext context) {
     return ListTile(
       contentPadding: EdgeInsets.zero,
-      leading: Icon(
-        Icons.calendar_today_outlined,
-        color: context.v2.accent,
-      ),
+      leading: Icon(Icons.calendar_today_outlined, color: context.v2.accent),
       title: Text(label),
       subtitle: Text(DateFormat.yMMMMd().format(value)),
       trailing: const Icon(Icons.chevron_right_rounded),

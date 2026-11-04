@@ -10,6 +10,7 @@ import 'package:pharmaguide/data/database/tables/user_favorites_table.dart';
 import 'package:pharmaguide/data/database/tables/user_profile_table.dart';
 import 'package:pharmaguide/data/database/tables/product_image_cache_table.dart';
 import 'package:pharmaguide/data/database/tables/user_stacks_table.dart';
+import 'package:pharmaguide/services/auth/account_database_cipher.dart';
 
 part 'user_database.g.dart';
 
@@ -28,8 +29,15 @@ part 'user_database.g.dart';
   ],
 )
 class UserDatabase extends _$UserDatabase {
-  UserDatabase(File dbFile)
-    : super(NativeDatabase.createInBackground(dbFile, logStatements: false));
+  /// With a [key], the file is encrypted and opens only with that key.
+  UserDatabase(File dbFile, {String? key})
+    : super(
+        NativeDatabase.createInBackground(
+          dbFile,
+          logStatements: false,
+          setup: key == null ? null : (db) => applyAccountKey(db, key),
+        ),
+      );
 
   /// In-memory database for testing.
   UserDatabase.memory() : super(NativeDatabase.memory());
@@ -163,8 +171,8 @@ class UserDatabase extends _$UserDatabase {
   );
 
   /// Open (or create) the user database at the given path.
-  static UserDatabase open(String dbPath) {
-    return UserDatabase(File(dbPath));
+  static UserDatabase open(String dbPath, {String? key}) {
+    return UserDatabase(File(dbPath), key: key);
   }
 
   // ---------------------------------------------------------------------------

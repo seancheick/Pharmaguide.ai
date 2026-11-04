@@ -7,6 +7,7 @@ import 'package:pharmaguide/data/database/interaction_database.dart';
 import 'package:pharmaguide/data/database/user_database.dart';
 import 'package:pharmaguide/data/repositories/health_event_repository.dart';
 import 'package:pharmaguide/core/utils/app_version.dart';
+import 'package:pharmaguide/services/auth/account_database_cipher.dart';
 import 'package:pharmaguide/services/catalog_updater_service.dart';
 
 /// Provides the singleton CoreDatabase instance (read-only product data).
@@ -120,7 +121,8 @@ const bundledInteractionDatabaseManifestAssetPath =
 
 /// Open the UserDatabase at [dbPath], inside an account's folder.
 Future<UserDatabase> openUserDatabase(String dbPath) async {
-  final db = UserDatabase.open(dbPath);
+  final key = await AccountDatabaseCipher.production.prepare(dbPath);
+  final db = UserDatabase.open(dbPath, key: key);
   // Fire-and-forget cache housekeeping — must never block or fail boot.
   unawaited(
     db.purgeExpiredCaches().catchError((Object e) {
