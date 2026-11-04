@@ -131,6 +131,50 @@ void main() {
     },
   );
 
+  test('verified class-only entries reach existing profile rules', () async {
+    final result = await bridge.resolve(runtimeClassIds: ['class:nsaids']);
+    expect(result.rxcuis, isEmpty);
+    expect(result.curatedInteractionClassIds, ['class:nsaids']);
+    expect(result.mergedInteractionClassIds, ['class:nsaids']);
+    expect(result.profileGateClassIds, ['nsaids']);
+    final rules = MedicationProfileGateRule.listFromJson(
+      jsonDecode(
+            File(
+              'assets/reference_data/medication_profile_gate_rules.json',
+            ).readAsStringSync(),
+          )
+          as Map<String, dynamic>,
+    );
+    final warnings = const MedicationProfileGateEvaluator().evaluate(
+      rules: rules,
+      medicationName: 'NSAID class entry',
+      medicationProfileGateClassIds: result.profileGateClassIds.toSet(),
+      userProfileFlags: {'pregnant'},
+      userConditions: {'kidney_disease'},
+    );
+    expect(
+      warnings.map((w) => w.ruleId),
+      containsAll(['MCR_PREGNANCY_NSAIDS', 'MCR_KIDNEY_DISEASE_NSAIDS']),
+    );
+  });
+
+  test(
+    'class-only recognition does not trust an unknown class or override an identity',
+    () async {
+      final unknownClass = await bridge.resolve(
+        runtimeClassIds: ['class:unreviewed_class'],
+      );
+      expect(unknownClass.curatedInteractionClassIds, isEmpty);
+      expect(unknownClass.profileGateClassIds, isEmpty);
+      final unresolvedIdentity = await bridge.resolve(
+        selectedRxcui: '999999',
+        runtimeClassIds: ['class:nsaids'],
+      );
+      expect(unresolvedIdentity.curatedInteractionClassIds, isEmpty);
+      expect(unresolvedIdentity.profileGateClassIds, isEmpty);
+    },
+  );
+
   tearDown(() => db.close());
 
   test('ibuprofen RxCUI resolves to curated NSAID ids', () async {

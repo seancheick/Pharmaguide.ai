@@ -59,6 +59,73 @@ class _FakeNetworkError implements Exception {
 }
 
 void main() {
+  for (final operation in ['search', 'generic', 'classes']) {
+    test('$operation retries after temporary transport failure', () async {
+      var online = false;
+      var calls = 0;
+      final svc = RxNormApiService(
+        httpGet: (url) async {
+          calls++;
+          if (!online) throw const _FakeNetworkError();
+          if (operation == 'search') {
+            return '{"approximateGroup":{"candidate":[{"rxcui":"5640","name":"Ibuprofen","score":"100"}]}}';
+          }
+          if (operation == 'generic') {
+            return '{"relatedGroup":{"conceptGroup":[{"tty":"IN","conceptProperties":[{"rxcui":"5640"}]}]}}';
+          }
+          return '{"rxclassDrugInfoList":{"rxclassDrugInfo":[{"rela":"has_moa","rxclassMinConceptItem":{"className":"Cyclooxygenase Inhibitors"}}]}}';
+        },
+      );
+      Future<List<Object>> lookup() async => switch (operation) {
+        'search' => svc.search('ibuprofen'),
+        'generic' => svc.resolveGenericRxcuis('5640'),
+        _ => svc.getClasses('5640'),
+      };
+      expect(await lookup(), isEmpty);
+      online = true;
+      expect(await lookup(), isNotEmpty);
+      final successfulCalls = calls;
+      expect(await lookup(), isNotEmpty);
+      expect(calls, successfulCalls);
+    });
+  }
+
+  test('partial class transport failure is retried after reconnect', () async {
+    var online = false;
+    var calls = 0;
+    final svc = RxNormApiService(
+      httpGet: (url) async {
+        calls++;
+        if (url.queryParameters['relaSource'] == 'ATC') return '{}';
+        if (!online) throw const _FakeNetworkError();
+        return '{"rxclassDrugInfoList":{"rxclassDrugInfo":[{"rela":"has_moa","rxclassMinConceptItem":{"className":"Cyclooxygenase Inhibitors"}}]}}';
+      },
+    );
+    expect(await svc.getClasses('5640'), isEmpty);
+    online = true;
+    expect(
+      await svc.getClasses('5640'),
+      contains('class:cyclooxygenase_inhibitors'),
+    );
+    expect(calls, 4);
+  });
+
+  test('successful empty lookup results remain cached', () async {
+    var calls = 0;
+    final svc = RxNormApiService(
+      httpGet: (_) async {
+        calls++;
+        return '{}';
+      },
+    );
+    for (var i = 0; i < 2; i++) {
+      expect(await svc.search('unknown'), isEmpty);
+      expect(await svc.resolveGenericRxcuis('unknown'), isEmpty);
+      expect(await svc.getClasses('unknown'), isEmpty);
+    }
+    expect(calls, 4);
+  });
+
   group('RxNormApiService.search', () {
     test('returns empty list for queries shorter than 2 chars', () async {
       final fake = _FakeHttp(const {});
