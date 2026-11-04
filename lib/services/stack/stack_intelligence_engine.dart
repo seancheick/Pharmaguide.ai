@@ -199,12 +199,21 @@ class StackIntelligenceEngine {
     final nonInteractionAlertCount = regulatorySafetyAlerts
         .where((match) => match.alert.interaction == null)
         .length;
+    // Condition/allergen guidance affects the safety tier, but is not a
+    // supplement or medication interaction.
     final interactionCount =
         contraindicatedCount +
         avoidCount +
         cautionCount +
         monitorCount -
-        nonInteractionAlertCount;
+        nonInteractionAlertCount -
+        allInteractions
+            .where(
+              (r) =>
+                  r.type == InteractionType.conditionSupplement &&
+                  (r.severity.isHard || r.severity.isActionable),
+            )
+            .length;
 
     final nutrientWarningCount =
         safetyReport.nutrientStatuses.where((n) => n.shouldWarn).length +
@@ -330,7 +339,10 @@ class StackIntelligenceEngine {
     return <InteractionResult>[
       ...safetyReport.medicationPairInteractions,
       ...safetyReport.medicationInteractions,
-      ...safetyReport.stackInteractions,
+      // Profile concerns are safety findings, not product quality deductions.
+      ...safetyReport.stackInteractions.where(
+        (r) => r.type != InteractionType.conditionSupplement,
+      ),
     ];
   }
 

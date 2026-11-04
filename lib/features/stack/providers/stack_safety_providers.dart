@@ -3,6 +3,14 @@
 
 import 'dart:convert';
 
+import 'package:crypto/crypto.dart';
+import 'package:pharmaguide/services/warnings/interaction_warning.dart';
+import 'package:pharmaguide/core/constants/severity.dart';
+import 'package:pharmaguide/features/product_detail/allergen_match.dart';
+import 'package:pharmaguide/features/product_detail/providers/profile_warning_rule_provider.dart';
+import 'package:pharmaguide/features/product_detail/v2/warnings_pipeline.dart';
+import 'package:pharmaguide/services/warnings/profile_gate_summary_filter.dart';
+
 import 'package:drift/drift.dart' show Value;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:pharmaguide/core/models/interaction_result.dart';
@@ -428,6 +436,147 @@ final stackSafetyReportProvider = FutureProvider<StackSafetyReport>((
       }
       for (final r in hits) {
         if (seenStackIds.add(r.id)) stackInteractions.add(r);
+      }
+    }
+  }
+
+  // Product Detail owns profile gating, dose suppression and deduplication.
+  // Carry its ordinary condition/allergen findings into the same Stack report.
+  // Cumulative dose rules and global UL/regulatory findings keep their owners.
+  if (hydrated.isNotEmpty) {
+    final conditions = profile.conditionsForEvaluator.toSet();
+    Set<String>? flags;
+    var classes = profile.drugClassesForEvaluator.toSet();
+    try {
+      flags = await ref.watch(evaluatorProfileFlagsProvider.future);
+      classes = {
+        ...classes,
+        ...await ref.watch(currentStackMedicationClassIdsProvider.future),
+      };
+    } on Object {
+      checksIncomplete = true;
+    }
+    for (final h in hydrated) {
+      try {
+        final blob = await ref.watch(
+          detailBlobProvider(h.product.dsldId).future,
+        );
+        if (blob == null) {
+          checksIncomplete = true;
+          continue;
+        }
+        // Allergy matching remains available even if profile-rule resolution
+        // fails. A failure must not discard another independently known concern.
+        final rawAllergens = blob['allergens'];
+        for (final match in matchAllergens(
+          profile.allergensForEvaluator,
+          rawAllergens is List ? rawAllergens : null,
+        )) {
+          final result = InteractionResult(
+            id: 'ALLERGEN_${h.product.dsldId}_${match.id}_${match.presenceType}',
+            type: InteractionType.conditionSupplement,
+            severity: allergenPresenceSeverity(match.presenceType),
+            evidenceLevel: EvidenceLevel.ungraded,
+            agent1Name: h.entry.name,
+            agent2Name: match.displayName,
+            mechanism:
+                '${allergenPresenceLabel(match.presenceType)}: ${match.displayName}${match.evidence == null ? '' : ' · ${match.evidence}'}',
+            management: '',
+            doseDependant: false,
+            doseThreshold: null,
+            sourceUrls: const [],
+            source: InteractionSource.pipeline,
+          );
+          if (seenStackIds.add(result.id)) stackInteractions.add(result);
+        }
+        if (flags == null) continue;
+        var resolved = const <InteractionWarning>[];
+        try {
+          resolved = await ref.watch(
+            profileWarningRuleWarningsProvider(h.product.dsldId).future,
+          );
+        } on Object {
+          // Match Product Detail: unavailable references cannot erase a
+          // readable authored warning from the same blob.
+          checksIncomplete = true;
+        }
+        final guarded = composeGuardedWarnings(
+          detailBlob: blob,
+          productStatus: h.product.productStatus,
+          personalizedWarnings: const [],
+          resolvedRuleWarnings: resolved,
+          userConditions: conditions,
+          userDrugClasses: classes,
+          userProfileFlags: flags,
+        );
+        final warnings = partitionProfileWarnings(
+          warnings: guarded,
+          userConditions: conditions,
+          userDrugClasses: classes,
+          userProfileFlags: flags,
+        ).profile;
+        final facts = ProductHealthFacts.fromDetailBlob(blob);
+        for (final warning in warnings) {
+          final requires = warning.profileGate?['requires'];
+          final hasConditionScope =
+              warning.conditionIds.isNotEmpty ||
+              (requires is Map &&
+                  ['conditions_any', 'profile_flags_any'].any(
+                    (key) =>
+                        requires[key] is List &&
+                        (requires[key] as List).isNotEmpty,
+                  ));
+          if (!hasConditionScope) continue;
+          final context = resolveProfileGateProductContext(
+            detailBlob: blob,
+            warning: warning,
+            healthFacts: facts,
+          );
+          if (!warning.matchesProfile(
+            userConditions: conditions,
+            userDrugClasses: classes,
+            userProfileFlags: flags,
+            productForm: context.productForm,
+            nutrientForm: context.nutrientForm,
+            nutrientForms: context.nutrientForms,
+            dosePerDay: context.dosePerDay,
+          )) {
+            continue;
+          }
+          if (stackDoseThresholdRulesFromWarnings([warning]).isNotEmpty) {
+            continue;
+          }
+          final body = warning.displayBody;
+          final identity = warning.warningType == 'label_statement'
+              ? body
+              : jsonEncode([warning.warningType, warning.title, body]);
+          final digest = sha256.convert(utf8.encode(identity));
+          final prefix = warning.warningType == 'label_statement'
+              ? 'LABEL'
+              : 'PROFILE';
+          final result = InteractionResult(
+            id: '${prefix}_${h.product.dsldId}_$digest',
+            type: InteractionType.conditionSupplement,
+            severity: warning.severity,
+            evidenceLevel: warning.evidenceLevel,
+            agent1Name: h.entry.name,
+            agent2Name: warning.title,
+            mechanism: body,
+            management: warning.management,
+            doseDependant: false,
+            doseThreshold: null,
+            sourceUrls: warning.sourceUrls,
+            source: InteractionSource.pipeline,
+          );
+          if (seenStackIds.add(result.id)) stackInteractions.add(result);
+        }
+      } on Object catch (error, trace) {
+        checksIncomplete = true;
+        CrashReportingService().recordError(
+          error,
+          trace,
+          hint: 'stack_safety:product_profile_failed',
+        );
       }
     }
   }
