@@ -2,6 +2,8 @@
 // through the existing condition-supplement signal, for the people it names,
 // and only adds to the tier: it never moves the internal stack score.
 
+import 'dart:convert';
+
 import 'package:drift/drift.dart' show Value;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -18,6 +20,10 @@ import 'package:pharmaguide/features/profile/profile_provider.dart';
 import 'package:pharmaguide/features/stack/providers/active_stack_provider.dart';
 import 'package:pharmaguide/features/stack/providers/stack_nutrient_providers.dart';
 import 'package:pharmaguide/features/stack/providers/stack_safety_providers.dart';
+import 'package:pharmaguide/services/sharing/ai_brief_builder.dart';
+import 'package:pharmaguide/services/sharing/ai_share_scope.dart';
+import 'package:pharmaguide/services/sharing/clinician_pdf_builder.dart';
+import 'package:pharmaguide/services/sharing/clinician_report_data.dart';
 import 'package:pharmaguide/services/signals/stack_signal_aggregator.dart';
 import 'package:pharmaguide/services/stack/recalled_ingredient_result.dart';
 import 'package:pharmaguide/services/stack/stack_intelligence_engine.dart';
@@ -34,6 +40,7 @@ Map<String, dynamic> _labelWarning({
   String severity = 'avoid',
   String text = _text,
   List<String> flags = const ['pregnant', 'breastfeeding'],
+  List<String> conditionIds = const ['pregnancy', 'lactation'],
 }) => {
   'type': 'label_statement',
   'source': 'label_statements',
@@ -44,7 +51,7 @@ Map<String, dynamic> _labelWarning({
   'detail': text,
   'alert_body': text,
   'sources': <String>[],
-  'condition_ids': <String>[],
+  'condition_ids': conditionIds,
   'drug_class_ids': <String>[],
   'profile_gate': {
     'gate_type': 'profile_flag',
@@ -65,7 +72,7 @@ Map<String, dynamic> _labelWarning({
 };
 
 Future<StackSafetyReport> _report({
-  required Set<String> flags,
+  required List<String> conditions,
   required Future<Map<String, dynamic>?> Function() blob,
 }) async {
   final coreDb = CoreDatabase.memory();
@@ -100,8 +107,10 @@ Future<StackSafetyReport> _report({
           ),
         ],
       ),
-      loadedProfileProvider.overrideWith((ref) async => const ProfileState()),
-      evaluatorProfileFlagsProvider.overrideWith((ref) async => flags),
+      // The condition the picker writes; the bundled taxonomy derives the flag.
+      loadedProfileProvider.overrideWith(
+        (ref) async => ProfileState(conditions: conditions),
+      ),
       stackNutrientStatusesProvider.overrideWith(
         (ref) async => const StackNutrientStatuses.empty(),
       ),
@@ -127,7 +136,7 @@ void main() {
     'a pregnant user gets the label text once, as health-context guidance',
     () async {
       final report = await _report(
-        flags: const {'pregnant'},
+        conditions: const ['pregnancy'],
         // The pipeline lists a warning in both arrays when it is not suppressed.
         blob: () async => {
           'warnings': [_labelWarning(), _labelWarning()],
@@ -161,7 +170,7 @@ void main() {
     'a nursing user gets it, and a label naming only pregnancy skips them',
     () async {
       final both = await _report(
-        flags: const {'breastfeeding'},
+        conditions: const ['lactation'],
         blob: () async => {
           'warnings': [_labelWarning()],
         },
@@ -169,10 +178,13 @@ void main() {
       expect(both.stackInteractions, hasLength(1));
 
       final pregnancyOnly = await _report(
-        flags: const {'breastfeeding'},
+        conditions: const ['lactation'],
         blob: () async => {
           'warnings': [
-            _labelWarning(flags: const ['pregnant']),
+            _labelWarning(
+              flags: const ['pregnant'],
+              conditionIds: const ['pregnancy'],
+            ),
           ],
         },
       );
@@ -182,7 +194,7 @@ void main() {
 
   test('two different statements on one label stay two', () async {
     final report = await _report(
-      flags: const {'pregnant'},
+      conditions: const ['pregnancy'],
       blob: () async => {
         'warnings': [
           _labelWarning(),
@@ -196,7 +208,7 @@ void main() {
 
   test('someone with no life-stage flag sees nothing', () async {
     final report = await _report(
-      flags: const {},
+      conditions: const [],
       blob: () async => {
         'warnings': [_labelWarning()],
       },
@@ -209,7 +221,7 @@ void main() {
     'other warning types stay on the product page, not in this signal',
     () async {
       final report = await _report(
-        flags: const {'pregnant'},
+        conditions: const ['pregnancy'],
         blob: () async => {
           'warnings': [
             {
@@ -226,17 +238,17 @@ void main() {
 
   test('a label warning moves the tier but never the internal score', () async {
     final clean = await _report(
-      flags: const {'pregnant'},
+      conditions: const ['pregnancy'],
       blob: () async => <String, dynamic>{'warnings': <Object>[]},
     );
     final avoid = await _report(
-      flags: const {'pregnant'},
+      conditions: const ['pregnancy'],
       blob: () async => {
         'warnings': [_labelWarning()],
       },
     );
     final caution = await _report(
-      flags: const {'pregnant'},
+      conditions: const ['pregnancy'],
       blob: () async => {
         'warnings': [_labelWarning(severity: 'caution')],
       },
@@ -252,13 +264,13 @@ void main() {
 
   test('an unreadable blob hedges instead of reading as clean', () async {
     final failed = await _report(
-      flags: const {'pregnant'},
+      conditions: const ['pregnancy'],
       blob: () async => throw StateError('blob unavailable'),
     );
     expect(failed.checksIncomplete, isTrue);
 
     final missing = await _report(
-      flags: const {'pregnant'},
+      conditions: const ['pregnancy'],
       blob: () async => null,
     );
     expect(missing.checksIncomplete, isTrue);
@@ -268,7 +280,7 @@ void main() {
     'a malformed warning list is skipped without failing the report',
     () async {
       final report = await _report(
-        flags: const {'pregnant'},
+        conditions: const ['pregnancy'],
         blob: () async => {
           'warnings': ['not a map', 7, null, _labelWarning()],
           'warnings_profile_gated': 'not a list',
@@ -277,4 +289,57 @@ void main() {
       expect(report.stackInteractions, hasLength(1));
     },
   );
+  group('from the real reader to what gets shared', () {
+    Future<StackSafetyReport> pregnant() => _report(
+      conditions: const ['pregnancy'],
+      blob: () async => {
+        'warnings': [_labelWarning()],
+      },
+    );
+
+    ClinicianReportData data(StackSafetyReport report) => ClinicianReportData(
+      profile: null,
+      stack: const [],
+      intelligence: _diagnose(report),
+      safetyReport: report,
+      depletions: const [],
+      generatedAt: DateTime.utc(2026, 11, 3),
+    );
+
+    test('the AI brief carries it once, word for word, and only with the '
+        'profile shared', () async {
+      final report = await pregnant();
+      final shared = const AiBriefBuilder().build(
+        data(report),
+        const AiShareScope(profile: true),
+      );
+      expect(_text.allMatches(shared), hasLength(1));
+      expect(shared, contains('Evidence level: ungraded'));
+      expect(shared, contains('Label warning'));
+
+      final withheld = const AiBriefBuilder().build(
+        data(report),
+        AiShareScope.detailedReport,
+      );
+      expect(withheld, isNot(contains(_text)));
+    });
+
+    test('the clinician PDF carries it once, with its grade', () async {
+      final report = await pregnant();
+      final bytes = await const ClinicianPdfBuilder(compress: false).build(
+        profile: null,
+        stack: const [],
+        intelligence: _diagnose(report),
+        safetyReport: report,
+        depletions: const [],
+        generatedAt: DateTime.utc(2026, 11, 3),
+      );
+      final body = latin1.decode(bytes, allowInvalid: true);
+      // The PDF stream splits text by word, so count a word only the label uses.
+      expect('Moringa'.allMatches(body).length, greaterThan(0));
+      expect('nursing'.allMatches(body), hasLength(1));
+      expect(body, contains('Evidence:'));
+      expect(body, isNot(contains('Management:')));
+    });
+  });
 }
