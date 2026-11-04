@@ -1568,6 +1568,52 @@ void main() {
       expect(result['caffeine']?.value, 380);
     });
 
+    test('a parent and its form count as one material, so neither is read', () {
+      // 307725: Resveratrol 100 mg with Trans-Resveratrol 90 mg nested under it.
+      final result = extractIngredientDoses(
+        blob(
+          [
+            analyzed(name: 'Resveratrol', perDay: 100),
+            analyzed(
+              name: 'Resveratrol',
+              path: 'ingredientRows[1].nestedRows[0]',
+              perDay: 90,
+            ),
+          ],
+          [
+            raw(name: 'Resveratrol', perDay: 100),
+            raw(
+              name: 'Resveratrol',
+              path: 'ingredientRows[1].nestedRows[0]',
+              perDay: 90,
+            ),
+          ],
+        ),
+      );
+
+      expect(result.containsKey('resveratrol'), isFalse);
+    });
+
+    test('caffeine nested under separate sources still sums', () {
+      // 312701: 40, 152 and 10 mg under three different plants.
+      final result = extractIngredientDoses(
+        blob(
+          [
+            analyzed(path: 'ingredientRows[5].nestedRows[0]', perDay: 40),
+            analyzed(path: 'ingredientRows[6].nestedRows[0]', perDay: 152),
+            analyzed(path: 'ingredientRows[7].nestedRows[0]', perDay: 10),
+          ],
+          [
+            raw(path: 'ingredientRows[5].nestedRows[0]', perDay: 40),
+            raw(path: 'ingredientRows[6].nestedRows[0]', perDay: 152),
+            raw(path: 'ingredientRows[7].nestedRows[0]', perDay: 10),
+          ],
+        ),
+      );
+
+      expect(result['caffeine']?.value, 202);
+    });
+
     test('indeterminate still blocks every name it covers', () {
       final result = extractIngredientDoses(
         blob(

@@ -281,6 +281,101 @@ void main() {
     });
   });
 
+  group('sharesDoseBranch', () {
+    Map<String, dynamic> row(String path, double amount) => {
+      'canonical_id': 'resveratrol',
+      'raw_source_path': path,
+      'skip_ul_check': true,
+      'ul_assessment_status': 'not_applicable',
+      'skip_ul_reason': 'not_ul_applicable',
+      'dose_role': 'declared_total',
+      'per_day_min': amount,
+      'per_day_max': amount,
+      'converted_unit': 'mg',
+    };
+
+    test('a parent and its child of one ingredient are one material', () {
+      final parent = row('ingredientRows[1]', 100);
+      final child = row('ingredientRows[1].nestedRows[0]', 90);
+
+      expect(sharesDoseBranch(parent, [parent, child]), isTrue);
+      expect(sharesDoseBranch(child, [parent, child]), isTrue);
+      expect(pipelineBlocksDoseReadOnLabel(child, [parent, child]), isTrue);
+      expect(pipelineBlocksDoseReadOnLabel(parent, [parent, child]), isTrue);
+    });
+
+    test('a branch further down still counts as one material', () {
+      final parent = row('ingredientRows[0]', 400);
+      final grandchild = row(
+        'ingredientRows[0].nestedRows[0].nestedRows[1]',
+        120,
+      );
+
+      expect(sharesDoseBranch(grandchild, [parent, grandchild]), isTrue);
+    });
+
+    test('separate branches of one ingredient are separate sources', () {
+      final first = row('ingredientRows[5].nestedRows[0]', 40);
+      final second = row('ingredientRows[6].nestedRows[0]', 152);
+
+      expect(sharesDoseBranch(first, [first, second]), isFalse);
+      expect(pipelineBlocksDoseReadOnLabel(first, [first, second]), isFalse);
+    });
+
+    test('a similar path is not a branch', () {
+      final first = row('ingredientRows[1]', 100);
+      final second = row('ingredientRows[10].nestedRows[0]', 90);
+
+      expect(sharesDoseBranch(first, [first, second]), isFalse);
+    });
+
+    test('a different ingredient on the branch leaves the row readable', () {
+      final parent = row('ingredientRows[1]', 100);
+      final child = {
+        ...row('ingredientRows[1].nestedRows[0]', 90),
+        'canonical_id': 'quercetin',
+      };
+
+      expect(sharesDoseBranch(parent, [parent, child]), isFalse);
+    });
+
+    test('a neighbor with no amount or a hidden role adds nothing to it', () {
+      final parent = row('ingredientRows[1]', 100);
+      final component = {
+        ...row('ingredientRows[1].nestedRows[0]', 90),
+        'dose_role': 'form_component',
+      };
+      final empty = {...row('ingredientRows[1].nestedRows[1]', 0)};
+
+      expect(sharesDoseBranch(parent, [parent, component, empty]), isFalse);
+    });
+
+    test('a row with no skip is never blocked by its branch', () {
+      final parent = row('ingredientRows[0]', 400);
+      final evaluated = {
+        ...row('ingredientRows[0].nestedRows[0]', 269),
+        'skip_ul_check': false,
+        'ul_assessment_status': 'evaluated',
+      };
+
+      expect(
+        pipelineBlocksDoseReadOnLabel(evaluated, [parent, evaluated]),
+        isFalse,
+      );
+      expect(
+        pipelineBlocksDoseReadOnLabel(parent, [parent, evaluated]),
+        isTrue,
+      );
+    });
+
+    test('a row with no path has no branch', () {
+      final parent = {...row('x', 100)}..remove('raw_source_path');
+      final child = row('ingredientRows[1].nestedRows[0]', 90);
+
+      expect(sharesDoseBranch(parent, [parent, child]), isFalse);
+    });
+  });
+
   group('readUlDoseRange', () {
     Map<String, dynamic> row(Map<String, dynamic> exposure) => {
       'canonical_id': 'vitamin_e',

@@ -543,6 +543,24 @@ void main() {
       },
     );
 
+    group('a mixture listed as a parent and its forms (2528)', () {
+      test('adds once, so a teen is not sent to review by 831 mg', () {
+        final total = const StackNutrientAggregator().aggregate([
+          _mixtureItem('a'),
+        ])['vitamin_e']!;
+
+        expect(total.ulComparableHighAmount, isNull);
+        expect(total.ulComparableTotalAmount, 269);
+      });
+
+      test('leaves the limit check unfinished rather than cleared', () {
+        final result = status([_mixtureItem('a')], ageBracket: '14-18');
+
+        expect(result.ulAssessmentIndeterminate, isTrue);
+        expect(result.tier, isNot(NutrientTier.exceedsUl));
+      });
+    });
+
     test('a range across the limit is unresolved and keeps the intake', () {
       final result = status([_rangeItem('a', 26, 1776)]);
 
@@ -606,6 +624,50 @@ StackItemNutrients _worstCaseItem(String id) => StackItemNutrients(
     },
   ],
 );
+
+StackItemNutrients _mixtureItem(String id) {
+  Map<String, dynamic> bound(
+    String path,
+    double amount,
+    String unit,
+    double mg,
+  ) => {
+    'canonical_id': 'vitamin_e',
+    'name': 'Vitamin E',
+    'raw_source_path': path,
+    'dose_role': 'declared_total',
+    'per_day_min': amount,
+    'per_day_max': amount,
+    'converted_unit': unit,
+    'skip_ul_check': true,
+    'skip_ul_reason': 'worst_case_vitamin_e_mass_within_ul',
+    'ul_gate_eligible': true,
+    'ul_assessment_status': 'assessed_within_limit',
+    'safety_exposure': {'per_day': mg, 'unit': 'mg'},
+  };
+  return StackItemNutrients(
+    stackEntryId: id,
+    productName: id,
+    ingredients: [
+      bound('ingredientRows[0]', 400, 'IU', 360),
+      {
+        ...bound(
+          'ingredientRows[0].nestedRows[0].nestedRows[0]',
+          269,
+          'mg',
+          269,
+        ),
+        'skip_ul_check': false,
+        'skip_ul_reason': null,
+        'ul_assessment_status': 'evaluated',
+      },
+      for (final (i, mg) in const [(1, 120.0), (2, 48.0), (3, 4.0)])
+        bound('ingredientRows[0].nestedRows[0].nestedRows[$i]', mg, 'mg', mg),
+      for (final (i, mg) in const [(0, 16.0), (1, 9.0), (2, 4.0), (3, 1.0)])
+        bound('ingredientRows[0].nestedRows[1].nestedRows[$i]', mg, 'mg', mg),
+    ],
+  );
+}
 
 StackItemNutrients _rangeItem(
   String id,

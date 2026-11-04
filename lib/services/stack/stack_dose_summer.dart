@@ -164,7 +164,7 @@ class StackDoseSummer {
 
         final unit = readDoseUnit(row);
         final displayName = readDisplayName(row) ?? keys.first;
-        final exclusionReason = _exclusionReason(row, unit);
+        final exclusionReason = _exclusionReason(row, unit, item.ingredients);
 
         for (final key in keys) {
           final total = accum.putIfAbsent(
@@ -822,8 +822,9 @@ class StackDoseSummer {
   StackDoseExclusionReason? _exclusionReason(
     Map<String, dynamic> row,
     String unit,
+    List<Map<String, dynamic>> labelRows,
   ) {
-    if (pipelineBlocksDoseRead(row)) {
+    if (pipelineBlocksDoseReadOnLabel(row, labelRows)) {
       return StackDoseExclusionReason.skippedByPipeline;
     }
     if (unit.isEmpty) return StackDoseExclusionReason.missingUnit;

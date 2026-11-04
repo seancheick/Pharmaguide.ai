@@ -200,7 +200,9 @@ class StackNutrientAggregator {
           } else {
             total.hasUnresolvedUlContribution = true;
           }
-        } else if (canContributeToUl && _isWithinLimitBound(row)) {
+        } else if (canContributeToUl &&
+            _isWithinLimitBound(row) &&
+            !sharesDoseBranch(row, item.ingredients)) {
           // The pipeline cleared this worst-case figure against the adult limit
           // only. It is an upper bound with no floor: another limit can find
           // a possible excess in it, never a confirmed one.

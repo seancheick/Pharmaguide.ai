@@ -287,6 +287,43 @@ bool pipelineBlocksDoseRead(Map<String, dynamic> row) {
   return !readable;
 }
 
+/// [pipelineBlocksDoseRead] for a row read among the rest of its label.
+bool pipelineBlocksDoseReadOnLabel(
+  Map<String, dynamic> row,
+  Iterable<Map<String, dynamic>> labelRows,
+) => pipelineBlocksDoseRead(row) || sharesDoseBranch(row, labelRows);
+
+/// True when a skipped row has a counted row of the same ingredient nested above
+/// or below it. Both state the one material, as a form or a source mass, so
+/// adding them counts it twice, and nothing in the row says which figure stands
+/// for the whole (307725: 90 mg trans-resveratrol under 100 mg resveratrol;
+/// 293421: 3200 mg of herb under a 50 mg extract). The skipped row stays unread.
+/// Rows on separate branches are separate sources and still add (312701: caffeine
+/// from three plants).
+bool sharesDoseBranch(
+  Map<String, dynamic> row,
+  Iterable<Map<String, dynamic>> labelRows,
+) {
+  if (row['skip_ul_check'] != true) return false;
+  final path = row['raw_source_path'];
+  if (path is! String || path.isEmpty) return false;
+  final keys = readDoseNameKeys(row);
+  for (final other in labelRows) {
+    final otherPath = other['raw_source_path'];
+    if (otherPath is! String || !onSameLabelBranch(path, otherPath)) continue;
+    if (isUsableDoseRow(other) &&
+        (readDoseAmount(other) ?? 0) > 0 &&
+        readDoseNameKeys(other).any(keys.contains)) {
+      return true;
+    }
+  }
+  return false;
+}
+
+/// True when one label path sits inside the other.
+bool onSameLabelBranch(String a, String b) =>
+    a.startsWith('$b.') || b.startsWith('$a.');
+
 /// Only canonical form keys emitted by the pipeline, including every component.
 /// Raw label words are never sufficient to suppress a pairwise clinical rule.
 Set<String>? readMatchedForms(Map<String, dynamic> row) {

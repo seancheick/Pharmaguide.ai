@@ -649,6 +649,40 @@ void main() {
       expect(totals['caffeine']?.excludedContributions, hasLength(3));
     });
 
+    test('a skipped parent and form of one material are not added', () {
+      Map<String, dynamic> row(String path, double amount) => {
+        'canonical_id': 'elderberry',
+        'standard_name': 'Elderberry',
+        'raw_source_path': path,
+        'dose_role': 'declared_total',
+        'skip_ul_check': true,
+        'skip_ul_reason': 'not_ul_applicable',
+        'ul_assessment_status': 'not_applicable',
+        'per_day_min': amount,
+        'per_day_max': amount,
+        'converted_unit': 'mg',
+      };
+
+      // 293421: 50 mg extract with 3200 mg of raw herb nested under it.
+      final totals = const StackDoseSummer().sum([
+        StackItemNutrients(
+          stackEntryId: 'a',
+          productName: 'A',
+          ingredients: [
+            row('ingredientRows[6]', 50),
+            row('ingredientRows[6].nestedRows[0]', 3200),
+          ],
+        ),
+      ]);
+
+      expect(totals['elderberry']?.contributions, isEmpty);
+      expect(totals['elderberry']?.excludedContributions, hasLength(2));
+      expect(
+        totals['elderberry']?.excludedContributions.first.reason,
+        StackDoseExclusionReason.skippedByPipeline,
+      );
+    });
+
     test('a skipped row the pipeline can read joins the total', () {
       final totals = const StackDoseSummer().sum([
         const StackItemNutrients(

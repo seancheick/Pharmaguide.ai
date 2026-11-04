@@ -120,7 +120,8 @@ class ProductHealthFacts {
       // total; 16730: a raw amount beside an indeterminate twin).
       final hiddenPaths = {
         for (final row in nutrients)
-          if ((!isUsableDoseRow(row) || pipelineBlocksDoseRead(row)) &&
+          if ((!isUsableDoseRow(row) ||
+                  pipelineBlocksDoseReadOnLabel(row, nutrients)) &&
               row['raw_source_path'] != null)
             row['raw_source_path'],
       };

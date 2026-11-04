@@ -261,7 +261,7 @@ Map<String, IngredientDose> extractIngredientDoses(
   // Pass 1 — parse rows, dropping unusable ones and mirrored duplicates.
   final parsed = <_ParsedDoseRow>[];
   final seenSignatures = <String, bool>{};
-  for (final (row: entry, :keys, :names) in _doseRows(detailBlob)) {
+  for (final (row: entry, :keys, :names, :blocked) in _doseRows(detailBlob)) {
     // Honor the SAME usability filter the stack summers enforce
     // ([isUsableDoseRow]): drop proprietary-blend containers, parent-total
     // roll-ups, inactive rows, and label-descriptor fragments. Previously
@@ -274,7 +274,7 @@ Map<String, IngredientDose> extractIngredientDoses(
 
     final primaryName = _primaryDoseName(entry);
 
-    if (pipelineBlocksDoseRead(entry)) {
+    if (blocked) {
       parsed.add(
         _ParsedDoseRow(
           keys: keys,
@@ -414,11 +414,13 @@ typedef _DoseRow = ({
   Map<String, dynamic> row,
   Set<String> keys,
   Set<String> names,
+  bool blocked,
 });
 
 _DoseRow _doseRow(
   Map<String, dynamic> row,
   Set<String> keys, {
+  required bool blocked,
   Map<String, dynamic>? mirror,
 }) => (
   row: row,
@@ -427,6 +429,7 @@ _DoseRow _doseRow(
     ?_primaryDoseName(row),
     if (mirror != null) ?_primaryDoseName(mirror),
   },
+  blocked: blocked,
 );
 
 /// The blob's dose rows, each with the name keys it may add to.
@@ -454,13 +457,15 @@ List<_DoseRow> _doseRows(Map<String, dynamic> detailBlob) {
   for (final row in _rowMaps(detailBlob['ingredients'])) {
     // A skip that blocks the read covers every name, on whichever copy.
     if (pipelineBlocksDoseRead(row)) {
-      rows.add(_doseRow(row, readDoseNameKeys(row)));
+      rows.add(_doseRow(row, readDoseNameKeys(row), blocked: true));
       continue;
     }
     final path = _labelRowPath(row);
     final twin = analyzedByPath[path];
     if (twin == null || _lostItsDose(twin)) {
-      rows.add(_doseRow(row, _keysNotOwnedOnBranch(row, owners)));
+      rows.add(
+        _doseRow(row, _keysNotOwnedOnBranch(row, owners), blocked: false),
+      );
     } else if (isUsableDoseRow(twin)) {
       mirrors[path!] = row;
     }
@@ -469,10 +474,15 @@ List<_DoseRow> _doseRows(Map<String, dynamic> detailBlob) {
   for (final row in analyzed) {
     final mirror = mirrors[_labelRowPath(row)];
     rows.add(
-      _doseRow(row, {
-        ...readDoseNameKeys(row),
-        if (mirror != null) ...readDoseNameKeys(mirror),
-      }, mirror: mirror),
+      _doseRow(
+        row,
+        {
+          ...readDoseNameKeys(row),
+          if (mirror != null) ...readDoseNameKeys(mirror),
+        },
+        mirror: mirror,
+        blocked: pipelineBlocksDoseReadOnLabel(row, analyzed),
+      ),
     );
   }
 
@@ -496,7 +506,7 @@ Set<String> _keysNotOwnedOnBranch(
   final path = _labelRowPath(row);
   if (path == null) return keys;
   for (final owner in owners) {
-    if (path.startsWith('${owner.path}.') || owner.path.startsWith('$path.')) {
+    if (onSameLabelBranch(path, owner.path)) {
       keys.removeAll(owner.keys);
     }
   }
