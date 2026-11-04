@@ -5,6 +5,25 @@ import 'package:pharmaguide/services/photo_panel_hints.dart';
 final _submission = GtinIdentity.parse('050428381397');
 
 void main() {
+  test('directions accept common introductory phrases before the dose', () {
+    for (final text in [
+      'Suggested Use: For adults, take one capsule daily.',
+      'Directions: As a dietary supplement, mix one scoop into water.',
+    ]) {
+      expect(
+        readPanelHints(text, submission: _submission).showsDirections,
+        isTrue,
+      );
+    }
+    expect(
+      readPanelHints(
+        'Directions: For adults only.',
+        submission: _submission,
+      ).showsDirections,
+      isFalse,
+    );
+  });
+
   test('only a Nutrition Facts heading without Supplement Facts prompts', () {
     for (final (label, expected) in [
       ('Nutrition Facts\nServing Size 1 can', true),

@@ -34,6 +34,7 @@ Future<void> _save(
   List<ProductSubmissionPhoto>? photos,
   String? resubmissionOf,
   int evidenceRevision = 1,
+  bool? uploadStarted,
 }) {
   return store.save(
     userId: userId,
@@ -43,6 +44,7 @@ Future<void> _save(
     consentVersion: productSubmissionConsentVersion,
     resubmissionOf: resubmissionOf,
     evidenceRevision: evidenceRevision,
+    uploadStarted: uploadStarted,
   );
 }
 
@@ -57,6 +59,17 @@ void main() {
 
   tearDown(() async {
     if (root.existsSync()) await root.delete(recursive: true);
+  });
+
+  test('restores each upload state from a fresh store instance', () async {
+    for (final started in <bool?>[null, false, true]) {
+      await _save(store, uploadStarted: started);
+      final restored = await ProductSubmissionDraftStore(
+        root: root,
+      ).restore(_userA, _submissionId);
+      expect(restored, isNotNull);
+      expect(restored!.uploadStarted, started);
+    }
   });
 
   test(
