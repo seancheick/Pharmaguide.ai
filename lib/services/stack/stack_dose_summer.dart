@@ -434,10 +434,11 @@ class StackDoseSummer {
         final amount = decision.evaluatedDailyAmount;
         final amountUnit = normalizeDoseUnit(decision.evaluatedUnit ?? '');
         if (amount == null ||
-            amount <= 0 ||
+            amount < 0 ||
             amountUnit != _betaCaroteneCardUnit) {
           hasUnread = hasUnread || !warning.unreadBetaCaroteneAddsNothing;
-        } else if (productAmount == null || amount > productAmount) {
+        } else if (amount > 0 &&
+            (productAmount == null || amount > productAmount)) {
           productAmount = amount;
         }
       }

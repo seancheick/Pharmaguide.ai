@@ -1312,6 +1312,24 @@ void main() {
       },
     );
 
+    test(
+      'a mixture read as zero adds nothing and leaves the card complete',
+      () {
+        final alert = summer.betaCaroteneStackCardAlert(
+          userConditions: const [],
+          products: [
+            product('a', [doseCard(amount: 14280)]),
+            product('b', [doseCard(amount: 0)]),
+          ],
+        );
+
+        expect(alert, isNotNull);
+        expect(alert!.totalValue, 14280);
+        expect(alert.contributions.map((c) => c.productName), ['a']);
+        expect(alert.isIncomplete, isFalse);
+      },
+    );
+
     test('an unknown comparator hedges instead of claiming 20 mg', () {
       final alert = summer.betaCaroteneStackCardAlert(
         userConditions: const [],
