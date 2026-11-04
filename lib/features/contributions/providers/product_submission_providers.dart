@@ -10,6 +10,18 @@ final productSubmissionServiceProvider = Provider<ProductSubmissionService>(
   (ref) => ProductSubmissionService.production(),
 );
 
+/// In-process sends outlive their capture route. Refresh history on transfer
+/// start/finish even when the contributor is using another screen.
+final productSubmissionTransfersProvider = StreamProvider.autoDispose<int>((
+  ref,
+) {
+  var revision = 0;
+  return ref
+      .watch(productSubmissionServiceProvider)
+      .transferChanges
+      .map((_) => ++revision);
+});
+
 /// The signed-in user's own submissions, newest first (RLS-scoped
 /// server-side). Invalidated by pull-to-refresh, app resume on the status
 /// surface, and incoming `submission_update` pushes.
@@ -23,6 +35,7 @@ final productSubmissionServiceProvider = Provider<ProductSubmissionService>(
 /// shells after promotion because the accepted product already owns that UPC.
 final productSubmissionsProvider =
     FutureProvider.autoDispose<List<ProductSubmissionSummary>>((ref) async {
+      ref.watch(productSubmissionTransfersProvider);
       final all = await ref
           .watch(productSubmissionServiceProvider)
           .listOwnSubmissions();
@@ -102,6 +115,17 @@ final productSubmissionDraftStorageProvider =
 /// barcode — which a user who force-quit mid-upload has no reason to guess.
 final pendingProductSubmissionDraftsProvider =
     FutureProvider.autoDispose<List<PendingProductSubmission>>((ref) async {
+      ref.watch(productSubmissionTransfersProvider);
+      // A lost response can leave a local draft after the server accepted it.
+      // Hide only exact confirmed ids, without waiting for a network request
+      // before making genuinely offline captures available.
+      final history =
+          ref.watch(productSubmissionsProvider).asData?.value ??
+          const <ProductSubmissionSummary>[];
+      final accepted = {
+        for (final submission in history)
+          if (submission.uploadReady) submission.submissionId,
+      };
       final storage = await ref.watch(
         productSubmissionDraftStorageProvider.future,
       );
@@ -117,7 +141,9 @@ final pendingProductSubmissionDraftsProvider =
         // A retake capture is finished from its own submission's card.
         return [
           for (final pending in await storage.list(userId))
-            if (pending.retakeOfRevision == null) pending,
+            if (pending.retakeOfRevision == null &&
+                !accepted.contains(pending.submissionId))
+              pending,
         ];
       } on Object {
         return const [];

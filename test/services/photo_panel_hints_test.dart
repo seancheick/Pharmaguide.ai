@@ -5,6 +5,56 @@ import 'package:pharmaguide/services/photo_panel_hints.dart';
 final _submission = GtinIdentity.parse('050428381397');
 
 void main() {
+  test('directions accept common introductory phrases before the dose', () {
+    for (final text in [
+      'Suggested Use: For adults, take one capsule daily.',
+      'Directions: As a dietary supplement, mix one scoop into water.',
+    ]) {
+      expect(
+        readPanelHints(text, submission: _submission).showsDirections,
+        isTrue,
+      );
+    }
+    expect(
+      readPanelHints(
+        'Directions: For adults only.',
+        submission: _submission,
+      ).showsDirections,
+      isFalse,
+    );
+  });
+
+  test('only a Nutrition Facts heading without Supplement Facts prompts', () {
+    for (final (label, expected) in [
+      ('Nutrition Facts\nServing Size 1 can', true),
+      ('Nutrition Facts\nSupplement Facts', false),
+      ('Serving Size 1 scoop\nAmount Per Serving', false),
+    ]) {
+      expect(
+        readPanelHints(label, submission: _submission).looksLikeFoodLabel,
+        expected,
+      );
+    }
+  });
+
+  test('a warning alone does not cover the directions panel', () {
+    final hints = readPanelHints(
+      'Warning: keep out of reach of children.',
+      submission: _submission,
+    );
+    expect(hints.showsDirectionsOrWarnings, isTrue);
+    expect(hints.showsDirections, isFalse);
+  });
+
+  test('suggested use alongside Facts covers directions', () {
+    final hints = readPanelHints(
+      'Supplement Facts\nServing Size 1 scoop\nSuggested Use: Mix 2 scoops daily.',
+      submission: _submission,
+    );
+    expect(hints.showsFactsPanel, isTrue);
+    expect(hints.showsDirections, isTrue);
+  });
+
   test('a Supplement Facts panel reads as facts', () {
     final hints = readPanelHints(
       'Supplement Facts\nServing Size 1 Capsule\nAmount Per Serving %DV\n'
@@ -32,6 +82,18 @@ void main() {
       submission: _submission,
     );
     expect(hints.showsFactsPanel, isFalse);
+    expect(hints.showsDirectionsOrWarnings, isTrue);
+  });
+
+  test('directions remain detectable alongside facts and ingredients', () {
+    final hints = readPanelHints(
+      'Supplement Facts\nServing Size 1 Capsule\n'
+      'Other Ingredients: cellulose\nSuggested Use: take one capsule daily.\n'
+      'Warning: keep out of reach of children.',
+      submission: _submission,
+    );
+    expect(hints.showsFactsPanel, isTrue);
+    expect(hints.showsOtherIngredients, isTrue);
     expect(hints.showsDirectionsOrWarnings, isTrue);
   });
 

@@ -28,6 +28,7 @@ Widget _harness(
   Future<void> Function(ProductSubmissionSummary status)? onHide,
   Future<void> Function(ProductSubmissionSummary status)? onRetake,
   List<PendingProductSubmission> pendingDrafts = const [],
+  ProductSubmissionDraftStorage? draftStore,
   Future<int> Function()? points,
   _Backend? backend,
   GoRouter? router,
@@ -40,9 +41,14 @@ Widget _harness(
         ProductSubmissionService(backend: backend ?? _Backend(rows)),
       ),
       coreDatabaseProvider.overrideWithValue(database),
-      pendingProductSubmissionDraftsProvider.overrideWith(
-        (ref) async => pendingDrafts,
-      ),
+      if (draftStore == null)
+        pendingProductSubmissionDraftsProvider.overrideWith(
+          (ref) async => pendingDrafts,
+        )
+      else
+        productSubmissionDraftStorageProvider.overrideWith(
+          (ref) async => draftStore,
+        ),
       // The ledger is server state; the screen only displays it.
       contributionPointsProvider.overrideWith(
         (ref) => points == null ? Future.value(0) : points(),
@@ -1371,9 +1377,39 @@ void main() {
     expect(find.byKey(const Key('unfinished-captures')), findsOneWidget);
     expect(find.text('3 photos ready to send'), findsOneWidget);
     // The user must not read this as "submitted and waiting for review".
-    expect(find.textContaining('still on this phone'), findsOneWidget);
+    expect(find.textContaining('Sending is not yet confirmed'), findsOneWidget);
     expect(find.text('Finish sending'), findsOneWidget);
   });
+
+  for (final historyFails in [false, true]) {
+    testWidgets('real local drafts stay visible while history is '
+        '${historyFails ? 'unavailable' : 'loading'}', (tester) async {
+      final pending = Completer<List<Map<String, Object?>>>();
+      final backend = _Backend(const [])
+        ..pendingList = historyFails ? null : pending
+        ..listError = historyFails ? StateError('offline') : null;
+      await tester.pumpWidget(
+        _harness(
+          const [],
+          backend: backend,
+          draftStore: _HistoryDraftStorage([_pending('030772032565')]),
+        ),
+      );
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 50));
+      expect(find.byKey(const Key('unfinished-captures')), findsOneWidget);
+      expect(find.text('3 photos ready to send'), findsOneWidget);
+      final finish = tester.widget<FilledButton>(
+        find.ancestor(
+          of: find.text('Finish sending'),
+          matching: find.byType(FilledButton),
+        ),
+      );
+      expect(finish.onPressed, isNotNull);
+      if (!historyFails) pending.complete(const []);
+      await tester.pumpAndSettle();
+    });
+  }
 
   testWidgets('no unfinished section when this device holds nothing', (
     tester,
@@ -1522,6 +1558,8 @@ class _Backend implements ProductSubmissionBackend {
   final evidenceRequests = <String>[];
 
   final List<Map<String, Object?>> rows;
+  Completer<List<Map<String, Object?>>>? pendingList;
+  Object? listError;
   @override
   String? get authenticatedUserId => userId;
   String? userId = 'user-id';
@@ -1532,6 +1570,8 @@ class _Backend implements ProductSubmissionBackend {
     required int offset,
     required int limit,
   }) async {
+    if (listError != null) throw listError!;
+    if (pendingList != null) return pendingList!.future;
     return rows.skip(offset).take(limit).toList(growable: false);
   }
 
@@ -1577,4 +1617,17 @@ class _Backend implements ProductSubmissionBackend {
   }) {
     throw UnimplementedError();
   }
+}
+
+/// Only storage is faked: the real pending-draft provider must remain
+/// independent of the remote-history provider's loading/error state.
+class _HistoryDraftStorage extends ProductSubmissionDraftStorage {
+  _HistoryDraftStorage(this.drafts);
+  final List<PendingProductSubmission> drafts;
+
+  @override
+  Future<List<PendingProductSubmission>> list(String userId) async => drafts;
+
+  @override
+  dynamic noSuchMethod(Invocation invocation) => throw UnimplementedError();
 }

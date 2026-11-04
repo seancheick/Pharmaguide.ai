@@ -1,3 +1,5 @@
+import 'dart:async';
+import 'dart:convert';
 import 'dart:math';
 import 'dart:typed_data';
 
@@ -840,6 +842,45 @@ class ProductSubmissionFailure extends ProductSubmissionResult {
       kind == ProductSubmissionFailureKind.reportFinalizeFailed;
 }
 
+/// An in-process transfer survives capture-sheet dismissal, not OS termination.
+/// Keep this reference to observe its terminal state after registry removal.
+class ProductSubmissionTransfer {
+  ProductSubmissionTransfer._(this.totalPhotos, this._fingerprint);
+
+  final int totalPhotos;
+  final String _fingerprint;
+  int _completedPhotos = 0;
+  ProductSubmissionPhase _phase = ProductSubmissionPhase.savingReport;
+  final _changes = StreamController<void>.broadcast();
+  final _result = Completer<ProductSubmissionResult>();
+  final _observers = <void Function()>[];
+
+  int get completedPhotos => _completedPhotos;
+  ProductSubmissionPhase get phase => _phase;
+  Stream<void> get changes => _changes.stream;
+  Future<ProductSubmissionResult> get result => _result.future;
+
+  void _notify() {
+    if (_result.isCompleted) return;
+    _changes.add(null);
+    for (final observer in List.of(_observers)) {
+      // A dismissed UI or callback must never interrupt an accepted transfer.
+      try {
+        observer();
+      } on Object {
+        // Observers do not own the network operation.
+      }
+    }
+  }
+}
+
+class _SubmissionTransfers {
+  final active = <(String, String), ProductSubmissionTransfer>{};
+  final changes = StreamController<String>.broadcast();
+}
+
+class _SubmissionAccountChanged implements Exception {}
+
 /// Injectable network boundary. Tests use an in-memory implementation; the
 /// production adapter below is the only place that calls Supabase directly.
 abstract interface class ProductSubmissionBackend {
@@ -919,13 +960,191 @@ class ProductSubmissionService {
     );
   }
 
-  const ProductSubmissionService({required this.backend});
+  /// Every network stage is bounded; timing out does not cancel the server's
+  /// operation. The exact immutable manifest must be used for a later retry.
+  final Duration rpcTimeout;
+  final Duration photoUploadTimeout;
+  static final _registries = Expando<_SubmissionTransfers>();
 
-  factory ProductSubmissionService.production({SupabaseClient? client}) {
+  const ProductSubmissionService({
+    required this.backend,
+    this.rpcTimeout = const Duration(seconds: 20),
+    this.photoUploadTimeout = const Duration(seconds: 60),
+  });
+
+  _SubmissionTransfers get _transfers {
+    final source = backend;
+    final Object key = source is _SupabaseProductSubmissionBackend
+        ? source._client
+        : source;
+    return _registries[key] ??= _SubmissionTransfers();
+  }
+
+  ProductSubmissionTransfer? activeTransfer(String submissionId) {
+    final owner = backend.authenticatedUserId;
+    return owner == null ? null : _transfers.active[(owner, submissionId)];
+  }
+
+  /// Account-scoped lifecycle notifications, including terminal results.
+  Stream<void> get transferChanges => _transfers.changes.stream
+      .where((owner) => owner == backend.authenticatedUserId)
+      .map<void>((_) {});
+
+  Future<T> _stage<T>(
+    String owner,
+    Future<T> Function() operation, {
+    bool upload = false,
+  }) async {
+    if (backend.authenticatedUserId != owner) {
+      throw _SubmissionAccountChanged();
+    }
+    if (rpcTimeout <= Duration.zero || photoUploadTimeout <= Duration.zero) {
+      throw ArgumentError('Transfer deadlines must be positive.');
+    }
+    try {
+      final value = await operation().timeout(
+        upload ? photoUploadTimeout : rpcTimeout,
+      );
+      if (backend.authenticatedUserId != owner) {
+        throw _SubmissionAccountChanged();
+      }
+      return value;
+    } on Object {
+      if (backend.authenticatedUserId != owner) {
+        throw _SubmissionAccountChanged();
+      }
+      rethrow;
+    }
+  }
+
+  Future<ProductSubmissionResult> _joinTransfer({
+    required String submissionId,
+    required String fingerprint,
+    required int totalPhotos,
+    required Future<ProductSubmissionResult> Function(
+      String owner,
+      void Function(ProductSubmissionPhase) phase,
+      void Function(int, int) progress,
+    )
+    run,
+    void Function(ProductSubmissionPhase)? onPhaseChanged,
+    void Function(int, int)? onPhotoProgress,
+  }) {
+    final owner = backend.authenticatedUserId;
+    if (owner == null || owner.isEmpty) {
+      return Future.value(
+        ProductSubmissionFailure(
+          submissionId: submissionId,
+          kind: ProductSubmissionFailureKind.authenticationRequired,
+        ),
+      );
+    }
+    final registry = _transfers;
+    final key = (owner, submissionId);
+    final existing = registry.active[key];
+    if (existing != null && existing._fingerprint != fingerprint) {
+      return Future.value(
+        ProductSubmissionFailure(
+          submissionId: submissionId,
+          kind: ProductSubmissionFailureKind.reportInsertFailed,
+          cause: StateError(
+            'A different payload is already being transferred.',
+          ),
+        ),
+      );
+    }
+    final transfer =
+        existing ?? ProductSubmissionTransfer._(totalPhotos, fingerprint);
+    ProductSubmissionPhase? lastPhase;
+    int? lastCompleted;
+    void observe() {
+      if (lastPhase != transfer.phase) {
+        lastPhase = transfer.phase;
+        onPhaseChanged?.call(transfer.phase);
+      }
+      if (lastCompleted != transfer.completedPhotos) {
+        lastCompleted = transfer.completedPhotos;
+        onPhotoProgress?.call(transfer.completedPhotos, transfer.totalPhotos);
+      }
+    }
+
+    transfer._observers.add(observe);
+    if (existing != null) {
+      try {
+        observe();
+      } on Object {
+        // UI does not own the transfer.
+      }
+      return transfer.result;
+    }
+    registry.active[key] = transfer;
+    registry.changes.add(owner);
+    // Start immediately so activeTransfer is available as soon as submit returns.
+    unawaited(() async {
+      ProductSubmissionResult outcome;
+      try {
+        outcome = await run(
+          owner,
+          (phase) {
+            if (backend.authenticatedUserId != owner) {
+              throw _SubmissionAccountChanged();
+            }
+            transfer._phase = phase;
+            transfer._notify();
+          },
+          (completed, total) {
+            if (backend.authenticatedUserId != owner) {
+              throw _SubmissionAccountChanged();
+            }
+            transfer._completedPhotos = completed;
+            transfer._notify();
+          },
+        );
+      } on Object catch (error) {
+        outcome = ProductSubmissionFailure(
+          submissionId: submissionId,
+          kind: error is _SubmissionAccountChanged
+              ? ProductSubmissionFailureKind.authenticationRequired
+              : ProductSubmissionFailureKind.reportInsertFailed,
+          cause: error,
+        );
+      }
+      if (backend.authenticatedUserId != owner) {
+        outcome = ProductSubmissionFailure(
+          submissionId: submissionId,
+          kind: ProductSubmissionFailureKind.authenticationRequired,
+          cause: _SubmissionAccountChanged(),
+        );
+      }
+      transfer._phase = outcome is ProductSubmissionSuccess
+          ? ProductSubmissionPhase.succeeded
+          : ProductSubmissionPhase.failed;
+      if (outcome is ProductSubmissionSuccess) {
+        transfer._completedPhotos = transfer.totalPhotos;
+      }
+      transfer._notify();
+      if (identical(registry.active[key], transfer)) {
+        registry.active.remove(key);
+      }
+      registry.changes.add(owner);
+      transfer._observers.clear();
+      transfer._result.complete(outcome);
+      unawaited(transfer._changes.close());
+    }());
+    return transfer.result;
+  }
+
+  factory ProductSubmissionService.production({
+    SupabaseClient? client,
+    Duration rpcTimeout = const Duration(seconds: 20),
+    Duration photoUploadTimeout = const Duration(seconds: 60),
+  }) {
     return ProductSubmissionService(
       backend: _SupabaseProductSubmissionBackend(
         client ?? Supabase.instance.client,
       ),
+      rpcTimeout: rpcTimeout,
+      photoUploadTimeout: photoUploadTimeout,
     );
   }
 
@@ -985,15 +1204,33 @@ class ProductSubmissionService {
   Future<ProductSubmissionResult> submit(
     ProductSubmissionDraft draft, {
     void Function(ProductSubmissionPhase phase)? onPhaseChanged,
-  }) async {
-    final userId = backend.authenticatedUserId;
-    if (userId == null || userId.isEmpty) {
-      return ProductSubmissionFailure(
-        submissionId: draft.submissionId,
-        kind: ProductSubmissionFailureKind.authenticationRequired,
-      );
-    }
+    void Function(int completed, int total)? onPhotoProgress,
+  }) => _joinTransfer(
+    submissionId: draft.submissionId,
+    fingerprint: jsonEncode([
+      'submit',
+      draft.kind.wireValue,
+      draft.upc,
+      draft.mismatchDetail,
+      if (draft is MissingProductSubmissionDraft) draft.identifier?.toJson(),
+      draft.noSeparateIngredientPanel,
+      draft.resubmissionOf,
+      _photoManifest(draft.photos),
+      productSubmissionConsentVersion,
+    ]),
+    totalPhotos: draft.photos.length,
+    onPhaseChanged: onPhaseChanged,
+    onPhotoProgress: onPhotoProgress,
+    run: (owner, phase, progress) =>
+        _submit(draft, owner, onPhaseChanged: phase, onPhotoProgress: progress),
+  );
 
+  Future<ProductSubmissionResult> _submit(
+    ProductSubmissionDraft draft,
+    String userId, {
+    void Function(ProductSubmissionPhase phase)? onPhaseChanged,
+    void Function(int, int)? onPhotoProgress,
+  }) async {
     // Capture order IS evidence order: seq derives from the draft's list
     // position, and the storage path leaf is the photo's own identity.
     final orderedPhotos = draft.photos;
@@ -1024,15 +1261,19 @@ class ProductSubmissionService {
     // idempotent because the RPC validates exact replay identity.
     onPhaseChanged?.call(ProductSubmissionPhase.savingReport);
     try {
-      await backend.persistSubmission(
-        functionName: createFunction,
-        payload: payload,
+      await _stage(
+        userId,
+        () => backend.persistSubmission(
+          functionName: createFunction,
+          payload: payload,
+        ),
       );
     } on Object catch (error) {
-      onPhaseChanged?.call(ProductSubmissionPhase.failed);
       return ProductSubmissionFailure(
         submissionId: draft.submissionId,
-        kind: ProductSubmissionFailureKind.reportInsertFailed,
+        kind: error is _SubmissionAccountChanged
+            ? ProductSubmissionFailureKind.authenticationRequired
+            : ProductSubmissionFailureKind.reportInsertFailed,
         cause: error,
       );
     }
@@ -1042,22 +1283,25 @@ class ProductSubmissionService {
     // trying to mutate immutable ready-state objects. For a new report with a
     // photo manifest, the database returns false until every path exists.
     try {
-      final alreadyReady = await backend.finalizeSubmission(
-        functionName: finalizeFunction,
-        submissionId: draft.submissionId,
+      final alreadyReady = await _stage(
+        userId,
+        () => backend.finalizeSubmission(
+          functionName: finalizeFunction,
+          submissionId: draft.submissionId,
+        ),
       );
       if (alreadyReady) {
-        onPhaseChanged?.call(ProductSubmissionPhase.succeeded);
         return ProductSubmissionSuccess(
           submissionId: draft.submissionId,
           photoObjectPaths: objectPaths,
         );
       }
     } on Object catch (error) {
-      onPhaseChanged?.call(ProductSubmissionPhase.failed);
       return ProductSubmissionFailure(
         submissionId: draft.submissionId,
-        kind: ProductSubmissionFailureKind.reportFinalizeFailed,
+        kind: error is _SubmissionAccountChanged
+            ? ProductSubmissionFailureKind.authenticationRequired
+            : ProductSubmissionFailureKind.reportFinalizeFailed,
         cause: error,
       );
     }
@@ -1065,20 +1309,27 @@ class ProductSubmissionService {
     if (orderedPhotos.isNotEmpty) {
       onPhaseChanged?.call(ProductSubmissionPhase.uploadingPhotos);
     }
+    var completedPhotos = 0;
     for (final photo in orderedPhotos) {
       final objectPath = objectPaths[photo.photoId]!;
       try {
-        await backend.uploadPhoto(
-          bucket: photoBucket,
-          objectPath: objectPath,
-          bytes: photo.bytes,
-          contentType: photo.contentType,
+        await _stage(
+          userId,
+          () => backend.uploadPhoto(
+            bucket: photoBucket,
+            objectPath: objectPath,
+            bytes: photo.bytes,
+            contentType: photo.contentType,
+          ),
+          upload: true,
         );
+        onPhotoProgress?.call(++completedPhotos, orderedPhotos.length);
       } on Object catch (error) {
-        onPhaseChanged?.call(ProductSubmissionPhase.failed);
         return ProductSubmissionFailure(
           submissionId: draft.submissionId,
-          kind: ProductSubmissionFailureKind.photoUploadFailed,
+          kind: error is _SubmissionAccountChanged
+              ? ProductSubmissionFailureKind.authenticationRequired
+              : ProductSubmissionFailureKind.photoUploadFailed,
           cause: error,
         );
       }
@@ -1086,23 +1337,26 @@ class ProductSubmissionService {
 
     onPhaseChanged?.call(ProductSubmissionPhase.savingReport);
     try {
-      final finalized = await backend.finalizeSubmission(
-        functionName: finalizeFunction,
-        submissionId: draft.submissionId,
+      final finalized = await _stage(
+        userId,
+        () => backend.finalizeSubmission(
+          functionName: finalizeFunction,
+          submissionId: draft.submissionId,
+        ),
       );
       if (!finalized) {
         throw StateError('Submission evidence manifest is incomplete.');
       }
     } on Object catch (error) {
-      onPhaseChanged?.call(ProductSubmissionPhase.failed);
       return ProductSubmissionFailure(
         submissionId: draft.submissionId,
-        kind: ProductSubmissionFailureKind.reportFinalizeFailed,
+        kind: error is _SubmissionAccountChanged
+            ? ProductSubmissionFailureKind.authenticationRequired
+            : ProductSubmissionFailureKind.reportFinalizeFailed,
         cause: error,
       );
     }
 
-    onPhaseChanged?.call(ProductSubmissionPhase.succeeded);
     return ProductSubmissionSuccess(
       submissionId: draft.submissionId,
       photoObjectPaths: objectPaths,
@@ -1179,14 +1433,39 @@ class ProductSubmissionService {
     ProductSubmissionRetake retake,
     List<ProductSubmissionPhoto> photos, {
     void Function(ProductSubmissionPhase phase)? onPhaseChanged,
+    void Function(int completed, int total)? onPhotoProgress,
+  }) {
+    // The caller may reuse or edit its list while this transfer is in flight.
+    final snapshot = List<ProductSubmissionPhoto>.unmodifiable(photos);
+    return _joinTransfer(
+      submissionId: retake.submissionId,
+      fingerprint: jsonEncode([
+        'retake',
+        retake.fromRevision,
+        retake.keptPhotoIds,
+        _photoManifest(snapshot),
+        productSubmissionConsentVersion,
+      ]),
+      totalPhotos: snapshot.length,
+      onPhaseChanged: onPhaseChanged,
+      onPhotoProgress: onPhotoProgress,
+      run: (owner, phase, progress) => _submitRetake(
+        retake,
+        snapshot,
+        owner,
+        onPhaseChanged: phase,
+        onPhotoProgress: progress,
+      ),
+    );
+  }
+
+  Future<ProductSubmissionResult> _submitRetake(
+    ProductSubmissionRetake retake,
+    List<ProductSubmissionPhoto> photos,
+    String userId, {
+    void Function(ProductSubmissionPhase phase)? onPhaseChanged,
+    void Function(int, int)? onPhotoProgress,
   }) async {
-    final userId = backend.authenticatedUserId;
-    if (userId == null || userId.isEmpty) {
-      return ProductSubmissionFailure(
-        submissionId: retake.submissionId,
-        kind: ProductSubmissionFailureKind.authenticationRequired,
-      );
-    }
     try {
       retake.validateNewPhotos(photos);
     } on ProductSubmissionValidationException catch (error) {
@@ -1204,62 +1483,78 @@ class ProductSubmissionService {
     onPhaseChanged?.call(ProductSubmissionPhase.savingReport);
     late final int revision;
     try {
-      revision = await backend.openEvidenceRevision(
-        payload: {
-          'p_submission_id': retake.submissionId,
-          'p_expected_revision': retake.fromRevision,
-          'p_request_key': _retakeRequestKey(
-            retake.submissionId,
-            retake.fromRevision,
-            photos,
-          ),
-          'p_keep_photo_ids': retake.keptPhotoIds,
-          'p_consent_version': productSubmissionConsentVersion,
-        },
+      revision = await _stage(
+        userId,
+        () => backend.openEvidenceRevision(
+          payload: {
+            'p_submission_id': retake.submissionId,
+            'p_expected_revision': retake.fromRevision,
+            'p_request_key': _retakeRequestKey(
+              retake.submissionId,
+              retake.fromRevision,
+              photos,
+            ),
+            'p_keep_photo_ids': retake.keptPhotoIds,
+            'p_consent_version': productSubmissionConsentVersion,
+          },
+        ),
       );
-      final alreadyReady = await backend.finalizeSubmission(
-        functionName: finalizeFunction,
-        submissionId: retake.submissionId,
-        expectedRevision: revision,
+      final alreadyReady = await _stage(
+        userId,
+        () => backend.finalizeSubmission(
+          functionName: finalizeFunction,
+          submissionId: retake.submissionId,
+          expectedRevision: revision,
+        ),
       );
       if (alreadyReady) {
-        onPhaseChanged?.call(ProductSubmissionPhase.succeeded);
         return ProductSubmissionSuccess(
           submissionId: retake.submissionId,
           photoObjectPaths: objectPaths,
         );
       }
-      await backend.persistSubmission(
-        functionName: addEvidenceFunction,
-        payload: {
-          'p_submission_id': retake.submissionId,
-          'p_expected_revision': revision,
-          'p_photos': _photoManifest(photos),
-        },
+      await _stage(
+        userId,
+        () => backend.persistSubmission(
+          functionName: addEvidenceFunction,
+          payload: {
+            'p_submission_id': retake.submissionId,
+            'p_expected_revision': revision,
+            'p_photos': _photoManifest(photos),
+          },
+        ),
       );
     } on Object catch (error) {
-      onPhaseChanged?.call(ProductSubmissionPhase.failed);
       return ProductSubmissionFailure(
         submissionId: retake.submissionId,
-        kind: ProductSubmissionFailureKind.reportInsertFailed,
+        kind: error is _SubmissionAccountChanged
+            ? ProductSubmissionFailureKind.authenticationRequired
+            : ProductSubmissionFailureKind.reportInsertFailed,
         cause: error,
       );
     }
 
     onPhaseChanged?.call(ProductSubmissionPhase.uploadingPhotos);
+    var completedPhotos = 0;
     for (final photo in photos) {
       try {
-        await backend.uploadPhoto(
-          bucket: photoBucket,
-          objectPath: objectPaths[photo.photoId]!,
-          bytes: photo.bytes,
-          contentType: photo.contentType,
+        await _stage(
+          userId,
+          () => backend.uploadPhoto(
+            bucket: photoBucket,
+            objectPath: objectPaths[photo.photoId]!,
+            bytes: photo.bytes,
+            contentType: photo.contentType,
+          ),
+          upload: true,
         );
+        onPhotoProgress?.call(++completedPhotos, photos.length);
       } on Object catch (error) {
-        onPhaseChanged?.call(ProductSubmissionPhase.failed);
         return ProductSubmissionFailure(
           submissionId: retake.submissionId,
-          kind: ProductSubmissionFailureKind.photoUploadFailed,
+          kind: error is _SubmissionAccountChanged
+              ? ProductSubmissionFailureKind.authenticationRequired
+              : ProductSubmissionFailureKind.photoUploadFailed,
           cause: error,
         );
       }
@@ -1267,23 +1562,26 @@ class ProductSubmissionService {
 
     onPhaseChanged?.call(ProductSubmissionPhase.savingReport);
     try {
-      final finalized = await backend.finalizeSubmission(
-        functionName: finalizeFunction,
-        submissionId: retake.submissionId,
-        expectedRevision: revision,
+      final finalized = await _stage(
+        userId,
+        () => backend.finalizeSubmission(
+          functionName: finalizeFunction,
+          submissionId: retake.submissionId,
+          expectedRevision: revision,
+        ),
       );
       if (!finalized) {
         throw StateError('Retake evidence manifest is incomplete.');
       }
     } on Object catch (error) {
-      onPhaseChanged?.call(ProductSubmissionPhase.failed);
       return ProductSubmissionFailure(
         submissionId: retake.submissionId,
-        kind: ProductSubmissionFailureKind.reportFinalizeFailed,
+        kind: error is _SubmissionAccountChanged
+            ? ProductSubmissionFailureKind.authenticationRequired
+            : ProductSubmissionFailureKind.reportFinalizeFailed,
         cause: error,
       );
     }
-    onPhaseChanged?.call(ProductSubmissionPhase.succeeded);
     return ProductSubmissionSuccess(
       submissionId: retake.submissionId,
       photoObjectPaths: objectPaths,
@@ -1296,11 +1594,14 @@ class ProductSubmissionService {
     final rows = <Map<String, Object?>>[];
     var offset = 0;
     while (true) {
-      final page = await backend.listOwnSubmissions(
-        table: submissionsTable,
-        offset: offset,
-        limit: _submissionPageSize,
-      );
+      final page = await backend
+          .listOwnSubmissions(
+            table: submissionsTable,
+            offset: offset,
+            limit: _submissionPageSize,
+          )
+          .timeout(rpcTimeout);
+      if (backend.authenticatedUserId != userId) return const [];
       rows.addAll(page);
       if (page.length < _submissionPageSize) break;
       offset += page.length;
