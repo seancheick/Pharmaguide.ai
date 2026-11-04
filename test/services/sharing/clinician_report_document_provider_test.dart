@@ -72,6 +72,7 @@ ProviderContainer _container(Future<SafetyAlertMatchSet> Function() matches) {
         ),
       ),
       stackDoseThresholdAlertsProvider.overrideWith((ref) async => const []),
+      stackDoseRulesUnreadProvider.overrideWith((ref) async => false),
       safetyAlertMatchesProvider.overrideWith((ref) => matches()),
     ],
   );

@@ -146,6 +146,7 @@ void main() {
                 doseThresholdLoader?.call() ??
                 Future.value(doseThresholdAlerts),
           ),
+          stackDoseRulesUnreadProvider.overrideWith((ref) async => false),
           profileProvider.overrideWith((ref) => ProfileNotifier()),
         ],
         child: MaterialApp(home: child),

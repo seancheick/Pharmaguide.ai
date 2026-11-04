@@ -1,5 +1,7 @@
 import 'dart:async';
+import 'dart:convert';
 import 'dart:io';
+import 'dart:isolate';
 
 import 'package:crypto/crypto.dart';
 import 'package:flutter/foundation.dart';
@@ -16,8 +18,11 @@ import 'package:pharmaguide/data/supabase/detail_blob_service.dart'
 import 'package:pharmaguide/data/supabase/supabase_client.dart';
 import 'package:pharmaguide/data/supabase/supabase_contract.dart';
 import 'package:pharmaguide/services/crash_reporting_service.dart';
+import 'package:pharmaguide/services/release_store.dart'
+    show availableDiskBytes;
 import 'package:sentry_flutter/sentry_flutter.dart';
-import 'package:supabase_flutter/supabase_flutter.dart' show PostgrestException;
+import 'package:supabase_flutter/supabase_flutter.dart'
+    show PostgrestException, StorageException;
 
 /// Thrown when a downloaded catalog passes integrity + version checks but
 /// is refused activation because this app build cannot safely read it
@@ -46,15 +51,96 @@ class RemoteRelease {
   final String? releaseSignature;
 }
 
+/// Room an update needs beyond its download and the decompressed catalog. It
+/// covers the copy of the rules that goes into the new release (25.1 MB in the
+/// October 2026 catalog) and SQLite's working space. The active and previous
+/// releases are already on disk and stay there until the next launch, so the
+/// free space measured is what is left with both of them kept.
+const int kCatalogHeadroomBytes = 64 << 20;
+
+/// There isn't room to take this update. Nothing was written, and the next
+/// refresh checks again. It carries no numbers because errors reach crash
+/// reporting, and Apple's required-reason rule for reading disk space
+/// (`ios/Runner/PrivacyInfo.xcprivacy`) keeps that reading on the device.
+class CatalogStorageFullException implements Exception {
+  const CatalogStorageFullException();
+
+  @override
+  String toString() => 'CatalogStorageFullException';
+}
+
+/// A compressed catalog that can't become the catalog it names.
+class CompressedCatalogRejected implements Exception {
+  const CompressedCatalogRejected(this.message);
+
+  final String message;
+
+  @override
+  String toString() => 'CompressedCatalogRejected: $message';
+}
+
+/// The gzip of a catalog. It only changes how the bytes arrive: what activates
+/// must still hash to the catalog's own checksum, signed or from the manifest row.
+@immutable
+class CompressedCatalog {
+  const CompressedCatalog({
+    required this.path,
+    required this.sha256,
+    required this.size,
+    required this.decompressedSize,
+  });
+
+  final String path;
+  final String sha256;
+  final int size;
+  final int decompressedSize;
+
+  /// Null unless [raw] is complete and names [expectedPath]. A catalog without a
+  /// usable compressed form still arrives through its plain file.
+  static CompressedCatalog? tryParse(
+    Object? raw, {
+    required String expectedPath,
+  }) {
+    if (raw is! Map) return null;
+    final path = raw['path'];
+    final sha256 = raw['sha256'];
+    final size = raw['size'];
+    final decompressedSize = raw['decompressed_size'];
+    if (path != expectedPath ||
+        sha256 is! String ||
+        !RegExp(r'^[0-9a-f]{64}$').hasMatch(sha256) ||
+        size is! int ||
+        size <= 0 ||
+        decompressedSize is! int ||
+        decompressedSize <= 0) {
+      return null;
+    }
+    return CompressedCatalog(
+      path: expectedPath,
+      sha256: sha256,
+      size: size,
+      decompressedSize: decompressedSize,
+    );
+  }
+}
+
+/// A file with the wrong hash has been deleted by the time this is thrown.
+class _ArtifactHashMismatch extends StateError {
+  _ArtifactHashMismatch(super.message);
+}
+
 /// Handles OTA database updates from Supabase storage.
 class SyncService {
   SyncService({
     this._appVersion = kAppVersion,
     http.Client Function()? httpClientFactory,
-  }) : _httpClientFactory = httpClientFactory ?? http.Client.new;
+    Future<int?> Function(String path)? availableBytes,
+  }) : _httpClientFactory = httpClientFactory ?? http.Client.new,
+       _availableBytes = availableBytes ?? availableDiskBytes;
 
   final String _appVersion;
   final http.Client Function() _httpClientFactory;
+  final Future<int?> Function(String path) _availableBytes;
 
   static const _manifestTimeout = Duration(seconds: 8);
   static const _downloadConnectTimeout = Duration(seconds: 10);
@@ -136,6 +222,11 @@ class SyncService {
   /// anything live. [expectedSha256], when known, is checked on the bytes as
   /// published, before anything opens the file.
   ///
+  /// With a checksum to prove the result against, it takes the compressed form:
+  /// [compressed] from a signed release, or else the published descriptor. The
+  /// plain file remains for catalogs without one, and for a compressed file that
+  /// can't produce this catalog.
+  ///
   /// Cleanup contract (resume support):
   /// - Transient download failure → the partial file is KEPT so the next
   ///   attempt can resume via HTTP Range.
@@ -146,6 +237,7 @@ class SyncService {
     required String version,
     String? storagePath,
     String? expectedSha256,
+    CompressedCatalog? compressed,
   }) async {
     final stagingFile = File(p.join(downloads.path, 'catalog.staging'));
     final span = _startCatalogSpan(
@@ -156,12 +248,34 @@ class SyncService {
     span?.setData('catalog.expected_version', version);
     SpanStatus status = const SpanStatus.ok();
     try {
-      await _downloadVerified(
-        storagePath: storagePath ?? SupabaseContract.coreDbPath(version),
-        stagingFile: stagingFile,
-        version: version,
-        expectedSha256: expectedSha256,
-      );
+      await downloads.create(recursive: true);
+      final source = expectedSha256 == null
+          ? null
+          : compressed ??
+                await _readCompressedDescriptor(version, expectedSha256);
+      final delivered =
+          source != null &&
+          await _stageFromCompressed(
+            source,
+            stagingFile: stagingFile,
+            version: version,
+            expectedSha256: expectedSha256!,
+          );
+      span?.setData('catalog.compressed', delivered);
+      if (!delivered) {
+        if (source != null) {
+          await _requireRoom(
+            stagingFile.parent.path,
+            source.decompressedSize + kCatalogHeadroomBytes,
+          );
+        }
+        await _downloadVerified(
+          storagePath: storagePath ?? SupabaseContract.coreDbPath(version),
+          stagingFile: stagingFile,
+          version: version,
+          expectedSha256: expectedSha256,
+        );
+      }
       try {
         final validatedVersion = await _validateStagedDatabase(
           stagingFile.path,
@@ -227,30 +341,171 @@ class SyncService {
     }
   }
 
+  /// Null when there's no usable descriptor, which is every catalog published
+  /// before compression. It can't change what activates: it must name this
+  /// catalog's checksum, and the result must then hash to it.
+  Future<CompressedCatalog?> _readCompressedDescriptor(
+    String version,
+    String expectedSha256,
+  ) async {
+    final client = _httpClientFactory();
+    try {
+      final url = supabase.storage
+          .from(SupabaseContract.storageBucket)
+          .getPublicUrl(
+            SupabaseContract.compressedCoreDbDescriptorPath(version),
+          );
+      final response = await client
+          .get(Uri.parse(url))
+          .timeout(_manifestTimeout);
+      if (response.statusCode != 200) return null;
+      final decoded = jsonDecode(response.body);
+      if (decoded is! Map ||
+          decoded['version'] != version ||
+          decoded['decompressed_sha256'] != _hexSha256(expectedSha256)) {
+        return null;
+      }
+      return CompressedCatalog.tryParse(
+        decoded,
+        expectedPath: SupabaseContract.compressedCoreDbPath(version),
+      );
+    } on Object catch (error) {
+      CrashReportingService().log(
+        'catalog descriptor unavailable: ${error.runtimeType}',
+      );
+      return null;
+    } finally {
+      client.close();
+    }
+  }
+
+  /// Fills [stagingFile] from the compressed form. False means that form can't
+  /// deliver this catalog and the plain file should be tried. Anything about
+  /// this moment, such as the network or the disk, throws, so the next attempt
+  /// resumes with the same small file.
+  Future<bool> _stageFromCompressed(
+    CompressedCatalog compressed, {
+    required File stagingFile,
+    required String version,
+    required String expectedSha256,
+  }) async {
+    final gz = File('${stagingFile.parent.path}/catalog.gz.staging');
+    // Neither is needed now, and both count against the room measured next.
+    await _deleteQuietly(File('${stagingFile.path}.decompressing'));
+    await _deleteQuietly(stagingFile);
+    await _deleteStagingVersionMarker(stagingFile);
+
+    await _requireRoom(
+      stagingFile.parent.path,
+      compressed.size -
+          await _resumableBytes(gz, version, compressed.size) +
+          compressed.decompressedSize +
+          kCatalogHeadroomBytes,
+    );
+
+    Future<void> discard() async {
+      await _deleteQuietly(gz);
+      await _deleteStagingVersionMarker(gz);
+    }
+
+    try {
+      await _downloadVerified(
+        storagePath: compressed.path,
+        stagingFile: gz,
+        version: version,
+        expectedSha256: compressed.sha256,
+        knownSize: compressed.size,
+      );
+      await decompressCatalogOffUiIsolate(
+        source: gz.path,
+        target: stagingFile.path,
+        expectedSha256: _hexSha256(expectedSha256),
+        expectedBytes: compressed.decompressedSize,
+      );
+    } on _ArtifactHashMismatch catch (error) {
+      CrashReportingService().log('catalog gz refused: $error');
+      return false;
+    } on CompressedCatalogRejected catch (error) {
+      CrashReportingService().log('catalog gz refused: $error');
+      await discard();
+      return false;
+    } on StorageException catch (error) {
+      // A failed storage service is not proof the compressed object is absent.
+      // Preserve partial bytes and let the normal updater retry those failures.
+      var code = error.error;
+      if (error.statusCode == '400' && code == null) {
+        // The pinned storage SDK leaves download error JSON in message.
+        try {
+          final payload = jsonDecode(error.message);
+          if (payload is Map && payload['error'] is String) {
+            code = payload['error'] as String;
+          }
+        } on FormatException {
+          // An unrecognized response is not evidence of a missing object.
+        }
+      }
+      final missing =
+          error.statusCode == '404' ||
+          (error.statusCode == '400' && code == 'not_found');
+      if (!missing) rethrow;
+      CrashReportingService().log('catalog gz missing: ${error.statusCode}');
+      await discard();
+      return false;
+    }
+    await discard();
+    return true;
+  }
+
+  /// What an interrupted download of [file] for this [version] already holds.
+  Future<int> _resumableBytes(File file, String version, int size) async {
+    final marker = _versionMarkerFor(file);
+    if (!await file.exists() || !await marker.exists()) return 0;
+    if ((await marker.readAsString()).trim() != version) return 0;
+    final length = await file.length();
+    return length <= size ? length : 0;
+  }
+
+  Future<void> _requireRoom(String directory, int neededBytes) async {
+    final free = await _availableBytes(directory);
+    if (free != null && free < neededBytes) {
+      throw const CatalogStorageFullException();
+    }
+  }
+
   Future<void> _downloadVerified({
     required String storagePath,
     required File stagingFile,
     required String version,
     required String? expectedSha256,
+    int? knownSize,
   }) async {
     await stagingFile.parent.create(recursive: true);
     // A partial left over from a DIFFERENT version must not be resumed into —
     // drop it and start fresh for this version.
     await _prepareStagingForVersion(stagingFile, version);
-    // Download failures propagate WITHOUT deleting the file so a later attempt
-    // can resume the partial download.
-    await _downloadToStaging(storagePath, stagingFile);
+    final existing = await stagingFile.exists()
+        ? await stagingFile.length()
+        : 0;
+    if (knownSize != null && existing > knownSize) await stagingFile.delete();
+    // A file that is already whole, from a kill before it was used, needs no
+    // network. Download failures propagate WITHOUT deleting the file so a later
+    // attempt can resume the partial download.
+    if (existing != knownSize) {
+      await _downloadToStaging(storagePath, stagingFile);
+    }
     if (expectedSha256 == null) return;
-    final expected = expectedSha256.startsWith('sha256:')
-        ? expectedSha256.substring('sha256:'.length)
-        : expectedSha256;
-    final actual = (await sha256.bind(stagingFile.openRead()).first).toString();
-    if (actual != expected.toLowerCase()) {
+    final actual = await _sha256OffUiIsolate(stagingFile.path);
+    if (actual != _hexSha256(expectedSha256)) {
       await _deleteQuietly(stagingFile);
       await _deleteStagingVersionMarker(stagingFile);
-      throw StateError('Downloaded file for $version failed its hash check');
+      throw _ArtifactHashMismatch(
+        'Downloaded file for $version failed its hash check',
+      );
     }
   }
+
+  String _hexSha256(String value) =>
+      (value.startsWith('sha256:') ? value.substring(7) : value).toLowerCase();
 
   Future<void> _deleteQuietly(File file) async {
     try {
@@ -362,6 +617,7 @@ class SyncService {
   /// - 206 → append to the partial; validate the final size against the
   ///   `Content-Range` total.
   /// - 200 → server ignored the Range; restart from zero (truncate).
+  /// - 416 → the partial reaches or passes the end of the object.
   /// - 400/401/403/404 → [PublicFetchDeniedException] (not retried here;
   ///   caller falls back to the authed path).
   Future<void> _streamPublicDownload(
@@ -404,6 +660,21 @@ class SyncService {
         response.statusCode,
       )) {
         throw PublicFetchDeniedException(response.statusCode);
+      }
+
+      if (response.statusCode == 416 && existing > 0) {
+        // Nothing lies past where this file ends. A whole file, left by a kill
+        // just before its hash check, goes on to that check. Anything else can
+        // never resume, so the retry starts over.
+        final total = _parseContentRangeTotal(
+          response.headers['content-range'],
+        );
+        if (total == existing) return;
+        await stagingFile.delete();
+        throw HttpException(
+          'catalog partial does not fit the object: $existing of $total bytes',
+          uri: request.url,
+        );
       }
 
       final int? expectedTotal;
@@ -702,6 +973,101 @@ class SyncService {
     );
     throw error;
   }
+}
+
+Future<String> _sha256OffUiIsolate(String path) => Isolate.run(
+  () async => (await sha256.bind(File(path).openRead()).first).toString(),
+  debugName: 'catalog-hash',
+);
+
+/// Runs [decompressCatalogFile] on its own isolate and returns that isolate's
+/// name. A catalog is tens of megabytes, and scrolling continues while it unpacks.
+@visibleForTesting
+Future<String?> decompressCatalogOffUiIsolate({
+  required String source,
+  required String target,
+  required String expectedSha256,
+  required int expectedBytes,
+}) => Isolate.run(() async {
+  await decompressCatalogFile(
+    source: source,
+    target: target,
+    expectedSha256: expectedSha256,
+    expectedBytes: expectedBytes,
+  );
+  return Isolate.current.debugName;
+}, debugName: 'catalog-decompress');
+
+/// Streams the gzip at [source] to [target], which appears only once it holds
+/// exactly the expected bytes. Until then the work is in `.decompressing`, which
+/// a kill can leave behind and nothing ever reads. Output stops at [expectedBytes],
+/// so a file can't expand past the room that was checked for it.
+///
+/// Throws [CompressedCatalogRejected] for a file that can't become this catalog,
+/// and [FileSystemException] when the disk fails or fills.
+@visibleForTesting
+Future<void> decompressCatalogFile({
+  required String source,
+  required String target,
+  required String expectedSha256,
+  required int expectedBytes,
+}) async {
+  final partial = File('$target.decompressing');
+  final digest = _DigestSink();
+  final hasher = sha256.startChunkedConversion(digest);
+  var finished = false;
+  try {
+    final output = await partial.open(mode: FileMode.write);
+    try {
+      var written = 0;
+      await for (final chunk in File(
+        source,
+      ).openRead().transform(gzip.decoder)) {
+        written += chunk.length;
+        if (written > expectedBytes) {
+          throw const CompressedCatalogRejected(
+            'expands past its declared size',
+          );
+        }
+        hasher.add(chunk);
+        await output.writeFrom(chunk);
+      }
+      if (written != expectedBytes) {
+        throw CompressedCatalogRejected(
+          'holds $written bytes, expected $expectedBytes',
+        );
+      }
+      await output.flush();
+    } on FormatException catch (error) {
+      throw CompressedCatalogRejected('is not valid gzip: ${error.message}');
+    } finally {
+      await output.close();
+    }
+    hasher.close();
+    if (digest.value.toString() != expectedSha256) {
+      throw const CompressedCatalogRejected('failed its hash check');
+    }
+    await partial.rename(target);
+    finished = true;
+  } finally {
+    if (!finished) {
+      try {
+        if (await partial.exists()) await partial.delete();
+      } on Object {
+        // Cleared before the next attempt; the error that got us here matters more.
+      }
+    }
+  }
+}
+
+class _DigestSink implements Sink<Digest> {
+  late Digest value;
+
+  @override
+  void add(Digest data) => value = data;
+
+  @override
+  void close() {}
 }
 
 /// Wraps a download byte [source] with a rolling inactivity watchdog: any

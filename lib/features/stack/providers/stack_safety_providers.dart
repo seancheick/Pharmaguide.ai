@@ -1226,10 +1226,12 @@ final stackHealthSnapshotProvider = FutureProvider<StackHealthSnapshot>((
   final synergyReport = await ref.watch(synergyReportProvider.future);
   var doseChecksIncomplete = false;
   var doseThresholdAlerts = const <StackDoseThresholdAlert>[];
+  var doseRulesUnread = false;
   try {
     doseThresholdAlerts = await ref.watch(
       stackDoseThresholdAlertsProvider.future,
     );
+    doseRulesUnread = await ref.watch(stackDoseRulesUnreadProvider.future);
   } on Object {
     // A missing profile/dose assessment cannot erase independent pairwise
     // findings or catalog recalls. The shared snapshot still carries the gap.
@@ -1251,6 +1253,7 @@ final stackHealthSnapshotProvider = FutureProvider<StackHealthSnapshot>((
         alerts == null ||
         alerts.neverVerified ||
         !alerts.isDeviceComplete,
+    doseRulesUnread: doseRulesUnread,
     stackSize: stack.length,
     safetyReport: safetyReport,
     recalledReport: recalledReport,

@@ -1,3 +1,4 @@
+import 'package:pharmaguide/core/constants/consumer_disposition.dart';
 import 'package:pharmaguide/core/constants/severity.dart';
 import 'package:pharmaguide/services/warnings/profile_gate_evaluator.dart';
 
@@ -85,6 +86,15 @@ class DoseDecision {
   final String? doseSource;
   final String? formContext;
   final DoseDecisionRule? decisionRule;
+
+  /// The pipeline could not read this product's amount or form for the rule.
+  bool get amountUnread =>
+      evaluationStatus == 'amount_unknown' ||
+      evaluationStatus == 'form_unknown';
+
+  /// The rule names other forms, so this product's form is outside it. That was
+  /// read, not left unknown.
+  bool get formExcluded => evaluationStatus == 'excluded_form';
 
   factory DoseDecision.fromJson(Map<String, dynamic> json) {
     final rawRule = json['decision_rule'];
@@ -243,6 +253,22 @@ class InteractionWarning {
   /// Pipeline-owned canonical identity for [ingredientName]. New declarative
   /// dose rules use this value directly instead of reinterpreting display copy.
   final String? ingredientCanonicalId;
+
+  /// A beta-carotene rule that adds nothing and leaves the check complete: no
+  /// beta-carotene mass to count (`amount_unknown`, such as a vitamin A activity
+  /// figure), or the every-viewer dose card of an unsettled mixture, whose
+  /// condition cards already report it to the people it applies to. A
+  /// `form_unknown` condition card stays unread for its person.
+  bool get unreadBetaCaroteneAddsNothing {
+    final decision = doseDecision;
+    return decision != null &&
+        decision.amountUnread &&
+        ingredientCanonicalId?.trim() == 'beta_carotene' &&
+        consumerDispositionFromWire(decision.consumerDisposition) ==
+            ConsumerDisposition.suppress &&
+        (decision.evaluationStatus == 'amount_unknown' ||
+            profileGate?['gate_type'] == 'dose');
+  }
 
   /// v6.0 `profile_gate` — deterministic predicate the evaluator runs
   /// against (user_profile, product_context) to decide whether this

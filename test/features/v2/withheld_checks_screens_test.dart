@@ -29,7 +29,7 @@ import 'package:pharmaguide/features/quick_check/v2/quick_check_v2_screen.dart';
 import 'package:pharmaguide/features/search/v2/search_v2_screen.dart';
 import 'package:pharmaguide/features/stack/providers/active_stack_provider.dart';
 import 'package:pharmaguide/features/stack/providers/stack_nutrient_providers.dart'
-    show stackDoseThresholdAlertsProvider;
+    show stackDoseRulesUnreadProvider, stackDoseThresholdAlertsProvider;
 import 'package:pharmaguide/features/stack/providers/stack_safety_providers.dart';
 import 'package:pharmaguide/features/stack/providers/synergy_report_provider.dart';
 import 'package:pharmaguide/features/stack/v2/stack_v2_screen.dart';
@@ -155,6 +155,7 @@ Future<void> _pumpStack(
           (ref) async => RecalledIngredientsReport.empty(),
         ),
         stackDoseThresholdAlertsProvider.overrideWith((ref) async => const []),
+        stackDoseRulesUnreadProvider.overrideWith((ref) async => false),
         profileProvider.overrideWith((ref) => ProfileNotifier()),
         ...overrides,
       ],
@@ -189,6 +190,7 @@ Future<void> _pumpHome(
           (ref) async => RecalledIngredientsReport.empty(),
         ),
         stackDoseThresholdAlertsProvider.overrideWith((ref) async => const []),
+        stackDoseRulesUnreadProvider.overrideWith((ref) async => false),
         profileProvider.overrideWith((ref) => ProfileNotifier()),
         ...overrides,
       ],

@@ -208,6 +208,9 @@ class _AiShareConsentScreenState extends ConsumerState<AiShareConsentScreen> {
         ? '$message Automatic updates are off; turn them back on in Connected AI assistants.'
         : message;
     try {
+      final client = ref.read(aiShareSnapshotClientProvider);
+      await client.prepareCreate();
+      if (!mounted) return;
       final prefs = ref.read(aiSharePrefsStoreProvider);
       final previous = await prefs.read(widget.connection.connectionId);
       if (previous?.keepUpdated == true) {
@@ -217,7 +220,6 @@ class _AiShareConsentScreenState extends ConsumerState<AiShareConsentScreen> {
         ref.invalidate(aiShareConnectionPrefsProvider);
       }
       final consentRevision = prefs.revision;
-      final client = ref.read(aiShareSnapshotClientProvider);
       final owner = client.currentUserId?.call();
       final receipt = await client.upload(
         connectionId: widget.connection.connectionId,

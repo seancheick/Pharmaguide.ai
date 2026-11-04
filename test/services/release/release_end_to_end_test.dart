@@ -29,7 +29,12 @@ class _FakePublisher {
   Map<String, Object?>? row;
   final Map<String, Uint8List> files = {};
   final List<String> downloads = [];
+  final List<String?> ranges = [];
+
+  /// One response for this path dies after this many bytes.
+  final Map<String, int> dieAfter = {};
   bool down = false;
+  bool authenticatedStorageDown = false;
   bool signedColumnsMissing = false;
   String? manifestSelect;
 
@@ -63,17 +68,48 @@ class _FakePublisher {
         response.write(
           jsonEncode(wantsObject == true ? row : [if (row != null) row]),
         );
-      } else if (path.startsWith('/storage/v1/object/public/pharmaguide/')) {
-        final key = path.substring(
-          '/storage/v1/object/public/pharmaguide/'.length,
-        );
+      } else if (path.startsWith('/storage/v1/object/public/pharmaguide/') ||
+          path.startsWith('/storage/v1/object/pharmaguide/')) {
+        final isPublic = path.startsWith('/storage/v1/object/public/');
+        if (!isPublic && authenticatedStorageDown) {
+          response.statusCode = 503;
+          await response.close();
+          return;
+        }
+        final key = path.split('/pharmaguide/').last;
         final bytes = files[key];
         if (bytes == null) {
           response.statusCode = 404;
         } else {
           downloads.add(key);
-          response.contentLength = bytes.length;
-          response.add(bytes);
+          final range = request.headers.value('range');
+          ranges.add(range);
+          final die = dieAfter.remove(key);
+          if (die != null) {
+            // Promises the whole file, then the connection dies.
+            final socket = await response.detachSocket(writeHeaders: false);
+            socket.write(
+              'HTTP/1.1 200 OK\r\n'
+              'content-length: ${bytes.length}\r\n\r\n',
+            );
+            socket.add(bytes.sublist(0, die));
+            await socket.flush();
+            socket.destroy();
+            return;
+          }
+          if (range != null) {
+            final start = int.parse(range.substring(6, range.length - 1));
+            response.statusCode = 206;
+            response.headers.set(
+              'content-range',
+              'bytes $start-${bytes.length - 1}/${bytes.length}',
+            );
+            response.contentLength = bytes.length - start;
+            response.add(bytes.sublist(start));
+          } else {
+            response.contentLength = bytes.length;
+            response.add(bytes);
+          }
         }
       } else {
         response.statusCode = 503;
@@ -121,7 +157,10 @@ void main() {
       ..row = null
       ..files.clear()
       ..downloads.clear()
-      ..down = false;
+      ..ranges.clear()
+      ..dieAfter.clear()
+      ..down = false
+      ..authenticatedStorageDown = false;
   });
 
   tearDown(() async {
@@ -148,13 +187,15 @@ void main() {
       probeRemoteRelease: sync.fetchCurrentRelease,
       appVersion: _appVersion,
       verificationKeys: keys ?? signer.keys,
-      stageCatalog: ({required version, storagePath, expectedSha256}) =>
-          sync.stageCatalog(
-            downloads: store.downloads,
-            version: version,
-            storagePath: storagePath,
-            expectedSha256: expectedSha256,
-          ),
+      stageCatalog:
+          ({required version, storagePath, expectedSha256, compressed}) =>
+              sync.stageCatalog(
+                downloads: store.downloads,
+                version: version,
+                storagePath: storagePath,
+                expectedSha256: expectedSha256,
+                compressed: compressed,
+              ),
       stageRules:
           ({required version, required storagePath, required expectedSha256}) =>
               sync.stageRules(
@@ -225,8 +266,29 @@ void main() {
     String minRulesVersion = '1.0.0',
     List<String> blockedCatalog = const [],
     List<String> blockedRules = const [],
+    bool signCompressed = false,
+    bool describeCompressed = false,
   }) async {
     publisher.files['v$catalogVersion/pharmaguide_core.db'] = catalog;
+    final gzPath = 'v$catalogVersion/pharmaguide_core.db.gz';
+    final gz = Uint8List.fromList(gzip.encode(catalog));
+    final compressed = {
+      'decompressed_size': catalog.length,
+      'path': gzPath,
+      'sha256': sha(gz),
+      'size': gz.length,
+    };
+    if (signCompressed || describeCompressed) publisher.files[gzPath] = gz;
+    if (describeCompressed) {
+      publisher.files['$gzPath.json'] = utf8.encode(
+        jsonEncode({
+          ...compressed,
+          'decompressed_sha256': sha(catalog),
+          'format': 1,
+          'version': catalogVersion,
+        }),
+      );
+    }
     if (rules != null) {
       publisher.files['rules/$rulesVersion/interaction_db.sqlite'] = rules;
     }
@@ -239,6 +301,7 @@ void main() {
       minRulesVersion: minRulesVersion,
       blockedCatalog: blockedCatalog,
       blockedRules: blockedRules,
+      compressed: signCompressed ? compressed : null,
     );
     publisher.row = {
       'db_version': catalogVersion,
@@ -466,5 +529,99 @@ void main() {
     expect(generation.record.rulesVersion, _bundledRules);
     expect(await severityIn(generation.rules), 'caution');
     expect(publisher.downloads, ['v2026.02.01.000000/pharmaguide_core.db']);
+  });
+
+  group('compressed catalog', () {
+    const version = '2026.02.01.000000';
+    const gzPath = 'v$version/pharmaguide_core.db.gz';
+
+    test('a build with no keys takes it from the descriptor, over real HTTP, '
+        'and it survives a restart', () async {
+      final first = await launch();
+      await publish(
+        sequence: 1,
+        catalogVersion: version,
+        catalog: await catalogFile(version),
+        describeCompressed: true,
+      );
+      final generation = await tick(
+        first.store,
+        first.generation,
+        keys: const {},
+      );
+      expect(generation.record.catalogVersion, version);
+      expect(publisher.downloads, ['$gzPath.json', gzPath]);
+      expect((await launch()).generation.record.catalogVersion, version);
+    });
+
+    test('a keyed build takes it from the signed release, with the descriptor '
+        'unread', () async {
+      final first = await launch();
+      await publish(
+        sequence: 1,
+        catalogVersion: version,
+        catalog: await catalogFile(version),
+        signCompressed: true,
+        describeCompressed: true,
+      );
+      final generation = await tick(first.store, first.generation);
+      expect(generation.record.catalogVersion, version);
+      expect(generation.record.sequence, 1);
+      expect(publisher.downloads, [gzPath]);
+    });
+
+    test('a connection that dies mid-file resumes where it stopped', () async {
+      final first = await launch();
+      await publish(
+        sequence: 1,
+        catalogVersion: version,
+        catalog: await catalogFile(version),
+        signCompressed: true,
+      );
+      final half = publisher.files[gzPath]!.length ~/ 2;
+      publisher.dieAfter[gzPath] = half;
+      final generation = await tick(first.store, first.generation);
+      expect(generation.record.catalogVersion, version);
+      expect(publisher.ranges.first, isNull);
+      expect(publisher.ranges.last, startsWith('bytes='));
+      expect(
+        publisher.downloads,
+        isNot(contains('v$version/pharmaguide_core.db')),
+      );
+    }, timeout: const Timeout(Duration(minutes: 1)));
+
+    test(
+      'an authenticated storage outage preserves the current signed catalog',
+      () async {
+        final first = await launch();
+        await publish(
+          sequence: 1,
+          catalogVersion: version,
+          catalog: await catalogFile(version),
+          signCompressed: true,
+        );
+        publisher.files.remove(gzPath);
+        publisher.authenticatedStorageDown = true;
+        final generation = await tick(first.store, first.generation);
+        expect(generation.record.catalogVersion, _bundledCatalog);
+        expect(publisher.downloads, isEmpty);
+      },
+      timeout: const Timeout(Duration(minutes: 1)),
+    );
+
+    test('storage that lost the gz still delivers the signed catalog through '
+        'its plain file', () async {
+      final first = await launch();
+      await publish(
+        sequence: 1,
+        catalogVersion: version,
+        catalog: await catalogFile(version),
+        signCompressed: true,
+      );
+      publisher.files.remove(gzPath);
+      final generation = await tick(first.store, first.generation);
+      expect(generation.record.catalogVersion, version);
+      expect(publisher.downloads, ['v$version/pharmaguide_core.db']);
+    }, timeout: const Timeout(Duration(minutes: 1)));
   });
 }

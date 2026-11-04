@@ -10,10 +10,13 @@ import 'package:pharmaguide/data/database/user_database.dart';
 import 'package:pharmaguide/data/providers/database_providers.dart';
 import 'package:pharmaguide/data/repositories/reference_data_repository.dart';
 import 'package:pharmaguide/features/profile/profile_provider.dart';
+import 'package:pharmaguide/features/safety_alerts/providers/safety_alert_providers.dart';
 import 'package:pharmaguide/features/stack/providers/active_stack_provider.dart';
 import 'package:pharmaguide/features/stack/providers/stack_nutrient_providers.dart';
 import 'package:pharmaguide/features/stack/providers/stack_safety_providers.dart';
 import 'package:pharmaguide/services/signals/clinical_signal_envelope.dart';
+import 'package:pharmaguide/services/stack/stack_dose_summer.dart';
+import 'package:pharmaguide/services/stack/stack_safety_report.dart';
 import 'package:pharmaguide/services/stack/stack_nutrient_models.dart';
 import 'package:pharmaguide/services/signals/stack_signal_aggregator.dart';
 
@@ -226,6 +229,69 @@ void main() {
       );
     },
   );
+
+  group('a failed unread dose rule read', () {
+    ProviderContainer snapshotContainer(Future<bool> Function() unreadRules) {
+      final supplement = _supplement(id: 'TURMERIC_1', name: 'Turmeric');
+      final container = ProviderContainer(
+        overrides: [
+          activeStackProvider.overrideWith((ref) async => [supplement]),
+          safetyAlertMatchesProvider.overrideWith(
+            (ref) async => const SafetyAlertMatchSet(
+              matches: [],
+              baselineSignalKeys: {},
+              isComplete: true,
+              neverVerified: false,
+            ),
+          ),
+          stackSafetyReportProvider.overrideWith(
+            (ref) async => const StackSafetyReport(),
+          ),
+          synergyReportProvider.overrideWith(
+            (ref) async => SynergyReport.empty(),
+          ),
+          recalledIngredientsReportProvider.overrideWith(
+            (ref) async => RecalledIngredientsReport(
+              violations: [
+                RecalledIngredientViolation(
+                  productDsldId: supplement.dsldId!,
+                  productName: supplement.name,
+                  brandName: '',
+                  recalledIngredients: [],
+                  pipelineRecalledProduct: true,
+                ),
+              ],
+            ),
+          ),
+          stackDoseThresholdAlertsProvider.overrideWith(
+            (ref) async => const <StackDoseThresholdAlert>[],
+          ),
+          stackDoseRulesUnreadProvider.overrideWith((ref) => unreadRules()),
+        ],
+      );
+      addTearDown(container.dispose);
+      return container;
+    }
+
+    test('nothing else is incomplete when the read succeeds', () async {
+      final container = snapshotContainer(() async => false);
+      await container.read(safetyAlertMatchesProvider.future);
+      final snapshot = await container.read(stackHealthSnapshotProvider.future);
+      expect(snapshot.intelligence.analysisIncomplete, isFalse);
+    });
+
+    test('is incomplete at once and keeps the recall', () async {
+      final container = snapshotContainer(
+        () async => throw Exception('rule unreadable'),
+      );
+      await container.read(safetyAlertMatchesProvider.future);
+      final snapshot = await container
+          .read(stackHealthSnapshotProvider.future)
+          .timeout(const Duration(seconds: 2));
+      expect(snapshot.intelligence.analysisIncomplete, isTrue);
+      expect(snapshot.intelligence.hasRecalledIngredient, isTrue);
+    });
+  });
 
   for (final entry in {
     'pregnancy': 'MCR_PREGNANCY_NSAIDS',

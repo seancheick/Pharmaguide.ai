@@ -158,6 +158,7 @@ void main() {
       bool reloadMatches = false,
       bool refreshMatches = false,
       bool throws = false,
+      bool doseRulesUnread = false,
       List<({SafetyAlert alert, String dsldId})> matches = const [],
     }) async {
       final now = DateTime.utc(2026, 11, 3);
@@ -186,6 +187,9 @@ void main() {
           ),
           synergyReportProvider.overrideWith((_) async => emptySynergy),
           stackDoseThresholdAlertsProvider.overrideWith((_) async => []),
+          stackDoseRulesUnreadProvider.overrideWith(
+            (_) async => doseRulesUnread,
+          ),
           if (unreadableDevice) ...[
             deviceSafetyProfileProvider.overrideWith(
               (_) async => const DeviceSafetyProfile(isComplete: false),
@@ -228,6 +232,15 @@ void main() {
       }
       return container.read(stackHealthSnapshotProvider.future);
     }
+
+    test('an unread dose rule withholds a clean Stack Health result', () async {
+      final result = await snapshot(doseRulesUnread: true);
+
+      expect(result.checksIncomplete, isTrue);
+      expect(result.intelligence.analysisIncomplete, isTrue);
+      expect(result.intelligence.tier, StackTier.incomplete);
+      expect(result.intelligence.nutrientWarningCount, 0);
+    });
 
     test('an unverified feed withholds a clean Stack Health result', () async {
       for (final throws in [false, true]) {
@@ -291,7 +304,11 @@ void main() {
           expect(result.intelligence.interactionCount, 0);
           expect(
             result.intelligence.tier,
-            disposition == 'block' ? StackTier.concerning : StackTier.decent,
+            disposition == 'review'
+                ? StackTier.decent
+                : row['event_type'] == 'product_recall'
+                ? StackTier.unsafe
+                : StackTier.concerning,
           );
           expect(
             describeStackSummary(result.intelligence),
@@ -373,6 +390,105 @@ void main() {
       expect(intelligence.hasContraindicatedInteraction, isFalse);
       expect(intelligence.interactionCount, 0);
       expect(intelligence.nutrientWarningCount, 0);
+    });
+
+    group('a feed alert beside the catalog recall flag', () {
+      ({SafetyAlert alert, String dsldId}) feedAlert(
+        String eventType,
+        String disposition,
+      ) {
+        final feed = jsonDecode(
+          File(
+            'test/fixtures/safety_alerts/interaction_rule_feed.json',
+          ).readAsStringSync(),
+        );
+        final row = (feed['alerts'] as List)
+            .cast<Map<String, dynamic>>()
+            .firstWhere((r) => r['event_type'] == eventType);
+        return (
+          alert: SafetyAlert.fromJson({
+            ...row,
+            'consumer_disposition': disposition,
+          }),
+          dsldId: '999',
+        );
+      }
+
+      StackIntelligence diagnoseFeed(({SafetyAlert alert, String dsldId}) m) =>
+          engine.diagnose(
+            stackSize: 3,
+            safetyReport: const StackSafetyReport(),
+            recalledReport: emptyRecall,
+            synergyReport: emptySynergy,
+            qualityScore: 90,
+            regulatorySafetyAlerts: [m],
+          );
+
+      test('the same recall ranks Unsafe from the catalog or the feed', () {
+        final fromCatalog = engine.diagnose(
+          stackSize: 3,
+          safetyReport: const StackSafetyReport(),
+          recalledReport: RecalledIngredientsReport(
+            violations: [
+              _violation(productName: 'Recalled', recallStatus: 'recalled'),
+            ],
+          ),
+          synergyReport: emptySynergy,
+          qualityScore: 90,
+        );
+        final fromFeed = diagnoseFeed(feedAlert('product_recall', 'block'));
+
+        expect(fromCatalog.tier, StackTier.unsafe);
+        expect(fromFeed.tier, fromCatalog.tier);
+        expect(fromFeed.hasRecalledIngredient, isTrue);
+        expect(
+          describeStackSummary(fromFeed),
+          describeStackSummary(fromCatalog),
+        );
+      });
+
+      test('a feed recall at block is never counted as an interaction', () {
+        final result = diagnoseFeed(feedAlert('product_recall', 'block'));
+
+        expect(result.interactionCount, 0);
+        expect(result.hasContraindicatedInteraction, isFalse);
+      });
+
+      test('a feed ban at block is not promoted', () {
+        final result = diagnoseFeed(feedAlert('ingredient_ban', 'block'));
+
+        expect(result.tier, StackTier.concerning);
+        expect(result.hasRecalledIngredient, isFalse);
+        expect(result.hasBannedIngredient, isFalse);
+      });
+
+      test('a feed recall or ban at review is not promoted', () {
+        for (final eventType in ['product_recall', 'ingredient_ban']) {
+          final result = diagnoseFeed(feedAlert(eventType, 'review'));
+
+          expect(result.tier, StackTier.decent, reason: eventType);
+          expect(result.hasRecalledIngredient, isFalse, reason: eventType);
+        }
+      });
+    });
+
+    test('a dose threshold alert is not counted as an interaction', () {
+      final intelligence = engine.diagnose(
+        stackSize: 2,
+        safetyReport: const StackSafetyReport(),
+        recalledReport: emptyRecall,
+        synergyReport: emptySynergy,
+        qualityScore: 90,
+        doseThresholdAlerts: [_doseAlert()],
+      );
+
+      expect(intelligence.tier, StackTier.decent);
+      expect(intelligence.interactionCount, 0);
+      expect(intelligence.nutrientWarningCount, 1);
+      expect(
+        describeStackSummary(intelligence),
+        '1 nutrient warning worth reviewing.',
+      );
     });
 
     test('single banned ingredient + clean stack → unsafe', () {
@@ -769,6 +885,46 @@ void main() {
       expect(intelligence.qualityScore, 100);
       expect(intelligence.tier, StackTier.optimized);
       expect(intelligence.issues, isEmpty);
+    });
+
+    test('a limit that could not be compared is an incomplete check', () {
+      final intelligence = engine.diagnoseFromReports(
+        stackSize: 1,
+        safetyReport: StackSafetyReport(
+          nutrientStatuses: [
+            NutrientStatus(
+              total: _nutrient(
+                id: 'vitamin_e',
+                tier: NutrientTier.adequate,
+              ).total,
+              tier: NutrientTier.adequate,
+              ulAssessmentIndeterminate: true,
+            ),
+          ],
+        ),
+        recalledReport: emptyRecall,
+        synergyReport: SynergyReport.empty(),
+      );
+
+      expect(intelligence.analysisIncomplete, isTrue);
+      expect(intelligence.tier, StackTier.incomplete);
+      expect(intelligence.nutrientWarningCount, 0);
+    });
+
+    test('an unread dose rule is an incomplete check, not a clean tier', () {
+      StackIntelligence diagnosis({required bool unread}) =>
+          engine.diagnoseFromReports(
+            stackSize: 2,
+            safetyReport: const StackSafetyReport(),
+            recalledReport: emptyRecall,
+            synergyReport: SynergyReport.empty(),
+            doseRulesUnread: unread,
+          );
+
+      expect(diagnosis(unread: false).analysisIncomplete, isFalse);
+      expect(diagnosis(unread: true).analysisIncomplete, isTrue);
+      expect(diagnosis(unread: true).tier, StackTier.incomplete);
+      expect(diagnosis(unread: true).nutrientWarningCount, 0);
     });
 
     test(

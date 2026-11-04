@@ -181,6 +181,7 @@ class StackUlChecker {
     // unscoped ULs. The aggregator's UL subtotal contains qualified rows only,
     // so adding these disjoint legacy contributions cannot double count them.
     // Form-scoped references never infer chemical form from the printed mass.
+    double? legacyAmountInReferenceUnit = 0;
     if (!hasFormScopedUl &&
         total.hasUlExposureContract &&
         legacyContributions.isNotEmpty) {
@@ -193,6 +194,7 @@ class StackUlChecker {
         actualUnit: total.unit,
         expectedUnit: expectedUnit,
       );
+      legacyAmountInReferenceUnit = legacyInReferenceUnit;
       safetyAmountInReferenceUnit = legacyInReferenceUnit == null
           ? null
           : (safetyAmountInReferenceUnit ?? 0) + legacyInReferenceUnit;
@@ -225,6 +227,38 @@ class StackUlChecker {
       sex: sex,
     );
     final ul = ulLookup.value;
+
+    // A form range is read ahead of the single figure. A low above the limit
+    // establishes the excess and a high at or below it rules one out, leaving
+    // the low as all that is known of the exposure. Anything between is
+    // unresolved: no percentage, and the intake stays counted.
+    var rangeUnresolved = false;
+    final rangeLow = total.ulComparableLowAmount;
+    final rangeHigh = total.ulComparableHighAmount;
+    if (rangeLow != null && rangeHigh != null && ul != null && ul > 0) {
+      double? bound(double amount) {
+        final inReference = _amountInReferenceUnit(
+          amount,
+          actualUnit: safetyUnit,
+          expectedUnit: expectedUnit,
+        );
+        final legacy = legacyAmountInReferenceUnit;
+        return inReference == null || legacy == null
+            ? null
+            : inReference + legacy;
+      }
+
+      final low = bound(rangeLow);
+      final high = bound(rangeHigh);
+      if (low != null && low > ul) {
+        safetyAmountInReferenceUnit = low;
+      } else if (high != null && high <= ul) {
+        safetyAmountInReferenceUnit = low != null && low > 0 ? low : null;
+      } else {
+        safetyAmountInReferenceUnit = null;
+        rangeUnresolved = verdict?.overUl != true;
+      }
+    }
 
     final pctOfRda =
         (rda != null && rda > 0 && adequacyAmountInReferenceUnit != null)
@@ -289,7 +323,7 @@ class StackUlChecker {
 
     final tier = _classify(
       pctOfRda: pctOfRda,
-      pctOfUl: pctOfUl,
+      pctOfUl: rangeUnresolved ? null : pctOfUl,
       hasEstablishedUl: ul != null,
       verdict: useUnrebasedCatalog ? verdict : null,
     );
@@ -298,16 +332,17 @@ class StackUlChecker {
         ? _warningFor(resolved.id, tier)
         : null;
     final ulAssessmentIndeterminate =
+        rangeUnresolved ||
         ul != null &&
-        ((hasFormScopedUl &&
-                (hasUnqualifiedFormScope ||
-                    total.hasUnresolvedUlContribution)) ||
-            ((total.hasUnresolvedUlContribution ||
-                    (!total.hasUlExposureContract &&
-                        safetyAmountInReferenceUnit == null)) &&
-                (total.hasUnitConflict ||
-                    verdict == null ||
-                    !verdict.isDefinitive)));
+            ((hasFormScopedUl &&
+                    (hasUnqualifiedFormScope ||
+                        total.hasUnresolvedUlContribution)) ||
+                ((total.hasUnresolvedUlContribution ||
+                        (!total.hasUlExposureContract &&
+                            safetyAmountInReferenceUnit == null)) &&
+                    (total.hasUnitConflict ||
+                        verdict == null ||
+                        !verdict.isDefinitive)));
 
     return NutrientStatus(
       total: total,
@@ -642,25 +677,8 @@ class StackUlChecker {
     return null;
   }
 
-  static bool _unitMatchesReference(String actual, String expected) {
-    final expectedUnit = normalizeDoseUnit(expected);
-    if (expectedUnit.isEmpty) return true;
-    final actualUnit = normalizeDoseUnit(actual);
-    if (actualUnit.isEmpty) return false;
-    if (actualUnit == expectedUnit) return true;
-
-    // 'mcg'~'ug', 'mcg rae'~'ug rae', and 'mcg dfe'~'ug dfe' are no longer
-    // listed here: normalizeDoseUnit() now folds the ASCII "ug" spelling to
-    // "mcg" for both sides, so those pairs already compare equal above and
-    // never reach this table. The remaining entries are genuine semantic
-    // aliases (a plain mass unit standing in for a nutrient-specific form)
-    // that no normalizer can fold away.
-    const aliases = <String, Set<String>>{
-      'mg alpha tocopherol': {'mg alpha-tocopherol', 'mg'},
-      'mg ne': {'mg'},
-    };
-    return aliases[expectedUnit]?.contains(actualUnit) ?? false;
-  }
+  static bool _unitMatchesReference(String actual, String expected) =>
+      doseUnitMatchesReference(actual, expected);
 
   static String _normalizeKey(Object? raw) {
     return (raw ?? '')
