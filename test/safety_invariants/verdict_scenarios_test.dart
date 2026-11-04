@@ -661,7 +661,7 @@ void main() {
             _noScore,
           ),
         ]) {
-      testWidgets('$name', (tester) async {
+      testWidgets(name, (tester) async {
         await pumpPage(
           tester,
           catalog: await _catalog(
