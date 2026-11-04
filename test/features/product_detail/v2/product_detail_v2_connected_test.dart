@@ -87,6 +87,7 @@ Future<void> _seedConnectedProduct(
   CoreDatabase coreDb, {
   bool blocked = false,
   double mappedCoverage = 1,
+  double catalogScore = 88,
 }) async {
   await _seedProduct(
     coreDb,
@@ -94,6 +95,7 @@ Future<void> _seedConnectedProduct(
     productName: 'Connected Label Trust Product',
     blocked: blocked,
     mappedCoverage: mappedCoverage,
+    catalogScore: catalogScore,
   );
 }
 
@@ -103,6 +105,7 @@ Future<void> _seedProduct(
   required String productName,
   bool blocked = false,
   double mappedCoverage = 1,
+  double catalogScore = 88,
 }) async {
   await coreDb
       .into(coreDb.productsCore)
@@ -112,7 +115,7 @@ Future<void> _seedProduct(
           productName: productName,
           exportVersion: 'test',
           exportedAt: '2026-07-19T00:00:00Z',
-          qualityScoreV4100: const Value(88),
+          qualityScoreV4100: Value(catalogScore),
           qualityScoreStatus: const Value('scored'),
           mappedCoverage: Value(mappedCoverage),
           verdict: Value(blocked ? 'BLOCKED' : 'SAFE'),
@@ -191,6 +194,7 @@ Future<void> _pumpConnectedScreen(
   bool settle = true,
   bool blocked = false,
   double mappedCoverage = 1,
+  double catalogScore = 88,
   FitScoreResult? fitResult,
   bool profiled = false,
   bool warningsFail = false,
@@ -213,6 +217,7 @@ Future<void> _pumpConnectedScreen(
     coreDb,
     blocked: blocked,
     mappedCoverage: mappedCoverage,
+    catalogScore: catalogScore,
   );
   if (qualityWithheld) await coreDb.withholdQualityScores();
   addTearDown(() async {
@@ -244,6 +249,10 @@ Future<void> _pumpConnectedScreen(
           connectionStatusProvider.overrideWith((ref) => connection),
         detailBlobProvider.overrideWith((ref, dsldId) async {
           expect(dsldId, _connectedDsldId);
+          return detailBlob;
+        }),
+        detailBlobForRowProvider.overrideWith((ref, key) async {
+          expect(key.dsldId, _connectedDsldId);
           return detailBlob;
         }),
         if (profiled)
@@ -1793,6 +1802,7 @@ void main() {
         await _pumpConnectedScreen(
           tester,
           initialSection: null,
+          catalogScore: 74,
           detailBlob: {
             'ingredients': const <Map<String, dynamic>>[],
             'display_ingredients': [_activeLedgerRow('Active row', 0)],
@@ -1838,6 +1848,7 @@ void main() {
         await _pumpConnectedScreen(
           tester,
           initialSection: null,
+          catalogScore: 74,
           detailBlob: {
             'ingredients': const <Map<String, dynamic>>[],
             'display_ingredients': targetCase.rows,
@@ -2058,7 +2069,7 @@ void main() {
     );
 
     testWidgets(
-      'connected screen renders the shipped category cap as explicit score math',
+      'connected screen uses stored pillars despite legacy cap metadata',
       (tester) async {
         final pillars = _connectedV4Pillars();
         pillars['formulation'] = {
@@ -2081,14 +2092,12 @@ void main() {
           },
         );
 
-        final adjustment = find.text('Category calibration');
-        await _scrollConnectedTowardBottomUntil(tester, adjustment);
-        expect(find.text('Pillar subtotal'), findsOneWidget);
-        expect(find.text('89/100'), findsOneWidget);
-        expect(adjustment, findsOneWidget);
-        expect(find.text('−1'), findsOneWidget);
-        expect(find.text('Final score'), findsOneWidget);
-        expect(find.text('88/100'), findsOneWidget);
+        final headline = find.text('Why this scored 88');
+        await _scrollConnectedTowardBottomUntil(tester, headline);
+        expect(headline, findsOneWidget);
+        expect(find.text('12/20'), findsOneWidget);
+        expect(find.text('Category calibration'), findsNothing);
+        expect(find.text('Pillar subtotal'), findsNothing);
       },
     );
 

@@ -186,24 +186,46 @@ class V4PillarValue {
       statusForPillar(score, max, displayState: displayState);
 }
 
-/// True when [pillars] carries ALL six spec pillars — the contract every
-/// v4 surface must verify before rendering native-scale arithmetic
-/// ("= N/100" sum lines, paired compare rows). A partial parse (4/6
-/// entries) would render a sum that contradicts the hero score, so
-/// callers fall back (score breakdown → v3; compare → hide pillar rows).
+/// Whether the parser recognized all six expected pillar entries.
 bool hasAllV4Pillars(List<V4PillarValue> pillars) =>
     pillars.length == kV4PillarSpec.length;
 
-/// Parse a blob's `quality_pillars_v4` map into the six pillars in
-/// display order. Pillars whose entry is missing/malformed are skipped —
-/// callers treat an incomplete result (see [hasAllV4Pillars]) as "no v4
-/// data" and degrade (score breakdown shows unavailable; compare hides
-/// the pillar rows).
-///
-/// Hardened (2026-06): scores accept num-or-numeric-string, `max <= 0`
-/// falls back to the spec max (no NaN/Infinity bar math downstream),
-/// and each entry parses inside its own try/catch — one malformed entry
-/// skips that entry only (same pattern as warnings_pipeline).
+/// Reads a complete explanation of the score from the same catalog row.
+List<V4PillarValue> readReconciledV4Pillars(
+  Map<String, dynamic>? pillarsBlob,
+  double? catalogScore,
+) {
+  if (catalogScore == null ||
+      !catalogScore.isFinite ||
+      catalogScore < 0 ||
+      catalogScore > 100) {
+    return const [];
+  }
+
+  final pillars = parseV4Pillars(pillarsBlob);
+  if (!hasAllV4Pillars(pillars)) return const [];
+
+  var tenths = 0;
+  for (var i = 0; i < pillars.length; i++) {
+    final pillar = pillars[i];
+    final (_, _, max) = kV4PillarSpec[i];
+    final score = pillar.score;
+    if (score == null || score < 0 || score > max || pillar.max != max) {
+      return const [];
+    }
+    tenths += (score * 10).round();
+  }
+
+  // Match the export's half-up whole-number projection. Historical decimal
+  // catalog rows must reconcile at the original one-decimal precision.
+  final matches = catalogScore == catalogScore.round()
+      ? (tenths + 5) ~/ 10 == catalogScore
+      : (catalogScore * 10 - tenths).abs() < 0.000001;
+  return matches ? pillars : const [];
+}
+
+/// Parses the six known pillars in display order, skipping malformed entries.
+/// Numeric strings and missing/nonpositive maxima are supported for old blobs.
 List<V4PillarValue> parseV4Pillars(Map<String, dynamic>? pillarsBlob) {
   if (pillarsBlob == null) return const [];
   final out = <V4PillarValue>[];

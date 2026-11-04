@@ -37,13 +37,41 @@ const _v4Labels = [
 ];
 
 void main() {
+  testWidgets('product 175321 explains catalog score 96 with 95.6 pillars', (
+    tester,
+  ) async {
+    final pillars = _v4Pillars();
+    pillars['formulation']['score'] = 20.0;
+    pillars['evidence']['score'] = 15.6;
+    pillars['transparency']['score'] = 15.0;
+    pillars['safety_hygiene']['score'] = 10.0;
+    await tester.pumpWidget(_wrap(_v4Section(pillars: pillars, heroScore: 96)));
+    expect(find.text('Why this scored 96'), findsOneWidget);
+    expect(find.text('15.6/20'), findsOneWidget);
+    expect(find.textContaining('= '), findsNothing);
+  });
+
+  testWidgets('a complete breakdown must reconcile with the catalog total', (
+    tester,
+  ) async {
+    await tester.pumpWidget(_wrap(_v4Section(heroScore: 96)));
+    expect(find.byType(PGScoreBreakdownCard), findsNothing);
+  });
+
+  testWidgets('an out-of-range pillar hides the breakdown', (tester) async {
+    final pillars = _v4Pillars();
+    pillars['formulation']['score'] = 20.1;
+    await tester.pumpWidget(_wrap(_v4Section(pillars: pillars, heroScore: 97)));
+    expect(find.byType(PGScoreBreakdownCard), findsNothing);
+  });
+
   testWidgets(
     'Formulation shows the pipeline reason alone, without an app scope paragraph',
     (tester) async {
       await tester.pumpWidget(
         _wrap(
           buildScoreBreakdownSection(
-            heroScore: 95,
+            heroScore: 94,
             qualityPillarsV4: _v4Pillars(),
           ),
         ),
@@ -66,7 +94,7 @@ void main() {
     await tester.pumpWidget(
       _wrap(
         buildScoreBreakdownSection(
-          heroScore: 95,
+          heroScore: 94,
           qualityPillarsV4: _v4Pillars(),
         ),
       ),
@@ -82,62 +110,7 @@ void main() {
     // The stale v3 section labels must NOT appear when v4 pillars are present.
     expect(find.text('Ingredient Quality'), findsNothing);
     expect(find.text('Safety & Purity'), findsNothing);
-    expect(find.text('Why this scored 95'), findsOneWidget);
-  });
-
-  testWidgets(
-    'category cap renders as an explicit adjustment after pre-cap pillars',
-    (tester) async {
-      final pillars = _v4Pillars();
-      pillars['safety_hygiene'] = {
-        'score': 9.0,
-        'max': 10,
-        'reason': 'No banned additives.',
-        'components': {'score_before_public_cap': 10.0},
-      };
-
-      await tester.pumpWidget(
-        _wrap(
-          buildScoreBreakdownSection(
-            heroScore: 94,
-            qualityPillarsV4: pillars,
-            qualityScoreCapV4: const {
-              'applied': true,
-              'score_before_cap': 95.0,
-              'score_after_cap': 94.0,
-            },
-          ),
-        ),
-      );
-
-      expect(find.text('Pillar subtotal'), findsOneWidget);
-      expect(find.text('95/100'), findsOneWidget);
-      expect(find.text('Category calibration'), findsOneWidget);
-      expect(find.text('−1'), findsOneWidget);
-      expect(find.text('Final score'), findsOneWidget);
-      expect(find.text('94/100'), findsOneWidget);
-    },
-  );
-
-  testWidgets('category cap is hidden when pillars cannot reproduce it', (
-    tester,
-  ) async {
-    await tester.pumpWidget(
-      _wrap(
-        buildScoreBreakdownSection(
-          heroScore: 94,
-          qualityPillarsV4: _v4Pillars(),
-          qualityScoreCapV4: const {
-            'applied': true,
-            'score_before_cap': 99.0,
-            'score_after_cap': 94.0,
-          },
-        ),
-      ),
-    );
-
-    expect(find.text('Category calibration'), findsNothing);
-    expect(find.text('Pillar subtotal'), findsNothing);
+    expect(find.text('Why this scored 94'), findsOneWidget);
   });
 
   testWidgets('no quality_pillars_v4 suppresses the optional score section', (
@@ -205,7 +178,7 @@ void main() {
 
     expect(find.text('17.6/20'), findsOneWidget); // string score parsed
     expect(find.text('20/20'), findsOneWidget); // dose against fallback max
-    expect(find.text('= 94/100'), findsOneWidget); // all six still sum
+    expect(find.text('Why this scored 94'), findsOneWidget);
   });
 
   testWidgets('consumer total matches the rounded hero score', (tester) async {
@@ -223,7 +196,7 @@ void main() {
     expect(find.text('13.5/15'), findsOneWidget);
     // Pillars retain their useful decimal precision, while the consumer total
     // uses the same whole-number presentation as the hero.
-    expect(find.text('= 94/100'), findsOneWidget);
+    expect(find.text('= 94/100'), findsNothing);
     expect(find.text('= 93.5/100'), findsNothing);
     expect(find.text('= 93.4/100'), findsNothing);
   });
@@ -246,7 +219,7 @@ void evidenceScopeReconciliationTests() {
           Column(
             children: [
               buildScoreBreakdownSection(
-                heroScore: 84.4,
+                heroScore: 81.9,
                 qualityPillarsV4: pillars,
               ),
               buildEvidenceSection(
@@ -511,7 +484,7 @@ void evidenceScopeReconciliationTests() {
 
     await tester.pumpWidget(
       _wrap(
-        buildScoreBreakdownSection(heroScore: 80, qualityPillarsV4: pillars),
+        buildScoreBreakdownSection(heroScore: 81.9, qualityPillarsV4: pillars),
       ),
     );
 
@@ -527,8 +500,7 @@ void evidenceScopeReconciliationTests() {
 
 // ---------------------------------------------------------------------------
 // v4 native-scale display contract (2026-06): pillars render their REAL
-// score/max — NOT normalized /10 — and the card closes with a "= N/100"
-// sum line, because quality_score_v4_100 IS the pillar sum.
+// score/max and the catalog total appears only in the heading.
 // ---------------------------------------------------------------------------
 
 Widget _v4Section({
@@ -552,18 +524,15 @@ void nativeScaleTests() {
     expect(find.textContaining('/10 '), findsNothing);
   });
 
-  testWidgets('v4: sum line shows exact pillar sum out of 100', (tester) async {
+  testWidgets('v4: the card shows only the catalog total', (tester) async {
     await tester.pumpWidget(_wrap(_v4Section()));
 
-    // 17.6 + 20 + 18.9 + 13.5 + 15 + 9 = 94
-    expect(find.text('= 94/100'), findsOneWidget);
-    expect(
-      find.text('Six pillars, out of 100 — they add up to the score.'),
-      findsOneWidget,
-    );
+    expect(find.text('Why this scored 94'), findsOneWidget);
+    expect(find.text('= 94/100'), findsNothing);
+    expect(find.text('Six pillars behind this quality score.'), findsOneWidget);
   });
 
-  testWidgets('v4: sum line hidden when any pillar lacks a score', (
+  testWidgets('v4: breakdown hidden when any pillar lacks a score', (
     tester,
   ) async {
     final pillars = _v4Pillars();
@@ -571,7 +540,7 @@ void nativeScaleTests() {
     await tester.pumpWidget(_wrap(_v4Section(pillars: pillars)));
 
     expect(find.textContaining('= '), findsNothing);
-    expect(find.text('No data'), findsOneWidget);
+    expect(find.byType(PGScoreBreakdownCard), findsNothing);
   });
 
   testWidgets('missing v4 pillars never renders normalized v3 /10 display', (

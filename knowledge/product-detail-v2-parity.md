@@ -251,21 +251,10 @@ row:
 
 #### S5. ScoreBreakdown
 
-| Field | Value |
-|---|---|
-| Production | `ScoreBreakdownCard` (line 437) |
-| V2 | **11.7d.1: NEW `v2/sections/score_breakdown_section.dart`** → `PGScoreBreakdownCard` |
-| Source | 4 pillar scores from `_product` (`scoreIngredientQuality`, `scoreSafetyPurity`, `scoreEvidenceResearch`, `scoreBrandTrust`) + `blob['section_breakdown']` (accordion detail) + `_product.mappedCoverage` (coverage line) + `_product.hasThirdPartyTesting` + `_product.isTrustedManufacturer` + `heroScore` |
-| Gate | `shouldShowScoreBreakdown({isBlocked, isNotScored})` = `!isBlocked && !isNotScored` |
-| Loading | Pillars render with available data; accordion detail loads with blob |
-| Empty | No pillar scores → fall back to hero score only (verify production) |
-| Blocked | Section suppressed (no score to break down) |
-| Anchor | N/A |
-| CTA | Pillar tap → inline accordion |
-| Analytics | none |
-| A11y | Pillar values readable as "Ingredient Quality, 22 out of 25" |
-| Golden | Full pillars, partial pillars, G8 low coverage, G11 clean |
-| **Status** | **verified** — live side-by-side vs production `/product/65844` (Thorne MediPro, SAFE, all pillars + coverage): title "Why this scored 89" verbatim; subtitle wording slightly wider in v2 ("Tap any pillar to see what drives it."); pillar order verbatim (Ingredient Quality → Safety & Purity → Evidence & Research → Transparency & Verification); pillar copy ("Form, dosage, and bioavailability" / "Free from harmful ingredients..." / "Clinical support behind ingredients" / "Label clarity and independent testing") verbatim; "Third-party tested" + "Trusted manufacturer" badges fire on the correct pillars; coverage line tier ≥0.7 → "Most ingredients in our database — high-confidence score" verbatim. Pillar values match the underlying math exactly (24.59/25=98%→10/10, 29/30=96.67%→10/10, 14.9/20=74.5%→7/10, 3/5=60%→6/10). **Three pre-approved v2 deliberate departures rendering as designed (from PGScoreBreakdownCard widget docs lines 155–169):** (1) **0–10 normalized display** vs production's `X/100` — cross-pillar comparability; (2) **2-tone green palette** vs production's 6-tier ScoreTier — diagnostic pillars are quality not safety signals, no red; (3) **microExplanation revealed on tap** vs production's always-visible under bar — Sean's compactness rule. `section_breakdown` blob threaded through for future sub-score-line parity (production has rich `_explainFn` parsing; deferred to a future v2 component enhancement). |
+Current behavior follows the [Flutter data contract](../FLUTTER_DATA_CONTRACT_V1.md#product-page).
+Product Detail reads the catalog score and the six pipeline pillars from the
+blob bound to that row. It displays the optional explanation only when the
+pillars reconcile. The original four-pillar parity record remains in Git history.
 
 #### S6. Ingredients
 

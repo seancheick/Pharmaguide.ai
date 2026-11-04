@@ -32,7 +32,9 @@ Rules:
 
 - `quality_score_v4_100` is the only shipped quality score.
 - `score_100_equivalent` and `score_display_100_equivalent` are compatibility
-  mirrors of the same V4 score.
+  mirrors in the physical schema 2 catalog. The generated Flutter read set
+  excludes them, and schema 3 removes them from the physical catalog. The
+  bundle manifest records which projection model was used for that catalog.
 - `raw_score_v4_100` is audit/debug only. Do not show it when
   `quality_score_status != "scored"`.
 - `score_quality_80` and `score_display_80` were dropped from export schema
@@ -53,7 +55,6 @@ SELECT dsld_id, product_name, brand_name, image_url, image_is_pdf,
        product_status, discontinued_date, form_factor, supplement_type,
        quality_score_v4_100, quality_score_status, quality_tier,
        quality_score_suppressed_reason, score_model_version,
-       score_display_100_equivalent, score_100_equivalent,
        grade, verdict, safety_verdict,
        percentile_top_pct, percentile_label,
        badges, top_warnings, cert_programs,
@@ -104,8 +105,9 @@ The detail blob reads:
 - interaction, condition, medication, allergen, warning, certification, and
   formulation details
 
-Legacy `section_breakdown` can still exist in blobs for audit/history. Do not use
-it as the production quality-score source.
+Product Detail and Compare read the blob identified by the headline row's
+`detail_blob_sha256`. They show the six pillars only when the pillar values
+reconcile with the catalog score at its shipped precision.
 
 ## Search And Lists
 

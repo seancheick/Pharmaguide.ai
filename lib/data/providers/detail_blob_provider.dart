@@ -103,20 +103,26 @@ final detailBlobServiceProvider = Provider<DetailBlobService>((ref) {
 /// Autodisposes so consumers do not keep large detail blobs alive after
 /// leaving the relevant product/stack surface.
 final detailBlobProvider = FutureProvider.family
-    .autoDispose<Map<String, dynamic>?, String>(
-      (ref, dsldId) async {
-        final coreDb = ref.watch(coreDatabaseProvider);
+    .autoDispose<Map<String, dynamic>?, String>((ref, dsldId) async {
+      final coreDb = ref.watch(coreDatabaseProvider);
+      final product = await coreDb.findById(dsldId);
+      if (!ref.mounted || product == null) return null;
+      return ref.watch(
+        detailBlobForRowProvider((
+          dsldId: dsldId,
+          expectedSha: product.detailBlobSha256,
+        )).future,
+      );
+    }, retry: (_, _) => null);
+
+/// Reads the immutable blob identified by the caller's catalog row.
+final detailBlobForRowProvider = FutureProvider.family
+    .autoDispose<Map<String, dynamic>?, ({String dsldId, String? expectedSha})>(
+      (ref, key) async {
+        final (:dsldId, :expectedSha) = key;
+        if (expectedSha == null || expectedSha.isEmpty) return null;
         final userDb = ref.watch(userDatabaseProvider);
         final service = ref.watch(detailBlobServiceProvider);
-
-        // The product row is read FIRST so the cache check can compare the
-        // cached sha against the product's CURRENT detail_blob_sha256 — a
-        // cached blob from a previous catalog snapshot must be a miss, not
-        // a stale hit feeding outdated ingredient/warning JSON.
-        final product = await coreDb.findById(dsldId);
-        if (product == null) return null;
-        final expectedSha = product.detailBlobSha256;
-        if (expectedSha == null || expectedSha.isEmpty) return null;
 
         final cached = await userDb.getCachedDetail(dsldId);
         if (cached != null &&

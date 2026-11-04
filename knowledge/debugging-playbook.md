@@ -52,17 +52,12 @@ final name = json.safeString('product_name', 'Unknown Product');
 
 ### Symptom: Score displays as "NaN/100" or "Infinity"
 
-**Root Cause:** `score_quality_80` is null (NOT_SCORED product) and the display formatter divides by zero or operates on null.
+**Check:** Inspect `quality_score_status` and `quality_score_v4_100` on the
+catalog row. The pipeline can suppress the score or leave it unavailable.
 
-**Fix:** Always null-check `score_quality_80` before computing `score_100_equivalent`:
-```dart
-if (product.scoreQuality80 == null) {
-  return 'Not Scored';
-}
-final score100 = (product.scoreQuality80! / 80.0) * 100.0;
-```
-
-**Prevention:** Use the pipeline's pre-formatted `score_display_100_equivalent` string when available. Only compute locally if you need the numeric value.
+**Fix:** Use the shared catalog score semantics and render the appropriate
+unavailable state when there is no public score. Format the exported number
+directly for a scored product.
 
 ---
 
@@ -107,7 +102,8 @@ String sanitizeFtsQuery(String input) {
 
 **Fix:** Use `customSelect` with only the columns needed for list display:
 ```sql
-SELECT dsld_id, product_name, brand_name, score_display_100_equivalent,
+SELECT dsld_id, product_name, brand_name, quality_score_v4_100,
+       quality_score_status,
        verdict, grade, image_url, image_is_pdf
 FROM products_core
 WHERE ...

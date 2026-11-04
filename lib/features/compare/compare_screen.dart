@@ -141,22 +141,20 @@ class _CompareBody extends StatelessWidget {
     final scorableB = !blockedB && !notScoredB;
 
     final pillarsA = scorableA
-        ? parseV4Pillars(a.qualityPillarsV4)
+        ? readReconciledV4Pillars(
+            a.qualityPillarsV4,
+            productA.qualityScoreV4100,
+          )
         : const <V4PillarValue>[];
     final pillarsB = scorableB
-        ? parseV4Pillars(b.qualityPillarsV4)
+        ? readReconciledV4Pillars(
+            b.qualityPillarsV4,
+            productB.qualityScoreV4100,
+          )
         : const <V4PillarValue>[];
-    // SHARED SHIP RULE (same as the score-breakdown adapter): pillar rows
-    // require ALL SIX parsed pillars on BOTH sides — a partial blob would
-    // pair mismatched scales and imply a complete comparison that isn't.
-    final showPillars = hasAllV4Pillars(pillarsA) && hasAllV4Pillars(pillarsB);
-
-    // A scorable product whose blob failed to load (offline) gets the
-    // calm connection hedge instead of pillar rows.
-    final blobMissing =
-        (scorableA && !hasAllV4Pillars(pillarsA)) ||
-        (scorableB && !hasAllV4Pillars(pillarsB));
-    final needsConnection = blobMissing && (a.blobFailed || b.blobFailed);
+    final showPillars = pillarsA.isNotEmpty && pillarsB.isNotEmpty;
+    final needsConnection =
+        (scorableA && a.blobFailed) || (scorableB && b.blobFailed);
 
     final categoryA = (productA.primaryCategory ?? '').trim();
     final categoryB = (productB.primaryCategory ?? '').trim();
@@ -229,7 +227,7 @@ class _CompareBody extends StatelessWidget {
                 ),
                 const SizedBox(height: V2Spacing.space4),
                 Text(
-                  'Six pillars, out of 100 — they add up to each score.',
+                  'Six pillars behind each quality score.',
                   style: V2Typography.caption(color: context.v2.fgMuted),
                 ),
                 const SizedBox(height: V2Spacing.space16),

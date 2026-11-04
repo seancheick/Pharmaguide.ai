@@ -464,7 +464,12 @@ class _ProductDetailV2ConnectedState
     // -------------------------------------------------------------
     // Async detail blob (same provider production uses)
     // -------------------------------------------------------------
-    final blobAsync = ref.watch(detailBlobProvider(widget.dsldId));
+    final blobAsync = ref.watch(
+      detailBlobForRowProvider((
+        dsldId: widget.dsldId,
+        expectedSha: _product?.detailBlobSha256,
+      )),
+    );
     final detailBlob = blobAsync.asData?.value;
     final ingredientSources = productDetailIngredientSourcesFromBlob(
       detailBlob,
@@ -1054,13 +1059,8 @@ class _ProductDetailV2ConnectedState
                           heroScore: score100,
                           qualityTier: _product?.qualityTier,
                           qualityPillarsV4: qualityPillarsV4,
-                          qualityScoreCapV4: _blobMap(
-                            detailBlob,
-                            'quality_score_cap_v4',
-                          ),
                           onPillarTap: onPillarTap,
                         ),
-                        const SizedBox(height: V2Spacing.space12),
                       ],
 
                       // ---- 7. Tradeoffs (WIRED, 11.7d.3) ---------------

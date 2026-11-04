@@ -130,11 +130,11 @@ void main() {
 
   testWidgets('renders both products with paired pillar rows', (tester) async {
     await seed(
-      product: _product(dsldId: 'prod-a', name: 'Alpha Multi', score: 92),
+      product: _product(dsldId: 'prod-a', name: 'Alpha Multi', score: 81),
       blob: _pillarsBlob(formulation: 18),
     );
     await seed(
-      product: _product(dsldId: 'prod-b', name: 'Beta Multi', score: 81),
+      product: _product(dsldId: 'prod-b', name: 'Beta Multi', score: 73),
       blob: _pillarsBlob(formulation: 14, dose: 12),
     );
 
@@ -161,6 +161,26 @@ void main() {
     expect(find.textContaining('better', findRichText: true), findsNothing);
     expect(find.textContaining('winner', findRichText: true), findsNothing);
 
+    await tearDownDbs(tester);
+  });
+
+  testWidgets('complete but mismatched pillars do not explain either score', (
+    tester,
+  ) async {
+    await seed(
+      product: _product(dsldId: 'prod-a', name: 'Alpha', score: 81),
+      blob: _pillarsBlob(),
+    );
+    await seed(
+      product: _product(dsldId: 'prod-b', name: 'Beta', score: 96),
+      blob: _pillarsBlob(),
+    );
+
+    await pumpCompare(tester);
+    expect(find.text('81/100'), findsOneWidget);
+    expect(find.text('96/100'), findsOneWidget);
+    expect(find.text('Pillar by pillar'), findsNothing);
+    expect(find.byKey(const Key('compare-connection-hedge')), findsNothing);
     await tearDownDbs(tester);
   });
 
@@ -236,12 +256,12 @@ void main() {
   testWidgets('delta callout names the largest pillar gap when hero scores '
       'differ by >= 3', (tester) async {
     await seed(
-      product: _product(dsldId: 'prod-a', name: 'Alpha', score: 92),
+      product: _product(dsldId: 'prod-a', name: 'Alpha', score: 81),
       blob: _pillarsBlob(formulation: 18),
     );
     await seed(
-      product: _product(dsldId: 'prod-b', name: 'Beta', score: 80),
-      blob: _pillarsBlob(formulation: 11),
+      product: _product(dsldId: 'prod-b', name: 'Beta', score: 69),
+      blob: _pillarsBlob(formulation: 11, transparency: 7),
     );
 
     await pumpCompare(tester);
@@ -264,11 +284,11 @@ void main() {
     // Hero delta 12, but the largest single pillar gap is only 4
     // (spread across pillars) → "Most of the difference" would be false.
     await seed(
-      product: _product(dsldId: 'prod-a', name: 'Alpha', score: 92),
+      product: _product(dsldId: 'prod-a', name: 'Alpha', score: 81),
       blob: _pillarsBlob(formulation: 18, dose: 16, evidence: 15),
     );
     await seed(
-      product: _product(dsldId: 'prod-b', name: 'Beta', score: 80),
+      product: _product(dsldId: 'prod-b', name: 'Beta', score: 69),
       blob: _pillarsBlob(formulation: 14, dose: 12, evidence: 11),
     );
 
@@ -288,12 +308,12 @@ void main() {
     tester,
   ) async {
     await seed(
-      product: _product(dsldId: 'prod-a', name: 'Alpha', score: 82),
+      product: _product(dsldId: 'prod-a', name: 'Alpha', score: 81),
       blob: _pillarsBlob(),
     );
     await seed(
       product: _product(dsldId: 'prod-b', name: 'Beta', score: 80),
-      blob: _pillarsBlob(formulation: 12),
+      blob: _pillarsBlob(formulation: 17),
     );
 
     await pumpCompare(tester);
@@ -432,7 +452,7 @@ void main() {
     pillars.remove('safety_hygiene');
 
     await seed(
-      product: _product(dsldId: 'prod-a', name: 'Alpha', score: 92),
+      product: _product(dsldId: 'prod-a', name: 'Alpha', score: 81),
       blob: _pillarsBlob(),
     );
     await seed(
@@ -447,7 +467,7 @@ void main() {
     expect(find.text('Pillar by pillar'), findsNothing);
     expect(find.byKey(const Key('compare-delta-callout')), findsNothing);
     // Hero scores still render.
-    expect(find.text('92/100'), findsOneWidget);
+    expect(find.text('81/100'), findsOneWidget);
     expect(find.text('80/100'), findsOneWidget);
 
     await tearDownDbs(tester);
