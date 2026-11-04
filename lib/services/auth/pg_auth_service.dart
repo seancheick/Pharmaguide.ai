@@ -276,6 +276,16 @@ class AccountSwitchGuard {
   /// Opens the data for the session the app launched with. Never throws.
   Future<void> boot({required String? sessionUid}) => _enqueue(() async {
     await _clearReportCopy();
+    // A kill can land between deciding an erase and finishing it.
+    try {
+      await _sweepErased();
+    } on Object catch (error, stackTrace) {
+      CrashReportingService().recordError(
+        error,
+        stackTrace,
+        hint: 'account_switch:start_over_cleanup',
+      );
+    }
     // No owner on record means the guest was open when the app last ran, so a
     // session found now is the sign-in whose event never got handled.
     final previousOwner = await _ownerStore.read();
@@ -327,7 +337,7 @@ class AccountSwitchGuard {
       if (_readSessionUid != null && _readSessionUid() != uid) {
         throw StateError('Session changed while starting over');
       }
-      await _storage.deleteDatabase(uid);
+      await _storage.moveAsideToErase(uid);
     } on Object catch (error, stackTrace) {
       CrashReportingService().recordError(
         error,
@@ -345,11 +355,11 @@ class AccountSwitchGuard {
     onChanged?.call();
   });
 
-  /// The database is gone by now, so nothing here may leave the person locked.
+  /// The data is out of reach by now, so nothing here may leave the person
+  /// locked.
   Future<void> _finishErasing(String? uid) async {
     final steps = <Future<void> Function()>[
-      () => _storage.delete(uid),
-      () => RecentSearchesService.deleteScope(AccountStorage.scopeFor(uid)),
+      _sweepErased,
       if (uid != null) () async => _onAccountRemoved?.call(uid),
       _purgeAiShare,
     ];
@@ -365,6 +375,9 @@ class AccountSwitchGuard {
       }
     }
   }
+
+  Future<void> _sweepErased() =>
+      _storage.sweepErased(RecentSearchesService.deleteScope);
 
   /// Handle one auth event. Completes only after all side effects are done —
   /// callers MUST await this before flipping the app's auth mode, because the

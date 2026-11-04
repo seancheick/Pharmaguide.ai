@@ -55,6 +55,7 @@ class AccountStorage {
   static const databaseName = 'user_data.db';
   static const attachmentsName = 'attachments';
   static const _legacyAttachmentsName = 'health_history_attachments';
+  static const _erasingMark = '.erasing.';
 
   final Future<Directory> Function() _supportDirectory;
   final Future<Directory> Function() _documentsDirectory;
@@ -104,22 +105,45 @@ class AccountStorage {
     await guest.rename(target.path);
   }
 
-  /// The step of [delete] that decides it. If this throws, nothing changed;
-  /// once it returns, the account's data can't be opened again.
-  Future<void> deleteDatabase(String? uid) async {
-    final folder = await _folderFor(uid);
-    final database = File(p.join(folder.path, databaseName));
-    if (await database.exists()) await database.delete();
-  }
-
   /// The database goes first, so a kill partway leaves no encrypted file behind
   /// without its key, which would lock this account out if it came back.
   Future<void> delete(String? uid) async {
     final folder = await _folderFor(uid);
     if (!await folder.exists()) return;
-    await deleteDatabase(uid);
-    await _cipher?.forget(p.join(folder.path, databaseName));
+    final database = File(p.join(folder.path, databaseName));
+    if (await database.exists()) await database.delete();
+    await _cipher?.forget(database.path);
     await folder.delete(recursive: true);
+  }
+
+  /// The step that decides an erase: the whole folder moves in one rename. If
+  /// this throws, nothing changed. Once it returns, the data can't be opened
+  /// again, and [sweepErased] removes it, even after a kill.
+  Future<void> moveAsideToErase(String? uid) async {
+    final folder = await _folderFor(uid);
+    if (!await folder.exists()) return;
+    final stamp = DateTime.now().microsecondsSinceEpoch;
+    await folder.rename('${folder.path}$_erasingMark$stamp');
+  }
+
+  /// Removes every folder [moveAsideToErase] left, and tells [removeRest] whose
+  /// it was. A key that can't be forgotten is unusable with its folder gone.
+  Future<void> sweepErased(
+    Future<void> Function(String scope) removeRest,
+  ) async {
+    final users = (await _folderFor(null)).parent;
+    if (!await users.exists()) return;
+    await for (final entry in users.list()) {
+      final name = p.basename(entry.path);
+      final mark = name.indexOf(_erasingMark);
+      if (entry is! Directory || mark < 0) continue;
+      await removeRest(name.substring(0, mark));
+      try {
+        await _cipher?.forget(p.join(entry.path, databaseName));
+      } finally {
+        await entry.delete(recursive: true);
+      }
+    }
   }
 
   /// One-way move of the single pre-ADR-013 store into [owner]'s folder.

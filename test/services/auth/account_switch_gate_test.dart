@@ -50,28 +50,28 @@ Future<void> _addHistoryEvent(UserDatabase db, String subjectType) => db
       ),
     );
 
-/// Storage whose delete fails, as a held file or a full disk would.
+/// Storage whose erase fails, as a held file or a full disk would.
 class _UndeletableStorage extends AccountStorage {
   _UndeletableStorage({
     required super.supportDirectory,
     required super.documentsDirectory,
-    this.databaseFails = false,
-    this.restFails = false,
+    this.moveFails = false,
+    this.sweepFails = false,
   });
 
-  final bool databaseFails;
-  final bool restFails;
+  final bool moveFails;
+  final bool sweepFails;
 
   @override
-  Future<void> deleteDatabase(String? uid) async {
-    if (databaseFails) throw const FileSystemException('delete refused');
-    await super.deleteDatabase(uid);
+  Future<void> moveAsideToErase(String? uid) async {
+    if (moveFails) throw const FileSystemException('rename refused');
+    await super.moveAsideToErase(uid);
   }
 
   @override
-  Future<void> delete(String? uid) async {
-    if (restFails) throw const FileSystemException('delete refused');
-    await super.delete(uid);
+  Future<void> sweepErased(Future<void> Function(String) removeRest) async {
+    if (sweepFails) throw const FileSystemException('delete refused');
+    await super.sweepErased(removeRest);
   }
 }
 
@@ -794,7 +794,7 @@ void main() {
           storageOverride: _UndeletableStorage(
             supportDirectory: () async => support,
             documentsDirectory: () async => documents,
-            databaseFails: true,
+            moveFails: true,
           ),
         );
         final scope = guard.account.scope;
@@ -829,7 +829,7 @@ void main() {
             storageOverride: _UndeletableStorage(
               supportDirectory: () async => support,
               documentsDirectory: () async => documents,
-              restFails: true,
+              sweepFails: true,
             ),
           );
           failure = null;
@@ -837,6 +837,61 @@ void main() {
           await guard.startOver();
 
           expect(await _names(guard.database!), isEmpty);
+        },
+      );
+
+      test(
+        'a kill right after the erase decides is finished next launch',
+        () async {
+          final seed = guardWith(open: openOrFail);
+          await seed.boot(sessionUid: _b);
+          await _addMedication(seed.database!, 'Metformin');
+          await signIn(seed, _a);
+          await _addMedication(seed.database!, 'Warfarin');
+          final scope = seed.account.scope;
+          await RecentSearchesService(scope: scope).addSearch('warfarin');
+          final attachment = File(
+            p.join(p.dirname(databaseOf(_a).path), 'attachments', 'scan.jpg'),
+          )..createSync(recursive: true);
+          await seed.close();
+
+          // Killed here: the folder has moved and nothing else has run.
+          await storage.moveAsideToErase(_a);
+          expect(attachment.existsSync(), isFalse);
+          final users = Directory(p.join(support.path, 'users'));
+          bool leftovers() => users.listSync().any(
+            (entry) => p.basename(entry.path).contains('.erasing.'),
+          );
+          expect(leftovers(), isTrue);
+
+          final guard = guardWith(open: openOrFail);
+          await guard.boot(sessionUid: _a);
+
+          expect(leftovers(), isFalse);
+          expect(await _names(guard.database!), isEmpty);
+          expect(
+            await RecentSearchesService(scope: scope).getRecent(),
+            isEmpty,
+          );
+          await signIn(guard, _b);
+          expect(await _names(guard.database!), ['Metformin']);
+        },
+      );
+
+      test(
+        'the sweep only ever touches a folder moved aside to erase',
+        () async {
+          final seed = guardWith(open: openOrFail);
+          await seed.boot(sessionUid: _a);
+          await _addMedication(seed.database!, 'Warfarin');
+          await seed.close();
+          final before = databaseOf(_a).readAsBytesSync();
+          final removed = <String>[];
+
+          await storage.sweepErased((scope) async => removed.add(scope));
+
+          expect(removed, isEmpty);
+          expect(databaseOf(_a).readAsBytesSync(), before);
         },
       );
 

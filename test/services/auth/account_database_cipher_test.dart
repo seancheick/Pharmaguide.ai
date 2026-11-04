@@ -566,6 +566,26 @@ void main() {
         },
       );
 
+      test(
+        'a stored key that is not usable is removed with the data',
+        () async {
+          await nextLaunch(a);
+          await _addTo(guard.database!, 'A med');
+          await nextLaunch(a);
+          final id = File(
+            p.join(p.dirname(dbFor(a)), 'database_key_id'),
+          ).readAsStringSync().trim();
+          vault.keys[id] = 'not a key';
+
+          await nextLaunch(a);
+          expect(guard.canStartOver, isTrue);
+          await guard.startOver();
+
+          expect(vault.keys.containsKey(id), isFalse);
+          expect(await _names(guard.database!), isEmpty);
+        },
+      );
+
       test('a store read that errors never reaches the erase', () async {
         await nextLaunch(a);
         await _addTo(guard.database!, 'A med');

@@ -59,6 +59,10 @@ class UserDataUnavailableScreen extends StatelessWidget {
                 : () => unawaited(
                     PGModal.bottomSheet<void>(
                       context: context,
+                      // Leaving is a deliberate tap, and never lands mid-erase.
+                      isDismissible: false,
+                      enableDrag: false,
+                      showDragHandle: false,
                       builder: (_) => _StartOverSheet(
                         signedIn: signedIn,
                         onStartOver: startOver,
@@ -118,7 +122,7 @@ class _StartOverSheetState extends State<_StartOverSheet> {
           shrinkWrap: true,
           padding: const EdgeInsets.fromLTRB(
             V2Spacing.space24,
-            V2Spacing.space8,
+            V2Spacing.space24,
             V2Spacing.space24,
             V2Spacing.space24,
           ),

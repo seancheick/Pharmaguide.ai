@@ -187,6 +187,31 @@ void main() {
     expect(find.text(_startOver), findsOneWidget);
   });
 
+  testWidgets('only a deliberate tap closes it: not a stray tap or a drag', (
+    tester,
+  ) async {
+    await pumpScreen(tester);
+    await openSheet(tester);
+
+    await tester.tapAt(const Offset(10, 10));
+    await tester.pumpAndSettle();
+    expect(find.text(_erase), findsOneWidget, reason: 'tap outside');
+
+    // The list takes a drag on its text, so ask the sheet itself as well.
+    expect(
+      tester.widget<BottomSheet>(find.byType(BottomSheet)).enableDrag,
+      isFalse,
+    );
+    await tester.drag(find.text('What stays'), const Offset(0, 700));
+    await tester.pumpAndSettle();
+    expect(find.text(_erase), findsOneWidget, reason: 'drag down');
+
+    await tester.binding.handlePopRoute();
+    await tester.pumpAndSettle();
+    expect(find.text(_erase), findsNothing, reason: 'back still works idle');
+    expect(erases, 0);
+  });
+
   testWidgets('ticking the box and erasing runs it once, and closes', (
     tester,
   ) async {
@@ -230,6 +255,14 @@ void main() {
 
     await tester.pumpAndSettle(const Duration(seconds: 2));
     expect(find.byType(FilledButton), findsNothing);
+  });
+
+  test('the message after starting over is the approved wording', () {
+    expect(
+      startedOverMessage,
+      "You're starting fresh on this device. Add your medications and profile "
+      'again so PharmaGuide can check products against them.',
+    );
   });
 
   testWidgets('a failed erase says so and lets the person try again', (
