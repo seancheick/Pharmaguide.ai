@@ -750,7 +750,7 @@ void main() {
         mappedCoverage: 1,
       );
       const allClear = 'No known concerns';
-      const incomplete = 'Personalized checks are incomplete';
+      const incomplete = 'Recent safety alerts couldn’t load';
       final blob = <String, dynamic>{
         'ingredients': const <Map<String, dynamic>>[],
         'display_ingredients': [_activeLedgerRow('Active row', 0)],

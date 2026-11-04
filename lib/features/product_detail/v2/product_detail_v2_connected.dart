@@ -378,7 +378,11 @@ class _ProductDetailV2ConnectedState
       ..invalidate(profileWarningRuleWarningsProvider(widget.dsldId))
       ..invalidate(fitScoreForProductProvider(widget.dsldId))
       ..invalidate(evaluatorProfileFlagsProvider)
-      ..invalidate(localMedicationIdentityProvider);
+      ..invalidate(localMedicationIdentityProvider)
+      ..invalidate(loadedProfileProvider)
+      ..invalidate(deviceSafetyProfileProvider)
+      ..invalidate(safetyAlertMatchesProvider)
+      ..invalidate(productSafetyAlertsProvider);
   }
 
   @override
@@ -562,15 +566,18 @@ class _ProductDetailV2ConnectedState
     // An error is the same state: no verified feed this phone can read.
     final alertFeedUnavailable =
         alertFeedAsync.hasError || alertFeedAsync.value?.neverVerified == true;
-    final personalizedChecksFailed =
+    final profileOrInteractionCheckFailed =
         rulesUnavailable ||
-        alertFeedUnavailable ||
         personalizedWarningsFailed ||
         profileRuleWarningsFailed ||
         fitAsync.hasError ||
         userProfileFlagsAsync.hasError ||
         deviceProfileAsync.hasError ||
         deviceProfileAsync.value?.isComplete == false;
+    final personalizedChecksFailed =
+        profileOrInteractionCheckFailed || alertFeedUnavailable;
+    final onlyAlertFeedUnavailable =
+        alertFeedUnavailable && !profileOrInteractionCheckFailed;
     // The rules notice can't speak for a check that failed for its own reason,
     // and that one can still be retried. Fit reads the rules only through the
     // stack's medication classes.
@@ -866,13 +873,19 @@ class _ProductDetailV2ConnectedState
                         PGSeverityBanner(
                           key: const Key('personalized-checks-error-banner'),
                           tone: PGBannerTone.caution,
-                          title: 'Personalized checks are incomplete',
-                          body:
-                              // Retrying can't bring withheld rules back.
-                              'We couldn\'t complete every '
-                              '${rulesUnavailable ? '' : 'interaction and '}'
-                              'profile check for this product. This is not an all-clear; '
-                              'try again before relying on these results.',
+                          title: onlyAlertFeedUnavailable
+                              ? 'Recent safety alerts couldn’t load'
+                              : 'Personalized checks are incomplete',
+                          body: onlyAlertFeedUnavailable
+                              ? 'PharmaGuide couldn’t verify recent recalls and '
+                                    'other safety updates. Try again to check '
+                                    'for the latest alerts.'
+                              :
+                                // Retrying can't bring withheld rules back.
+                                'We couldn\'t complete every '
+                                    '${rulesUnavailable ? '' : 'interaction and '}'
+                                    'profile check for this product. This is not an all-clear; '
+                                    'try again before relying on these results.',
                           actionLabel: 'Retry',
                           onAction: _retryPersonalizedChecks,
                         ),
