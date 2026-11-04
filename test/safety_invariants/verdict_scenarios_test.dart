@@ -1614,6 +1614,13 @@ void main() {
       );
 
       await switchTo(accountB);
+      await guard.database!.saveProfile(
+        const ProfileState(
+          ageBracket: '31-50',
+          sex: 'Female',
+          conditions: ['pregnancy'],
+        ).toCompanion(),
+      );
       network.complete(_vitaminEBlob());
       await letLateWorkFinish();
       expect(resultsForA, isEmpty, reason: 'A left before the result arrived');
