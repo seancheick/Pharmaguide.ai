@@ -510,7 +510,8 @@ class StackDoseSummer {
 
     for (final product in products) {
       for (final row in product.rows) {
-        if (readCanonicalId(row) != 'beta_carotene' ||
+        // Not readCanonicalId: it answers vitamin_a, the row's nutrient group.
+        if (row['canonical_id'] != 'beta_carotene' ||
             readUlDoseUnit(row) != _betaCaroteneCardUnit) {
           continue;
         }
@@ -1025,7 +1026,7 @@ class StackDoseThresholdRule {
   final bool amountUnresolved;
 
   bool get _hasAmount =>
-      (normalizedDailyAmount ?? 0) > 0 &&
+      (normalizedDailyAmount ?? -1) >= 0 &&
       normalizedDailyUnit?.trim().isNotEmpty == true;
 
   /// One product's two cards for one rule describe one exposure: the larger

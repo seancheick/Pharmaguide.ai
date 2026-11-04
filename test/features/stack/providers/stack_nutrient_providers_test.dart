@@ -1367,6 +1367,7 @@ Map<String, Object?> _mixtureRow({double? rae, required double maximum}) => {
   'name': 'Mixed Carotenoids',
   'standard_name': 'Mixed Carotenoids',
   'canonical_id': 'beta_carotene',
+  'nutrient_group_id': 'vitamin_a',
   'quantity': ?rae,
   'unit': 'mcg RAE',
   'safety_exposure': {

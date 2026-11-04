@@ -947,6 +947,17 @@ void main() {
       expect(result.single.amountUnresolved, isTrue);
     });
 
+    test('a numeric zero was read, so nothing is unresolved', () {
+      for (final cards in [
+        [card(0), card(4500)],
+        [card(4500), card(0)],
+        [card(0), card(0)],
+      ]) {
+        expect(rules(cards).single.amountUnresolved, isFalse);
+      }
+      expect(rules([card(0), card(4500)]).single.normalizedDailyAmount, 4500);
+    });
+
     test('a card the pipeline suppressed adds nothing to the amount', () {
       final suppressed = card(null, unreadDisposition: 'suppress');
 
