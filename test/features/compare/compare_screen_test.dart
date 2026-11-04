@@ -143,6 +143,10 @@ void main() {
     expect(find.text('Alpha Multi'), findsOneWidget);
     expect(find.text('Beta Multi'), findsOneWidget);
     expect(find.text('Pillar by pillar'), findsOneWidget);
+    expect(
+      find.text('Six pillars, out of 100 — they add up to each score.'),
+      findsOneWidget,
+    );
     // All six pillar labels render once each.
     for (final label in [
       'Formulation',
@@ -261,6 +265,7 @@ void main() {
 
     expect(find.byKey(const Key('compare-delta-callout')), findsNothing);
     expect(find.text('Six pillars, out of 100.'), findsOneWidget);
+    expect(find.byType(PGComparePillarRow), findsNWidgets(6));
 
     await tearDownDbs(tester);
   });
