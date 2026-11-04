@@ -34,6 +34,7 @@ class _FakePublisher {
   /// One response for this path dies after this many bytes.
   final Map<String, int> dieAfter = {};
   bool down = false;
+  bool authenticatedStorageDown = false;
   bool signedColumnsMissing = false;
   String? manifestSelect;
 
@@ -67,10 +68,15 @@ class _FakePublisher {
         response.write(
           jsonEncode(wantsObject == true ? row : [if (row != null) row]),
         );
-      } else if (path.startsWith('/storage/v1/object/public/pharmaguide/')) {
-        final key = path.substring(
-          '/storage/v1/object/public/pharmaguide/'.length,
-        );
+      } else if (path.startsWith('/storage/v1/object/public/pharmaguide/') ||
+          path.startsWith('/storage/v1/object/pharmaguide/')) {
+        final isPublic = path.startsWith('/storage/v1/object/public/');
+        if (!isPublic && authenticatedStorageDown) {
+          response.statusCode = 503;
+          await response.close();
+          return;
+        }
+        final key = path.split('/pharmaguide/').last;
         final bytes = files[key];
         if (bytes == null) {
           response.statusCode = 404;
@@ -153,7 +159,8 @@ void main() {
       ..downloads.clear()
       ..ranges.clear()
       ..dieAfter.clear()
-      ..down = false;
+      ..down = false
+      ..authenticatedStorageDown = false;
   });
 
   tearDown(() async {
@@ -582,6 +589,25 @@ void main() {
         isNot(contains('v$version/pharmaguide_core.db')),
       );
     }, timeout: const Timeout(Duration(minutes: 1)));
+
+    test(
+      'an authenticated storage outage preserves the current signed catalog',
+      () async {
+        final first = await launch();
+        await publish(
+          sequence: 1,
+          catalogVersion: version,
+          catalog: await catalogFile(version),
+          signCompressed: true,
+        );
+        publisher.files.remove(gzPath);
+        publisher.authenticatedStorageDown = true;
+        final generation = await tick(first.store, first.generation);
+        expect(generation.record.catalogVersion, _bundledCatalog);
+        expect(publisher.downloads, isEmpty);
+      },
+      timeout: const Timeout(Duration(minutes: 1)),
+    );
 
     test('storage that lost the gz still delivers the signed catalog through '
         'its plain file', () async {
