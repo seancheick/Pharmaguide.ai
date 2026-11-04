@@ -72,7 +72,14 @@ void main() {
     });
 
     test('no stated age reads the age card, never an adult answer', () {
-      for (final bracket in const [null, '', 'teen', 'adult', '19+']) {
+      for (final bracket in const [
+        null,
+        '',
+        'teen',
+        'adult',
+        '19+',
+        'Prefer not to say',
+      ]) {
         final review = _warning('4340').resolvedForAge(bracket);
         expect(review.alertHeadline, _ageHeadline, reason: '$bracket');
         expect(review.alertBody, _isAbove, reason: '$bracket');

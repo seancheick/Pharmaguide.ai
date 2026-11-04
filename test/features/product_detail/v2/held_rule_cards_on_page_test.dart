@@ -149,7 +149,7 @@ void main() {
   group('age card', () {
     const headline = 'Limit depends on age';
 
-    for (final age in const [null, 'teen']) {
+    for (final age in const [null, 'teen', 'Prefer not to say']) {
       testWidgets('$age reads the review, not an adult answer', (tester) async {
         await _pumpPage(
           tester,

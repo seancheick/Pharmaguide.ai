@@ -80,6 +80,17 @@ void main() {
       });
     }
 
+    // 'Prefer not to say' is what the profile's age sheet stores when age is
+    // declined, so the page and Stack have to read it as the same unknown age.
+    for (final declared in const ['Prefer not to say', '', 'teen']) {
+      test('"$declared" is no age: the same review as none', () {
+        final status = statusFor(900, ageBracket: declared, sex: 'Pregnancy');
+        expect(status.ulAssessmentIndeterminate, isTrue);
+        expect(status.pctOfUl, isNull);
+        expect(status.tier, isNot(NutrientTier.exceedsUl));
+      });
+    }
+
     test('a known age reads its own limit, not a review', () {
       final teen = statusFor(900, ageBracket: '14-18', sex: 'Pregnancy');
       expect(teen.ulAssessmentIndeterminate, isFalse);
