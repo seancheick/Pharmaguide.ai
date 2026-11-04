@@ -1,12 +1,22 @@
-# Codex release and alert follow-up — 2026-11-03
-Baseline #193 6d6028cb; branch codex/release-alert-followup. Sean authorized continuing blockers and merging qualified #193. Claude's independent review has no blockers for #193; its F3/F4/F6 and unreadable-feed surface audit assigned to Codex, A2/A8 idle.
-Owner: lib/services/release_store.dart::recordVerified/_withholdQuality — evidence: rg recordVerified/_writePointer/_withholdQuality and callers. Will NOT create: new persisted state or clinical policy.
-Owner: lib/services/safety_alerts/safety_alert_repository.dart::_decodeRemote/_loadCached — evidence: rg extended_feed/extendedMissing/checksum plus publisher stage contract. Will NOT create: new cache schema/provider/clinical rules.
-Own tests: test/services/release/release_store_test.dart; test/services/safety_alerts/interaction_rule_alert_test.dart; ADR-012 factual cleanup. Fail-first regressions before production edits. No pipeline owner edits. Shared evidence: /Users/seancheick/pg_quality/codex_takeover_20261103.
-#193 merged at 8d210aa1 after exact-head CI and Claude review. Component PRs #188–#192 are integrated; no deployment/publication.
-Owner: lib/services/catalog_updater_service.dart::_checkSigned — verified-callback failure must return normally so bootstrap settles known revocations. No new activation state.
-Owner: lib/features/stack/providers/stack_safety_providers.dart::stackHealthSnapshotProvider + lib/services/stack/stack_intelligence_engine.dart::summarizeFromReports — evidence: rg stackHealthSnapshotProvider/allClinicalSignalsFrom/fromRegulatorySafety. Will NOT create: new severity mapping, quality score, alert provider or UI copy. Connect existing canonical alert signals and incomplete state to Home/Stack; loading Home cannot say No signals.
-Proven regressions: failed pointer persistence; failed scoreless preparation cleanup; same-current extended-feed outage; cached extended_missing without kept rows (real product page false all-clear); missing Home/Stack regulatory signals and unavailable state; Home loading metric. Targeted owner tests 188 passed, final Stack/Home focused 57 passed. Full make check running; two analyzer findings in test fixture corrected before rerun. No claim of full pass until log ends.
-Quick Check says No interaction catalogued in curated database. Add sheet scopes its finding to curated stack interaction checks. Scan reveal is found/attention, not a personal verdict; existing catalog-status haptic unchanged. No new clinical meanings/copy.
-No native/device acceptance yet; it belongs to the one combined candidate with rebuilt catalog. Pipeline dose/census/exclusion work, #177, #179 and alert publication remain with Claude's existing owners. Do not edit their worktrees or the frozen a9_corpus_20261103.
-Release gates remain: final data replay/build, device acceptance, reviewed alert feed, backend deployment and required clinical sign-offs. Calibration is separate.
+# Safety state and search follow-up — November 3, 2026
+
+Goal: confirm and repair the reported medication-dose, incomplete pre-add, catalog recovery and search races; user now authorizes merging #196 after green required checks; no release authorization. Branch codex/safety-state-followup, baseline origin/main7fa991ca (submission195 integrated). Existing Claude worktrees/replay untouched. Source qualification only, no device proof.
+
+Owner: active_stack_provider.dart::StackActions.updateTracking; stack_safety_providers.dart::safetyCheckForAddProvider; app.dart::_buildRouter/PharmaGuideApp; medication_entry_v2_screen.dart query/clear handlers; search_v2_screen.dart query handlers; photo_panel_hints.dart::_directions. Evidence: call-site searches, fail-first tests and final diff review. Will NOT create new clinical rules, thresholds, persisted fields, severity meanings or duplicate safety engines.
+
+Implemented:
+- Changed/cleared medication dosage revokes old confirmed dailyDoseMg and dose/use-compliance confirmation, retaining the separately confirmed route. Existing aspirin kidney rule returns; unchanged-dose/non-dose control retains valid confirmation.
+- Candidate/stack low or unknown mapping, absent canonical ingredients or catalog identities produce incomplete pre-add checks. Preserve known interaction hits and distinct empty-stack copy; reuse existing coverage threshold.
+- Catalog routes observe current availability/reason/retry through a private inherited scope, preserving the same router. Recover and withhold again without restart.
+- Medication/product query edits invalidate in-flight work immediately. Actual medication Clear cancels debounce, invalidates old response and clears searching; offline fallback is also guarded.
+- Separate low-priority photo hint recognizes Shake well before dosing instructions. This is not a health warning and does not qualify clinical evidence; it is not a release blocker.
+
+Validation:
+- RED:2aspirin stale-context cases;6mapping cases;catalog recovery retained unavailable route;medication/product old-response races;actual Clear pending timer and in-flight result;Shake well dosing prefix missed.
+- GREEN:58combined safety owner/consumer tests, then27pre-add/sheet tests after additional controls;98photo/submission tests;36app/search/medication tests. These runs overlap; do not sum as unique tests.
+- Scoped analysis clean; formatting and git diff --check passed. Independent review found actual Clear bypass, repaired with two failing-first button regressions; final review has no remaining actionable finding.
+- Initial SQLite native-library errors were concurrent Flutter invocation contention; serialized tests pass. New router test initially left the global router on search and polluted7later tests; restored home at teardown without weakening assertions; final36pass.
+- Pre-merge topical confirmation regression:2cases fail before fix;35actions/context/profile tests pass after, then17actions tests pass with reminder-only controls; scoped analysis clean. Source fix585b954e.
+- Full local make check intentionally not launched alongside the active corpus replay. Hosted full app CI remains required on pushed candidate. No merge/device/deployment acceptance claimed.
+
+Durable local receipts: /Users/seancheick/pg_quality/codex_takeover_20261103/{SAFETY_STATE_FOLLOWUP_GREEN,PREADD_MAPPING_RED,PREADD_MAPPING_GREEN,SHAKE_DIRECTIONS_TEST,RECOVERY_SEARCH_FOCUSED,MEDICATION_CLEAR_RED}.log. Next: qualify the updated #196 candidate, merge only after required checks pass, then report release blockers. Device/catalog acceptance remains separate.

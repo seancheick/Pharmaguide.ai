@@ -204,6 +204,8 @@ class _SearchV2ScreenState extends ConsumerState<SearchV2Screen> {
   }
 
   void _onQueryChanged(String value) {
+    // Invalidate in-flight work immediately, including the debounce window.
+    _searchVersion++;
     _debounce?.cancel();
     _maybeTypingHaptic(value);
     setState(() {
@@ -348,6 +350,7 @@ class _SearchV2ScreenState extends ConsumerState<SearchV2Screen> {
   }
 
   void _clearSearch() {
+    _searchVersion++;
     unawaited(PGHaptics.tap(context));
     _debounce?.cancel();
     _controller.clear();

@@ -6,6 +6,7 @@
 // the UI short-circuit (deep links, bulk import, automation).
 
 import 'dart:convert';
+import 'dart:io';
 
 import 'package:drift/drift.dart' show Value;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -19,6 +20,7 @@ import 'package:pharmaguide/features/stack/providers/active_stack_provider.dart'
 import 'package:pharmaguide/features/stack/services/stack_sync_queue.dart';
 import 'package:pharmaguide/services/auth_state_service.dart';
 import 'package:pharmaguide/services/connectivity_service.dart';
+import 'package:pharmaguide/services/stack/medication_profile_gate_evaluator.dart';
 
 /// Minimal product fixture for guard assertions. We never reach the
 /// Drift code path because the guard throws first, so the other
@@ -42,6 +44,195 @@ ProductsCoreData _product({
 
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
+
+  for (final nextDose in ['325 mg', null]) {
+    test(
+      'editing aspirin dose to $nextDose revokes the old dose exception',
+      () async {
+        final db = UserDatabase.memory();
+        addTearDown(db.close);
+        const oldContext = MedicationUseContext(
+          dailyDoseMg: 81,
+          route: 'oral',
+          useContext: 'cardiovascular_protection',
+        );
+        await db.addToStack(
+          UserStacksLocalCompanion.insert(
+            id: 'aspirin',
+            name: 'Aspirin',
+            type: const Value('medication'),
+            dosage: const Value('81 mg'),
+            medicationContextCol: Value(jsonEncode(oldContext.toJson())),
+          ),
+        );
+        final container = ProviderContainer(
+          overrides: [userDatabaseProvider.overrideWithValue(db)],
+        );
+        addTearDown(container.dispose);
+        final rules = MedicationProfileGateRule.listFromJson(
+          jsonDecode(
+                File(
+                  'assets/reference_data/medication_profile_gate_rules.json',
+                ).readAsStringSync(),
+              )
+              as Map<String, dynamic>,
+        );
+        List<String> findings(MedicationUseContext context) =>
+            const MedicationProfileGateEvaluator()
+                .evaluate(
+                  rules: rules,
+                  medicationName: 'Aspirin',
+                  medicationIngredientRxcuis: {'1191'},
+                  medicationContext: context,
+                  medicationProfileGateClassIds: {},
+                  userProfileFlags: {},
+                  userConditions: {'kidney_disease'},
+                )
+                .map((w) => w.ruleId)
+                .toList();
+        expect(
+          findings(oldContext),
+          isNot(contains('MCR_KIDNEY_DISEASE_NSAIDS')),
+        );
+        await container
+            .read(stackActionsProvider)
+            .updateTracking(entryId: 'aspirin', dosage: Value(nextDose));
+        final saved = (await db.getActiveStack()).single;
+        final context = MedicationUseContext.fromStored(
+          saved.medicationContextCol,
+        );
+        expect(
+          context.dailyDoseMg,
+          isNull,
+          reason: 'Free text must not reuse a previously confirmed daily dose.',
+        );
+        expect(context.route, 'oral');
+        expect(
+          context.useContext,
+          isNull,
+          reason:
+              'Dose edits invalidate use confirmations just as medication entry does.',
+        );
+        expect(findings(context), contains('MCR_KIDNEY_DISEASE_NSAIDS'));
+      },
+    );
+  }
+
+  for (final nextDose in ['4 g', null]) {
+    test(
+      'editing topical diclofenac dose to $nextDose revokes label-use confirmation',
+      () async {
+        final db = UserDatabase.memory();
+        addTearDown(db.close);
+        const oldContext = MedicationUseContext(
+          route: 'topical',
+          useContext: 'within_product_label_directions',
+        );
+        await db.addToStack(
+          UserStacksLocalCompanion.insert(
+            id: 'diclofenac',
+            name: 'Diclofenac',
+            type: const Value('medication'),
+            dosage: const Value('2 g'),
+            medicationContextCol: Value(jsonEncode(oldContext.toJson())),
+          ),
+        );
+        final container = ProviderContainer(
+          overrides: [userDatabaseProvider.overrideWithValue(db)],
+        );
+        addTearDown(container.dispose);
+        final rules = MedicationProfileGateRule.listFromJson(
+          jsonDecode(
+                File(
+                  'assets/reference_data/medication_profile_gate_rules.json',
+                ).readAsStringSync(),
+              )
+              as Map<String, dynamic>,
+        );
+        List<String> findings(MedicationUseContext context) =>
+            const MedicationProfileGateEvaluator()
+                .evaluate(
+                  rules: rules,
+                  medicationName: 'Diclofenac',
+                  medicationIngredientRxcuis: {'3355'},
+                  medicationContext: context,
+                  medicationProfileGateClassIds: {'nsaids'},
+                  userProfileFlags: {},
+                  userConditions: {'kidney_disease'},
+                )
+                .map((warning) => warning.ruleId)
+                .toList();
+        expect(
+          findings(oldContext),
+          isNot(contains('MCR_KIDNEY_DISEASE_NSAIDS')),
+        );
+        await container
+            .read(stackActionsProvider)
+            .updateTracking(
+              entryId: 'diclofenac',
+              reminderMinutes: const Value(9 * 60),
+            );
+        final reminderContext = MedicationUseContext.fromStored(
+          (await db.getActiveStack()).single.medicationContextCol,
+        );
+        expect(reminderContext.toJson(), oldContext.toJson());
+        expect(
+          findings(reminderContext),
+          isNot(contains('MCR_KIDNEY_DISEASE_NSAIDS')),
+        );
+        await container
+            .read(stackActionsProvider)
+            .updateTracking(entryId: 'diclofenac', dosage: Value(nextDose));
+        final context = MedicationUseContext.fromStored(
+          (await db.getActiveStack()).single.medicationContextCol,
+        );
+        expect(
+          findings(context),
+          contains('MCR_KIDNEY_DISEASE_NSAIDS'),
+          reason:
+              'The old label-directions confirmation cannot qualify a changed or cleared dose.',
+        );
+        expect(context.useContext, isNull);
+        expect(context.route, 'topical');
+      },
+    );
+  }
+
+  test(
+    'non-dose tracking edits preserve confirmed medication context',
+    () async {
+      final db = UserDatabase.memory();
+      addTearDown(db.close);
+      const context = MedicationUseContext(
+        dailyDoseMg: 81,
+        route: 'oral',
+        useContext: 'cardiovascular_protection',
+      );
+      final stored = jsonEncode(context.toJson());
+      await db.addToStack(
+        UserStacksLocalCompanion.insert(
+          id: 'aspirin',
+          name: 'Aspirin',
+          type: const Value('medication'),
+          dosage: const Value('81 mg'),
+          medicationContextCol: Value(stored),
+        ),
+      );
+      final container = ProviderContainer(
+        overrides: [userDatabaseProvider.overrideWithValue(db)],
+      );
+      addTearDown(container.dispose);
+      await container
+          .read(stackActionsProvider)
+          .updateTracking(
+            entryId: 'aspirin',
+            dosage: const Value(' 81 mg '),
+            startedAt: Value(DateTime.utc(2026, 1, 1)),
+            reminderMinutes: const Value(9 * 60),
+          );
+      expect((await db.getActiveStack()).single.medicationContextCol, stored);
+    },
+  );
 
   group('StackActions.addProduct FLTR-16 verdict guard', () {
     late ProviderContainer container;
