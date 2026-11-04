@@ -77,16 +77,60 @@ echo "build:${PHARMAGUIDE_IOS_DISTRIBUTION:-app-store}" >> "$PROBE_CALLS"
 [[ "$*" == *"--dart-define=SUPABASE_ANON_KEY=fixture-anon"* ]] || exit 33
 [[ "$*" != *USE_V2_* ]] || exit 34
 BUILDER
+# The real key check, on a fixture key list: a store build needs a key, TestFlight doesn't.
+cp "$REPO_ROOT/scripts/require_alert_feed_key.sh" "$FIXTURE/scripts/require_alert_feed_key.sh"
+mkdir -p "$FIXTURE/lib/services"
+fixture_keys() {
+  printf 'const Map<String, String> _kProductionAlertFeedKeys = %s;\n' "$1" \
+    > "$FIXTURE/lib/services/release_manifest.dart"
+}
+packages() {
+  local channel="$1" calls="$2"
+  (cd "$FIXTURE" && PROBE_CALLS="$calls" PHARMAGUIDE_IOS_DISTRIBUTION="$channel" \
+    make build-ios FLUTTER=/fixture/flutter) >/dev/null 2>&1 \
+    && [[ "$(cat "$calls")" == "$(printf 'hydration\nbuild:%s' "$channel")" ]]
+}
+PINNED="{'alert-feed-2026-11': '$(printf 'ab%.0s' {1..32})'}"
+
+fixture_keys '{}'
+if packages testflight "$TMP/calls-testflight-no-key"; then
+  ok 'build-ios packages a TestFlight build with no alert-feed key'
+else
+  bad 'build-ios failed canonical testflight packaging contract with no alert-feed key'
+fi
+if (cd "$FIXTURE" && PROBE_CALLS="$TMP/calls-store-no-key" PHARMAGUIDE_IOS_DISTRIBUTION=app-store \
+     make build-ios FLUTTER=/fixture/flutter) >/dev/null 2>&1; then
+  bad 'build-ios packaged an App Store build with no alert-feed key'
+elif [[ -e "$TMP/calls-store-no-key" ]]; then
+  bad 'build-ios refused an App Store build only after starting work'
+else
+  ok 'build-ios refuses an App Store build with no alert-feed key, before any work'
+fi
+
+fixture_keys "$PINNED"
 for channel in testflight app-store; do
-  calls="$TMP/calls-$channel"
-  if (cd "$FIXTURE" && PROBE_CALLS="$calls" PHARMAGUIDE_IOS_DISTRIBUTION="$channel" \
-       make build-ios FLUTTER=/fixture/flutter) >/dev/null 2>&1 \
-     && [[ "$(cat "$calls")" == "$(printf 'hydration\nbuild:%s' "$channel")" ]]; then
+  if packages "$channel" "$TMP/calls-$channel"; then
     ok "build-ios hydrates then invokes shared builder for $channel with required defines"
   else
     bad "build-ios failed canonical $channel packaging contract"
   fi
 done
+
+# An Android bundle is a store build, whatever the iOS setting in the shell says.
+fixture_keys '{}'
+if (cd "$FIXTURE" && PROBE_CALLS="$TMP/calls-android" PHARMAGUIDE_IOS_DISTRIBUTION=testflight \
+     make build-android FLUTTER=/usr/bin/true) >/dev/null 2>&1; then
+  bad 'build-android packaged with no alert-feed key under the TestFlight setting'
+else
+  ok 'build-android refuses with no alert-feed key, even under the TestFlight setting'
+fi
+fixture_keys "$PINNED"
+if (cd "$FIXTURE" && PROBE_CALLS="$TMP/calls-android" PHARMAGUIDE_IOS_DISTRIBUTION=testflight \
+     make build-android FLUTTER=/usr/bin/true) >/dev/null 2>&1; then
+  ok 'build-android packages with a pinned alert-feed key'
+else
+  bad 'build-android failed with a pinned alert-feed key'
+fi
 (cd "$FIXTURE" && make -qp) > "$TMP/make-database" 2>/dev/null || true
 if grep -Eq '^(run-v2(pd|pf|med|search|qc|all)(-ios)?|build-ipa[^:]*):' "$TMP/make-database"; then
   bad 'retired UI-flag targets remain callable'

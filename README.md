@@ -28,6 +28,8 @@ into documentation or bypass the shared builder with raw Flutter build commands.
 | Generate models/database code | `make gen` | Existing code-generation owner |
 | Show all current commands | `make help` | Includes developer and maintenance targets |
 
+Store builds refuse to start with no safety-alert feed key; TestFlight is exempt (ADR-015).
+
 `make build-ios` remains the single iOS build target. The distribution setting
 changes the Sentry environment, not the product UI or scoring. Both channels use
 `scripts/build_ios_release.sh`, which reserves the next build number, keeps the
