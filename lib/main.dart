@@ -29,6 +29,7 @@ import 'package:pharmaguide/features/dev/screenshot_seeder.dart';
 import 'package:pharmaguide/features/settings/providers/app_preferences_provider.dart';
 import 'package:pharmaguide/features/ai_share/ai_share_snapshot_pusher.dart';
 import 'package:pharmaguide/features/settings/v2/guest_data_question_screen.dart';
+import 'package:pharmaguide/features/settings/v2/user_data_unavailable_screen.dart';
 import 'package:pharmaguide/features/stack/services/stack_sync_queue.dart';
 import 'package:pharmaguide/features/history/providers/clinical_signal_lifecycle_provider.dart';
 import 'package:pharmaguide/features/history/providers/health_history_providers.dart';
@@ -42,7 +43,6 @@ import 'package:pharmaguide/services/crash_reporting_service.dart';
 import 'package:pharmaguide/services/onboarding_prefs.dart';
 import 'package:pharmaguide/services/settings/app_preferences.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
-import 'package:pharmaguide/core/components/pg_empty_state.dart';
 import 'package:pharmaguide/services/auth/account_storage.dart';
 import 'package:pharmaguide/services/auth/pg_auth_service.dart';
 import 'package:pharmaguide/services/product_submission_draft_store.dart';
@@ -306,6 +306,19 @@ class _PharmaGuideBootstrapState extends State<PharmaGuideBootstrap> {
       const Duration(seconds: 2),
       onTimeout: () {},
     );
+  }
+
+  Future<void> _startOver() async {
+    await widget.accountGuard.startOver();
+    if (widget.accountGuard.database == null) return;
+    // The app's own tree mounts on the next frame, and holds the messenger.
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      PGToast.showWith(
+        scaffoldMessengerKey.currentState,
+        startedOverMessage,
+        duration: const Duration(seconds: 8),
+      );
+    });
   }
 
   void _onAccountChanged() {
@@ -670,7 +683,11 @@ class _PharmaGuideBootstrapState extends State<PharmaGuideBootstrap> {
         theme: V2Theme.light,
         darkTheme: V2Theme.dark,
         themeMode: widget.appPreferencesController.preferences.theme.themeMode,
-        home: _UserDataUnavailableScreen(onRetry: widget.accountGuard.retry),
+        home: UserDataUnavailableScreen(
+          onRetry: widget.accountGuard.retry,
+          onStartOver: widget.accountGuard.canStartOver ? _startOver : null,
+          signedIn: widget.accountGuard.ownerUid != null,
+        ),
       );
     }
     if (!_bootstrapped || _accountSwitching || userDb == null) {
@@ -741,35 +758,6 @@ class _PharmaGuideBootstrapState extends State<PharmaGuideBootstrap> {
           onRetryCatalogLoad: _retryCatalogLoad,
           hasSeenOnboarding: widget.hasSeenOnboarding,
           launchLocation: _launchLocation,
-        ),
-      ),
-    );
-  }
-}
-
-/// The owner's data didn't open. An empty database here would read as having no
-/// medications, so the app waits rather than showing anything.
-class _UserDataUnavailableScreen extends StatelessWidget {
-  const _UserDataUnavailableScreen({required this.onRetry});
-
-  final VoidCallback onRetry;
-
-  @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      body: SafeArea(
-        child: Center(
-          child: PGEmptyState(
-            icon: Icons.lock_outline_rounded,
-            eyebrow: 'Your health data',
-            headline: "Your health data didn't open",
-            body:
-                'Please try again. Until it opens, PharmaGuide can\'t check '
-                'your medications.',
-            primaryLabel: 'Try again',
-            primaryIcon: Icons.refresh_rounded,
-            onPrimaryTap: onRetry,
-          ),
         ),
       ),
     );
