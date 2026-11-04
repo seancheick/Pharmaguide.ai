@@ -116,10 +116,12 @@ Future<bool> purgeAiShareData({
   String? onlyFor,
 }) async {
   // Stop every opt-in refresh first so nothing re-uploads after the purge.
+  var preferencesCleared = false;
   try {
     await (prefs ??
             AiSharePrefsStore(SharedPreferencesAsyncAppPreferencesStore()))
         .clear();
+    preferencesCleared = true;
   } on Object catch (error, stackTrace) {
     CrashReportingService().recordError(
       error,
@@ -132,7 +134,7 @@ Future<bool> purgeAiShareData({
     await (snapshots ?? AiShareSnapshotClient.production())
         .deleteAll(onlyFor: onlyFor)
         .timeout(const Duration(seconds: 10));
-    return true;
+    return preferencesCleared;
   } on AiShareNotSignedIn {
     // No session: nothing this device can authorize deleting.
     return false;
@@ -328,8 +330,9 @@ class AccountSwitchGuard {
   bool get canStartOver => _keyLost && _database == null;
 
   /// Erases the locked owner's data from this device for good, and opens an
-  /// empty database. Throws with nothing changed if the data can't be erased,
-  /// so the account stays locked and a new empty database never replaces it.
+  /// empty database. If the erase cannot be committed, the account stays
+  /// locked and a new empty database never replaces it. Drafts remain in their
+  /// original folder or in the locked folder's recoverable quarantine.
   Future<void> startOver() => _enqueue(() async {
     final uid = _ownerUid;
     try {
@@ -370,12 +373,18 @@ class AccountSwitchGuard {
       await _storage.sweepErased({
         // Their scheduled reminders outlive the folder.
         'reminders': forOwner((uid) async {
+          // Reset retries must not clear preferences newly saved after reset.
+          // Prefer the notification-only owner to the broader switch cleanup.
+          if (_onNotificationCleanup != null) {
+            await _onNotificationCleanup();
+            return true;
+          }
           return _endOwnerWork(previousOwner: uid, incomingUid: uid);
         }),
-        'drafts': forOwner((uid) async {
-          if (uid != null) await _onAccountRemoved?.call(uid);
-          return true;
-        }),
+        // New resets quarantine drafts before reopening and mark this done.
+        // A legacy marker has no old-target identity: deleting its live scope
+        // could erase new captures. Retain that obligation for manual recovery.
+        'drafts': (_) async => false,
         'ai_share': forOwner((uid) async {
           if (uid == null) return true;
           // It acts on whoever is signed in, which must be them.
@@ -395,6 +404,44 @@ class AccountSwitchGuard {
       );
     }
   }
+
+  /// A reopened account may be used offline, but its old snapshot purge must
+  /// finish before a newly consented snapshot can replace it.
+  Future<void> prepareAiShare() => _enqueue(() async {
+    final uid = _ownerUid;
+    if (uid == null ||
+        _database == null ||
+        (_readSessionUid != null && _readSessionUid() != uid)) {
+      throw StateError('Account changed before sharing');
+    }
+    final finished = await _storage.finishErasedStep(
+      uid,
+      'ai_share',
+      () => _purgeAiShare(uid),
+    );
+    if (!finished || (_readSessionUid != null && _readSessionUid() != uid)) {
+      throw StateError('Previous share cleanup has not finished');
+    }
+  });
+
+  /// A reset's old search history must be removed before its scope is read or
+  /// written again, otherwise a later cleanup could delete new queries.
+  Future<void> prepareRecentSearches(String scope) => _enqueue(() async {
+    final uid = _ownerUid;
+    if (_database == null ||
+        _account.scope != scope ||
+        (_readSessionUid != null && _readSessionUid() != uid)) {
+      throw StateError('Account changed before accessing recent searches');
+    }
+    await _storage.finishErasedStep(uid, 'searches', () async {
+      await RecentSearchesService.deleteScope(AccountStorage.scopeFor(uid));
+      return true;
+    });
+    if (_account.scope != scope ||
+        (_readSessionUid != null && _readSessionUid() != uid)) {
+      throw StateError('Account changed while clearing recent searches');
+    }
+  });
 
   /// Handle one auth event. Completes only after all side effects are done —
   /// callers MUST await this before flipping the app's auth mode, because the

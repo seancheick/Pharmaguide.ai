@@ -194,6 +194,21 @@ class ProductSubmissionDraftStore implements ProductSubmissionDraftStorage {
     if (await account.exists()) await account.delete(recursive: true);
   }
 
+  /// Moves the old captures into the account folder being erased. Retrying a
+  /// crash before that folder's rename reuses the same quarantine.
+  Future<void> quarantineAccount(String userId, Directory target) async {
+    final account = _accountRoot(userId);
+    if (!await account.exists()) return;
+    await account.rename(target.path);
+  }
+
+  Future<void> restoreQuarantinedAccount(
+    String userId,
+    Directory target,
+  ) async {
+    if (await target.exists()) await target.rename(_accountRoot(userId).path);
+  }
+
   static final _accountName = RegExp(r'^[A-Za-z0-9_-]{1,64}$');
 
   /// The account's own identifier, used directly as a directory name.

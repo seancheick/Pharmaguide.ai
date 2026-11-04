@@ -1,13 +1,16 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:pharmaguide/services/auth/account_storage.dart';
+import 'package:pharmaguide/services/auth/pg_auth_service.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 /// Stores recent search queries in SharedPreferences, per account: they are the
 /// user's health-interest queries (ADR-013).
 /// Max 10 entries, most recent first. Deduplicates on add.
 class RecentSearchesService {
-  RecentSearchesService({String scope = AccountStorage.guestScope})
-    : _key = keyFor(scope);
+  RecentSearchesService({
+    String scope = AccountStorage.guestScope,
+    this.beforeAccess,
+  }) : _key = keyFor(scope);
 
   static const legacyKey = 'recent_searches';
   static const _maxEntries = 10;
@@ -15,6 +18,7 @@ class RecentSearchesService {
   static String keyFor(String scope) => '$legacyKey.$scope';
 
   final String _key;
+  final Future<void> Function()? beforeAccess;
 
   /// The pre-ADR-013 shared list goes to whoever owned the shared database.
   static Future<void> adoptLegacyEntries(String scope) =>
@@ -46,6 +50,7 @@ class RecentSearchesService {
   /// dropped. Cheap cleanup for lists persisted before commit-only
   /// recording landed.
   Future<List<String>> getRecent() async {
+    await beforeAccess?.call();
     final prefs = await SharedPreferences.getInstance();
     final raw = prefs.getStringList(_key) ?? [];
     return _collapsePrefixes(raw);
@@ -71,6 +76,7 @@ class RecentSearchesService {
   Future<void> addSearch(String query) async {
     final trimmed = query.trim();
     if (trimmed.isEmpty) return;
+    await beforeAccess?.call();
 
     final prefs = await SharedPreferences.getInstance();
     final current = prefs.getStringList(_key) ?? [];
@@ -91,6 +97,7 @@ class RecentSearchesService {
 
   /// Remove a specific search from history.
   Future<void> removeSearch(String query) async {
+    await beforeAccess?.call();
     final prefs = await SharedPreferences.getInstance();
     final current = prefs.getStringList(_key) ?? [];
     current.remove(query);
@@ -99,12 +106,20 @@ class RecentSearchesService {
 
   /// Clear all recent searches.
   Future<void> clearAll() async {
+    await beforeAccess?.call();
     final prefs = await SharedPreferences.getInstance();
     await prefs.remove(_key);
   }
 }
 
 /// Riverpod provider for [RecentSearchesService].
-final recentSearchesServiceProvider = Provider<RecentSearchesService>(
-  (ref) => RecentSearchesService(scope: ref.watch(activeAccountProvider).scope),
-);
+final recentSearchesServiceProvider = Provider<RecentSearchesService>((ref) {
+  final scope = ref.watch(activeAccountProvider).scope;
+  final guard = ref.watch(accountSwitchGuardProvider);
+  return RecentSearchesService(
+    scope: scope,
+    beforeAccess: guard == null
+        ? null
+        : () => guard.prepareRecentSearches(scope),
+  );
+});

@@ -6,6 +6,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:path/path.dart' as p;
 import 'package:path_provider/path_provider.dart';
 import 'package:pharmaguide/services/auth/account_database_cipher.dart';
+import 'package:pharmaguide/services/product_submission_draft_store.dart';
 
 /// Whose health data this provider tree is showing, and where it lives.
 class ActiveAccount {
@@ -117,14 +118,26 @@ class AccountStorage {
     await folder.delete(recursive: true);
   }
 
-  /// The step that decides an erase: the whole folder moves in one rename. If
-  /// this throws, nothing changed. Once it returns, the data can't be opened
-  /// again, and [sweepErased] removes it, even after a kill.
+  /// Quarantines the old drafts, then commits the erase with one account-folder
+  /// rename. A failure restores drafts when possible and leaves the account
+  /// locked. A kill before that rename leaves the quarantine in the locked
+  /// folder for the next attempt; after it, [sweepErased] finishes deletion.
   Future<void> moveAsideToErase(String? uid) async {
     final folder = await _folderFor(uid);
     if (!await folder.exists()) return;
     final stamp = DateTime.now().microsecondsSinceEpoch;
-    await folder.rename('${folder.path}$_erasingMark$stamp');
+    final drafts = await ProductSubmissionDraftStore.open(_supportDirectory);
+    final quarantined = Directory(p.join(folder.path, 'submission_drafts'));
+    final draftsDone = File(p.join(folder.path, 'drafts$_doneMark'));
+    try {
+      if (uid != null) await drafts.quarantineAccount(uid, quarantined);
+      await draftsDone.create();
+      await folder.rename('${folder.path}$_erasingMark$stamp');
+    } on Object {
+      if (uid != null) await drafts.restoreQuarantinedAccount(uid, quarantined);
+      if (await draftsDone.exists()) await draftsDone.delete();
+      rethrow;
+    }
   }
 
   /// Removes every folder [moveAsideToErase] left. The health data goes first,
@@ -155,6 +168,28 @@ class AccountStorage {
         }
       }
     }
+  }
+
+  /// Finishes one reset step before its consumer may create new data. Other
+  /// pending steps stay untouched; only the ordinary sweep removes the marker.
+  Future<bool> finishErasedStep(
+    String? uid,
+    String step,
+    Future<bool> Function() run,
+  ) async {
+    final users = (await _folderFor(null)).parent;
+    if (!await users.exists()) return true;
+    final prefix = '${scopeFor(uid)}$_erasingMark';
+    await for (final entry in users.list()) {
+      if (entry is! Directory || !p.basename(entry.path).startsWith(prefix)) {
+        continue;
+      }
+      final done = File(p.join(entry.path, '$step$_doneMark'));
+      if (await done.exists()) continue;
+      if (!await run()) return false;
+      await done.create();
+    }
+    return true;
   }
 
   Future<void> _runOwed(

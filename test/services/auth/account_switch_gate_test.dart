@@ -163,6 +163,7 @@ void main() {
     AccountSwitchGuard guardWith({
       Future<UserDatabase> Function(String path)? open,
       Future<void> Function()? onOwnerChange,
+      Future<void> Function()? onNotificationCleanup,
       String? Function()? readSessionUid,
       bool askBeforeAdoptingGuest = false,
       Future<void> Function()? clearSharedReport,
@@ -175,6 +176,7 @@ void main() {
         storage: storageOverride ?? storage,
         openDatabase: open ?? (path) async => UserDatabase.open(path),
         onOwnerChange: onOwnerChange,
+        onNotificationCleanup: onNotificationCleanup,
         readSessionUid: readSessionUid,
         askBeforeAdoptingGuest: askBeforeAdoptingGuest,
         clearSharedReport: clearSharedReport ?? () async {},
@@ -612,6 +614,7 @@ void main() {
       /// A guard on the locked account, its data on disk.
       Future<AccountSwitchGuard> lockedGuard({
         Future<void> Function()? onOwnerChange,
+        Future<void> Function()? onNotificationCleanup,
         Future<bool> Function(String uid)? purgeAiShare,
         Future<void> Function(String uid)? onAccountRemoved,
         String? Function()? readSessionUid,
@@ -626,6 +629,7 @@ void main() {
         final guard = guardWith(
           open: openOrFail,
           onOwnerChange: onOwnerChange,
+          onNotificationCleanup: onNotificationCleanup,
           purgeAiShare: purgeAiShare,
           onAccountRemoved: onAccountRemoved,
           readSessionUid: readSessionUid,
@@ -708,7 +712,11 @@ void main() {
         expect(await _names(guard.database!), isEmpty);
         expect(guard.canStartOver, isFalse);
         expect(await RecentSearchesService(scope: scope).getRecent(), isEmpty);
-        expect(removed, [_a]);
+        expect(
+          removed,
+          isEmpty,
+          reason: 'drafts were quarantined before reopening',
+        );
       });
 
       test('another account and the guest keep everything', () async {
@@ -918,7 +926,11 @@ void main() {
           );
           await guard.boot(sessionUid: _a);
 
-          expect(removed, [_a]);
+          expect(
+            removed,
+            isEmpty,
+            reason: 'drafts were quarantined before reopening',
+          );
           expect(ownerWork, 1, reason: 'their scheduled reminders');
           expect(purges, 1);
         },
@@ -945,7 +957,11 @@ void main() {
           );
           await guard.boot(sessionUid: null);
 
-          expect(removed, [_a]);
+          expect(
+            removed,
+            isEmpty,
+            reason: 'drafts were quarantined before reopening',
+          );
           expect(purges, 0);
           expect(erasingFolders(), hasLength(1), reason: 'still owed');
         },
@@ -968,46 +984,65 @@ void main() {
           );
           await guard.boot(sessionUid: _b);
 
-          expect(removed, [_b]);
+          expect(
+            removed,
+            isEmpty,
+            reason: 'drafts were quarantined before reopening',
+          );
         },
       );
 
-      test(
-        'failed reminder cleanup remains owed until a later launch',
-        () async {
-          var fail = true;
-          var attempts = 0;
-          Future<void> reminders() async {
-            attempts++;
-            if (fail) throw StateError('OS cancellation failed');
-          }
+      test('failed reminder cleanup remains owed until a later launch', () async {
+        var fail = true;
+        var attempts = 0;
+        Future<void> reminders() async {
+          attempts++;
+          if (fail) throw StateError('OS cancellation failed');
+        }
 
-          final guard = await lockedGuard(onOwnerChange: reminders);
-          failure = null;
-          await guard.startOver();
-          expect(await _names(guard.database!), isEmpty);
-          expect(erasingFolders(), hasLength(1));
-          await guard.close();
+        final guard = await lockedGuard(onNotificationCleanup: reminders);
+        failure = null;
+        await guard.startOver();
+        expect(await _names(guard.database!), isEmpty);
+        expect(erasingFolders(), hasLength(1));
+        await _addMedication(guard.database!, 'New medication');
+        await (guard.database!.update(
+          guard.database!.userStacksLocal,
+        )).write(const UserStacksLocalCompanion(reminderMinutes: Value(480)));
+        await guard.close();
 
-          fail = false;
-          final next = guardWith(open: openOrFail, onOwnerChange: reminders);
-          await next.boot(sessionUid: _a);
-          expect(attempts, 2);
-          expect(erasingFolders(), isEmpty);
-        },
-      );
+        fail = false;
+        final next = guardWith(
+          open: openOrFail,
+          onNotificationCleanup: reminders,
+        );
+        await next.boot(sessionUid: _a);
+        expect(attempts, 2);
+        final saved = await next.database!
+            .select(next.database!.userStacksLocal)
+            .getSingle();
+        expect(saved.name, 'New medication');
+        expect(
+          saved.reminderMinutes,
+          480,
+          reason:
+              'the mounted reminder provider reschedules from this row after boot cleanup',
+        );
+        expect(erasingFolders(), isEmpty);
+      });
 
       test(
         'a cleanup that fails still removes the health data, and retries next launch',
         () async {
           var fail = true;
           final removed = <String>[];
-          Future<void> drafts(String uid) async {
-            if (fail) throw StateError('drafts failed');
+          Future<bool> purge(String uid) async {
+            if (fail) throw StateError('purge failed');
             removed.add(uid);
+            return true;
           }
 
-          final guard = await lockedGuard(onAccountRemoved: drafts);
+          final guard = await lockedGuard(purgeAiShare: purge);
           final scope = guard.account.scope;
           File(
             p.join(p.dirname(databaseOf(_a).path), 'attachments', 'scan.jpg'),
@@ -1028,7 +1063,7 @@ void main() {
           await guard.close();
 
           fail = false;
-          final next = guardWith(open: openOrFail, onAccountRemoved: drafts);
+          final next = guardWith(open: openOrFail, purgeAiShare: purge);
           await next.boot(sessionUid: _a);
 
           expect(removed, [_a]);
@@ -1101,14 +1136,15 @@ void main() {
           var fail = true;
           var ownerWork = 0;
           final removed = <String>[];
-          Future<void> drafts(String uid) async {
-            if (fail) throw StateError('drafts failed');
+          Future<bool> purge(String uid) async {
+            if (fail) throw StateError('purge failed');
             removed.add(uid);
+            return true;
           }
 
           final guard = await lockedGuard(
             onOwnerChange: () async => ownerWork++,
-            onAccountRemoved: drafts,
+            purgeAiShare: purge,
           );
           final scope = guard.account.scope;
           failure = null;
@@ -1123,7 +1159,7 @@ void main() {
           final next = guardWith(
             open: openOrFail,
             onOwnerChange: () async => ownerWork++,
-            onAccountRemoved: drafts,
+            purgeAiShare: purge,
           );
           await next.boot(sessionUid: _a);
 
@@ -1135,6 +1171,310 @@ void main() {
           expect(erasingFolders(), isEmpty);
         },
       );
+
+      test(
+        'pending reset purge preserves consent recorded after reopening',
+        () async {
+          var online = false;
+          final prefs = AiSharePrefsStore(MemoryPreferencesStore());
+          final snapshots = <String>{'old snapshot'};
+          AccountSwitchGuard? sharingGuard;
+          final client = AiShareSnapshotClient(
+            beforeCreate: () => sharingGuard!.prepareAiShare(),
+            isSignedIn: () => true,
+            currentUserId: () => _a,
+            invoke: (_, body) async {
+              if (!online) throw const SocketException('offline');
+              if (body['all'] == true) {
+                snapshots.clear();
+                return const AiShareInvokeResponse(status: 204, data: null);
+              }
+              snapshots.add('new snapshot');
+              return AiShareInvokeResponse(
+                status: 201,
+                data: {
+                  'snapshot_id': 'new snapshot',
+                  'expires_at': DateTime.now()
+                      .add(const Duration(days: 1))
+                      .toIso8601String(),
+                },
+              );
+            },
+          );
+          Future<bool> purge(String uid) =>
+              purgeAiShareData(prefs: prefs, snapshots: client, onlyFor: uid);
+          final guard = await lockedGuard(purgeAiShare: purge);
+          sharingGuard = guard;
+          failure = null;
+          await guard.startOver();
+          Future<AiShareSnapshotReceipt> share() => client.upload(
+            connectionId: 'connection',
+            scope: const AiShareScope(supplementNames: true),
+            stackRevision: 'new',
+            ttlHours: 24,
+            payload: 'new consent',
+            generatedAt: DateTime.now(),
+          );
+          await expectLater(share(), throwsStateError);
+          expect(snapshots, {'old snapshot'});
+          online = true;
+          await share().timeout(const Duration(seconds: 3));
+          await prefs.recordShare(
+            'connection',
+            const AiShareScope(supplementNames: true),
+            24,
+          );
+          await guard.close();
+          final next = guardWith(open: openOrFail, purgeAiShare: purge);
+          await next.boot(sessionUid: _a);
+          expect(snapshots, contains('new snapshot'));
+          expect(await prefs.read('connection'), isNotNull);
+        },
+      );
+
+      test(
+        'reset quarantines old drafts before new captures can be saved',
+        () async {
+          final root = Directory(
+            p.join(support.path, 'product_submission_drafts', _a),
+          );
+          final old = File(p.join(root.path, 'old', 'photo.jpg'))
+            ..createSync(recursive: true);
+          final guard = await lockedGuard(
+            onAccountRemoved: (_) async {
+              throw const FileSystemException('old cleanup failed');
+            },
+          );
+          failure = null;
+          await guard.startOver();
+          expect(old.existsSync(), isFalse);
+          final fresh = File(p.join(root.path, 'fresh', 'photo.jpg'))
+            ..createSync(recursive: true);
+          await guard.close();
+          final next = guardWith(
+            open: openOrFail,
+            onAccountRemoved: (_) async {
+              await root.delete(recursive: true);
+            },
+          );
+          await next.boot(sessionUid: _a);
+          expect(fresh.existsSync(), isTrue);
+        },
+      );
+
+      test('legacy reset marker never deletes ambiguous live drafts', () async {
+        final seed = guardWith(open: openOrFail);
+        await seed.boot(sessionUid: _a);
+        await seed.close();
+        final folder = Directory(p.dirname(databaseOf(_a).path));
+        await folder.rename('${folder.path}.erasing.123');
+        final fresh = File(
+          p.join(
+            support.path,
+            'product_submission_drafts',
+            _a,
+            'fresh',
+            'photo.jpg',
+          ),
+        )..createSync(recursive: true);
+        var removed = false;
+        final next = guardWith(
+          open: openOrFail,
+          onAccountRemoved: (_) async {
+            removed = true;
+            await fresh.parent.delete(recursive: true);
+          },
+        );
+        await next.boot(sessionUid: _a);
+        expect(fresh.existsSync(), isTrue);
+        expect(removed, isFalse);
+        expect(
+          erasingFolders(),
+          hasLength(1),
+          reason: 'legacy obligation is retained',
+        );
+      });
+
+      test('purge stays pending if local opt-in cancellation fails', () async {
+        final store = MemoryPreferencesStore();
+        final prefs = AiSharePrefsStore(store);
+        await prefs.recordShare(
+          'old',
+          const AiShareScope(supplementNames: true),
+          24,
+          keepUpdated: true,
+        );
+        store.beforeWrite = () async =>
+            throw StateError('preferences unavailable');
+        var remoteDeletes = 0;
+        final result = await purgeAiShareData(
+          prefs: prefs,
+          snapshots: AiShareSnapshotClient(
+            isSignedIn: () => true,
+            currentUserId: () => _a,
+            invoke: (_, body) async {
+              remoteDeletes++;
+              return const AiShareInvokeResponse(status: 204, data: null);
+            },
+          ),
+          onlyFor: _a,
+        );
+        expect(remoteDeletes, 1, reason: 'still attempt the remote purge');
+        expect(result, isFalse, reason: 'old opt-in still needs cancellation');
+      });
+
+      test(
+        'draft quarantine rolls back if reset cannot be committed',
+        () async {
+          final guard = await lockedGuard();
+          final old = File(
+            p.join(
+              support.path,
+              'product_submission_drafts',
+              _a,
+              'old',
+              'photo.jpg',
+            ),
+          )..createSync(recursive: true);
+          // Refuse writing the completion marker after the drafts have moved.
+          Directory(
+            p.join(p.dirname(databaseOf(_a).path), 'drafts.done'),
+          ).createSync();
+          await expectLater(
+            guard.startOver(),
+            throwsA(isA<FileSystemException>()),
+          );
+          expect(old.existsSync(), isTrue);
+          expect(databaseOf(_a).existsSync(), isTrue);
+          expect(guard.canStartOver, isTrue);
+        },
+      );
+
+      test(
+        'a kill after draft quarantine resumes without touching new captures',
+        () async {
+          final guard = await lockedGuard();
+          final folder = Directory(p.dirname(databaseOf(_a).path));
+          final old = File(
+            p.join(
+              support.path,
+              'product_submission_drafts',
+              _a,
+              'old',
+              'photo.jpg',
+            ),
+          )..createSync(recursive: true);
+          // Crash boundary: the old draft directory moved, account rename not yet done.
+          await old.parent.parent.rename(
+            p.join(folder.path, 'submission_drafts'),
+          );
+          failure = null;
+          await guard.startOver();
+          expect(guard.database, isNotNull);
+          expect(erasingFolders(), isEmpty);
+          expect(
+            Directory(p.join(folder.path, 'submission_drafts')).existsSync(),
+            isFalse,
+          );
+        },
+      );
+
+      test('sharing cleanup refuses a different live session', () async {
+        String? session = _a;
+        var purges = 0;
+        final guard = await lockedGuard(
+          readSessionUid: () => session,
+          purgeAiShare: (_) async {
+            purges++;
+            return false;
+          },
+        );
+        failure = null;
+        await guard.startOver();
+        final before = purges;
+        session = _b;
+        await expectLater(guard.prepareAiShare(), throwsStateError);
+        expect(purges, before);
+      });
+
+      test(
+        'sharing finishes every own tombstone and leaves another scope alone',
+        () async {
+          for (final uid in [_a, _a, _b]) {
+            await storage.databasePathFor(uid);
+            await storage.moveAsideToErase(uid);
+          }
+          var calls = 0;
+          expect(
+            await storage.finishErasedStep(_a, 'ai_share', () async {
+              calls++;
+              return true;
+            }),
+            isTrue,
+          );
+          expect(calls, 2);
+          for (final folder in erasingFolders()) {
+            final own = p
+                .basename(folder.path)
+                .startsWith(AccountStorage.scopeFor(_a));
+            expect(
+              File(p.join(folder.path, 'ai_share.done')).existsSync(),
+              own,
+            );
+          }
+        },
+      );
+
+      test(
+        'searches saved after a reset survive its deferred cleanup',
+        () async {
+          final guard = await lockedGuard(
+            storageOverride: _UndeletableStorage(
+              supportDirectory: () async => support,
+              documentsDirectory: () async => documents,
+              sweepFails: true,
+            ),
+          );
+          final scope = guard.account.scope;
+          await RecentSearchesService(
+            scope: scope,
+          ).addSearch('old private search');
+          failure = null;
+          await guard.startOver();
+          final container = ProviderContainer(
+            overrides: [
+              accountSwitchGuardProvider.overrideWithValue(guard),
+              activeAccountProvider.overrideWithValue(guard.account),
+            ],
+          );
+          addTearDown(container.dispose);
+          await container
+              .read(recentSearchesServiceProvider)
+              .addSearch('new search');
+          await guard.close();
+          final next = guardWith(open: openOrFail);
+          await next.boot(sessionUid: _a);
+          expect(await RecentSearchesService(scope: scope).getRecent(), [
+            'new search',
+          ]);
+        },
+      );
+
+      test('recent-search cleanup refuses a stale account scope', () async {
+        final guard = guardWith(open: openOrFail);
+        await guard.boot(sessionUid: _a);
+        final container = ProviderContainer(
+          overrides: [
+            accountSwitchGuardProvider.overrideWithValue(guard),
+            activeAccountProvider.overrideWithValue(guard.account),
+          ],
+        );
+        addTearDown(container.dispose);
+        final stale = container.read(recentSearchesServiceProvider);
+        await signIn(guard, _b);
+        await expectLater(stale.getRecent(), throwsStateError);
+        await expectLater(stale.addSearch('wrong scope'), throwsStateError);
+      });
 
       test(
         'a purge bound to one account leaves another session alone',
