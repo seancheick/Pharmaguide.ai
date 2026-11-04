@@ -75,6 +75,7 @@ Future<ClinicianReportData> _collectClinicianReportData(Ref ref) async {
   );
   final depletionReport = await ref.read(depletionReportProvider.future);
   final doseAlerts = await ref.read(stackDoseThresholdAlertsProvider.future);
+  final doseRulesUnread = await ref.read(stackDoseRulesUnreadProvider.future);
 
   SafetyAlertMatchSet? alerts;
   try {
@@ -139,6 +140,7 @@ Future<ClinicianReportData> _collectClinicianReportData(Ref ref) async {
     regulatorySafetyAlerts: alerts?.matches ?? const [],
     alertChecksIncomplete:
         alerts == null || alerts.neverVerified || !alerts.isDeviceComplete,
+    doseRulesUnread: doseRulesUnread,
     stackSize: stack.length,
     safetyReport: safetyReport,
     recalledReport: recalledReport,

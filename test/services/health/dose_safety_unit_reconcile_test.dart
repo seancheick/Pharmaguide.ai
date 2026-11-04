@@ -182,4 +182,92 @@ void main() {
       },
     );
   });
+
+  group('a form-range row against its limit', () {
+    DoseSafety resolve(
+      double low,
+      double high, {
+      Map<String, dynamic> decision = const {},
+    }) => resolveDoseSafety(
+      ingredient: const {'standard_name': 'Vitamin E'},
+      ulAnalysis: [
+        {
+          'standard_name': 'Vitamin E',
+          'canonical_id': 'vitamin_e',
+          'dose_role': 'declared_total',
+          'skip_ul_check': false,
+          'ul_assessment_status': 'evaluated',
+          'highest_ul': 1000,
+          'ul_for_default_profile': 1000,
+          'nutrient_unit': 'mg alpha-tocopherol',
+          'converted_unit': 'mg',
+          'per_day_max': 60.3,
+          'safety_exposure': {
+            'per_day': 60.3,
+            'unit': 'mg',
+            'low_per_day': low,
+            'high_per_day': high,
+          },
+          ...decision,
+        },
+      ],
+    );
+
+    test('a low above the limit establishes the excess', () {
+      expect(resolve(1005, 1200), DoseSafety.exceedsUl);
+      expect(
+        resolve(1005, 1200, decision: const {'over_ul': false, 'pct_ul': 6.0}),
+        DoseSafety.exceedsUl,
+      );
+    });
+
+    test('a high at or below the limit rules the excess out', () {
+      expect(resolve(80, 176.3), DoseSafety.withinLimits);
+      expect(resolve(900, 1000), DoseSafety.withinLimits);
+    });
+
+    test('a range across the limit is unresolved, not within limits', () {
+      expect(resolve(26, 1776), DoseSafety.skip);
+      expect(
+        resolve(26, 1776, decision: const {'over_ul': false, 'pct_ul': 2.6}),
+        DoseSafety.skip,
+      );
+    });
+
+    test('a pipeline excess is never reduced by the range', () {
+      expect(
+        resolve(26, 1776, decision: const {'over_ul': true}),
+        DoseSafety.exceedsUl,
+      );
+    });
+
+    test('a pipeline skip stays neutral whatever the range says', () {
+      expect(
+        resolve(1005, 1200, decision: const {'skip_ul_check': true}),
+        DoseSafety.skip,
+      );
+    });
+
+    test('a malformed range is unresolved despite a structured decision', () {
+      expect(
+        resolveDoseSafety(
+          ingredient: const {'standard_name': 'Vitamin E'},
+          ulAnalysis: [
+            {
+              'standard_name': 'Vitamin E',
+              'highest_ul': 1000,
+              'over_ul': false,
+              'pct_ul': 6.0,
+              'safety_exposure': {
+                'per_day': 60.3,
+                'unit': 'mg',
+                'low_per_day': 80.0,
+              },
+            },
+          ],
+        ),
+        DoseSafety.skip,
+      );
+    });
+  });
 }

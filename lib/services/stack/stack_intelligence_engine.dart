@@ -74,6 +74,7 @@ class StackIntelligenceEngine {
     List<({SafetyAlert alert, String dsldId})> regulatorySafetyAlerts =
         const [],
     bool alertChecksIncomplete = false,
+    bool doseRulesUnread = false,
   }) {
     return StackHealthSnapshot(
       intelligence: diagnoseFromReports(
@@ -84,6 +85,7 @@ class StackIntelligenceEngine {
         doseThresholdAlerts: doseThresholdAlerts,
         regulatorySafetyAlerts: regulatorySafetyAlerts,
         alertChecksIncomplete: alertChecksIncomplete,
+        doseRulesUnread: doseRulesUnread,
       ),
       reviewSignals: List<ClinicalSignal>.unmodifiable(
         allClinicalSignalsFrom(
@@ -92,7 +94,10 @@ class StackIntelligenceEngine {
           regulatorySafetyAlerts: regulatorySafetyAlerts,
         ),
       ),
-      checksIncomplete: safetyReport.checksIncomplete || alertChecksIncomplete,
+      checksIncomplete:
+          safetyReport.checksIncomplete ||
+          alertChecksIncomplete ||
+          doseRulesUnread,
       coverageIncomplete: safetyReport.coverageIncomplete,
       catalogProductSkipped: safetyReport.catalogProductSkipped,
       limitedDataProducts: safetyReport.limitedDataProducts,
@@ -114,6 +119,7 @@ class StackIntelligenceEngine {
     List<({SafetyAlert alert, String dsldId})> regulatorySafetyAlerts =
         const [],
     bool alertChecksIncomplete = false,
+    bool doseRulesUnread = false,
   }) {
     final safetyScore = const StackSafetyScorer().compute(
       issues: _interactionIssuesForScore(safetyReport),
@@ -129,6 +135,7 @@ class StackIntelligenceEngine {
       doseThresholdAlerts: doseThresholdAlerts,
       regulatorySafetyAlerts: regulatorySafetyAlerts,
       alertChecksIncomplete: alertChecksIncomplete,
+      doseRulesUnread: doseRulesUnread,
     );
   }
 
@@ -153,13 +160,26 @@ class StackIntelligenceEngine {
     List<({SafetyAlert alert, String dsldId})> regulatorySafetyAlerts =
         const [],
     bool alertChecksIncomplete = false,
+    bool doseRulesUnread = false,
   }) {
     final hasBannedIngredient = recalledReport.violations.any(
       (violation) => violation.isBannedSubstance,
     );
-    final hasRecalledIngredient = !recalledReport.isEmpty;
+    // One recall, one rank: it is Unsafe whether the catalog or the feed
+    // reports it. Other feed alerts keep the rank of their own severity.
+    final hasRecalledIngredient =
+        !recalledReport.isEmpty ||
+        regulatorySafetyAlerts.any(
+          (match) =>
+              match.alert.eventType == SafetyAlertEventType.productRecall &&
+              match.alert.disposition == SafetyAlertDisposition.block,
+        );
     final analysisIncomplete =
         alertChecksIncomplete ||
+        doseRulesUnread ||
+        safetyReport.nutrientStatuses.any(
+          (status) => status.ulAssessmentIndeterminate,
+        ) ||
         safetyReport.checksIncomplete ||
         safetyReport.coverageIncomplete ||
         recalledReport.incomplete ||
@@ -206,13 +226,14 @@ class StackIntelligenceEngine {
     final nonInteractionAlertCount = regulatorySafetyAlerts
         .where((match) => match.alert.interaction == null)
         .length;
+    // A dose threshold is counted as a nutrient warning below, not here.
     // Condition/allergen guidance affects the safety tier, but is not a
     // supplement or medication interaction.
     final interactionCount =
-        contraindicatedCount +
-        avoidCount +
-        cautionCount +
-        monitorCount -
+        countBy(Severity.contraindicated) +
+        countBy(Severity.avoid) +
+        countBy(Severity.caution) +
+        countBy(Severity.monitor) -
         nonInteractionAlertCount -
         allInteractions
             .where(

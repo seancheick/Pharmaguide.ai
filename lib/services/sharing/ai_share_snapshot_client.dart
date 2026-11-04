@@ -20,13 +20,18 @@ class AiShareSnapshotClient {
     required this.invoke,
     required this.isSignedIn,
     this.currentUserId,
+    this.beforeCreate,
   });
 
   /// Production wiring. Reads the Supabase client lazily so constructing
   /// this (for example inside `PGAuthService`) never needs Supabase ready.
-  factory AiShareSnapshotClient.production([SupabaseClient? client]) {
+  factory AiShareSnapshotClient.production([
+    SupabaseClient? client,
+    Future<void> Function()? beforeCreate,
+  ]) {
     SupabaseClient supabase() => client ?? Supabase.instance.client;
     return AiShareSnapshotClient(
+      beforeCreate: beforeCreate,
       currentUserId: () => supabase().auth.currentUser?.id,
       isSignedIn: () {
         try {
@@ -70,6 +75,9 @@ class AiShareSnapshotClient {
   invoke;
   final bool Function() isSignedIn;
   final String? Function()? currentUserId;
+  final Future<void> Function()? beforeCreate;
+
+  Future<void> prepareCreate() async => beforeCreate?.call();
 
   // All production instances share ordering, including the separate client
   // constructed by sign-out. Purge cannot finish ahead of an earlier upload.
@@ -144,6 +152,9 @@ class AiShareSnapshotClient {
       throw ArgumentError('The payload is empty.');
     }
     final owner = currentUserId?.call();
+    // Outside _ordered: finishing a reset calls this same client's delete path.
+    await prepareCreate();
+    if (currentUserId?.call() != owner) throw const AiShareNotSignedIn();
     final response = await _ordered(() async {
       if (canUpload != null && !await canUpload()) {
         throw StateError('AI share consent changed before upload.');

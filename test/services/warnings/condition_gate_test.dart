@@ -1489,4 +1489,415 @@ void main() {
 
     expect(result, isEmpty);
   });
+
+  group('a skipped row the pipeline can still read', () {
+    Map<String, dynamic> analyzed({
+      String name = 'Caffeine',
+      String path = 'ingredientRows[1]',
+      String status = 'not_applicable',
+      double perDay = 300,
+    }) => {
+      'standard_name': name,
+      'canonical_id': name.toLowerCase(),
+      'raw_source_path': path,
+      'dose_role': 'declared_total',
+      'skip_ul_check': true,
+      'skip_ul_reason': 'not_ul_applicable',
+      'ul_assessment_status': status,
+      'per_day_min': perDay,
+      'per_day_max': perDay,
+      'converted_unit': 'mg',
+      'quantity': perDay / 2,
+      'unit': 'mg',
+    };
+
+    Map<String, dynamic> raw({
+      String name = 'Caffeine',
+      String path = 'ingredientRows[1]',
+      double perDay = 300,
+    }) => {
+      'name': name,
+      'standard_name': name,
+      'canonical_id': name.toLowerCase(),
+      'raw_source_path': path,
+      'dose_role': 'declared_total',
+      'per_day_min': perDay,
+      'per_day_max': perDay,
+      'converted_unit': 'mg',
+      'quantity': perDay / 2,
+      'unit': 'mg',
+    };
+
+    Map<String, dynamic> blob(
+      List<Map<String, dynamic>> analyzedRows,
+      List<Map<String, dynamic>> rawRows,
+    ) => {
+      'ingredients': rawRows,
+      'rda_ul_data': {'analyzed_ingredients': analyzedRows},
+    };
+
+    test('no applicable UL no longer erases the daily exposure', () {
+      final result = extractIngredientDoses(blob([analyzed()], [raw()]));
+
+      expect(result['caffeine']?.value, 300);
+      expect(result['caffeine']?.unit, 'mg');
+    });
+
+    test('a total assessed within its limit keeps its exposure', () {
+      final result = extractIngredientDoses(
+        blob([analyzed(status: 'assessed_within_limit')], [raw()]),
+      );
+
+      expect(result['caffeine']?.value, 300);
+    });
+
+    test('readable rows sum and the mirror does not count again', () {
+      final result = extractIngredientDoses(
+        blob(
+          [
+            analyzed(path: 'ingredientRows[1]', perDay: 80),
+            analyzed(path: 'ingredientRows[2]', perDay: 300),
+          ],
+          [
+            raw(path: 'ingredientRows[1]', perDay: 80),
+            raw(path: 'ingredientRows[2]', perDay: 300),
+          ],
+        ),
+      );
+
+      expect(result['caffeine']?.value, 380);
+    });
+
+    test('a parent and its form count as one material, so neither is read', () {
+      // 307725: Resveratrol 100 mg with Trans-Resveratrol 90 mg nested under it.
+      final result = extractIngredientDoses(
+        blob(
+          [
+            analyzed(name: 'Resveratrol', perDay: 100),
+            analyzed(
+              name: 'Resveratrol',
+              path: 'ingredientRows[1].nestedRows[0]',
+              perDay: 90,
+            ),
+          ],
+          [
+            raw(name: 'Resveratrol', perDay: 100),
+            raw(
+              name: 'Resveratrol',
+              path: 'ingredientRows[1].nestedRows[0]',
+              perDay: 90,
+            ),
+          ],
+        ),
+      );
+
+      expect(result.containsKey('resveratrol'), isFalse);
+    });
+
+    test('caffeine nested under separate sources still sums', () {
+      // 312701: 40, 152 and 10 mg under three different plants.
+      final result = extractIngredientDoses(
+        blob(
+          [
+            analyzed(path: 'ingredientRows[5].nestedRows[0]', perDay: 40),
+            analyzed(path: 'ingredientRows[6].nestedRows[0]', perDay: 152),
+            analyzed(path: 'ingredientRows[7].nestedRows[0]', perDay: 10),
+          ],
+          [
+            raw(path: 'ingredientRows[5].nestedRows[0]', perDay: 40),
+            raw(path: 'ingredientRows[6].nestedRows[0]', perDay: 152),
+            raw(path: 'ingredientRows[7].nestedRows[0]', perDay: 10),
+          ],
+        ),
+      );
+
+      expect(result['caffeine']?.value, 202);
+    });
+
+    test('indeterminate still blocks every name it covers', () {
+      final result = extractIngredientDoses(
+        blob(
+          [
+            analyzed(status: 'indeterminate'),
+            analyzed(path: 'ingredientRows[2]'),
+          ],
+          [raw(), raw(path: 'ingredientRows[2]')],
+        ),
+      );
+
+      expect(result, isEmpty);
+    });
+
+    test('a compound duplicate does not add to the row it repeats', () {
+      final result = extractIngredientDoses(
+        blob(
+          [
+            {
+              ...analyzed(
+                name: 'Choline',
+                path: 'ingredientRows[0]',
+                perDay: 493.6,
+              ),
+              'skip_ul_reason': 'compound_duplicate_row',
+            },
+            {
+              ...analyzed(
+                name: 'Choline',
+                path: 'ingredientRows[1]',
+                perDay: 480,
+              ),
+              'skip_ul_check': false,
+              'ul_assessment_status': 'evaluated',
+            },
+          ],
+          [
+            raw(name: 'Choline', path: 'ingredientRows[0]', perDay: 493.6),
+            raw(name: 'Choline', path: 'ingredientRows[1]', perDay: 480),
+          ],
+        ),
+      );
+
+      expect(result['choline'], isNull);
+    });
+
+    test('a dose-only row with no twin reads its daily figures', () {
+      final result = extractIngredientDoses({
+        'ingredients': [
+          {
+            'name': 'Caffeine',
+            'canonical_id': 'caffeine',
+            'raw_source_path': 'ingredientRows[14].nestedRows[1]',
+            'dose_role': 'declared_total',
+            'per_day_min': 200.0,
+            'per_day_max': 200.0,
+            'converted_unit': 'mg',
+          },
+        ],
+      });
+
+      expect(result['caffeine']?.value, 200);
+    });
+  });
+
+  group('hasUnreadDoseRule', () {
+    Map<String, dynamic> card({
+      String status = 'amount_unknown',
+      String disposition = 'suppress',
+      List<String> conditions = const ['high_cholesterol'],
+      List<String> drugClasses = const [],
+      List<String> excludedConditions = const [],
+      String gateType = 'condition',
+      String? direction,
+    }) => {
+      'type': 'interaction',
+      'severity': 'caution',
+      'title': 'Niacin / dose',
+      'ingredient_name': 'Niacin',
+      'condition_ids': conditions,
+      'drug_class_ids': drugClasses,
+      'direction': ?direction,
+      'profile_gate': {
+        'gate_type': gateType,
+        'requires': {
+          'conditions_any': conditions,
+          'drug_classes_any': drugClasses,
+          'profile_flags_any': const <String>[],
+        },
+        'excludes': {
+          'conditions_any': excludedConditions,
+          'drug_classes_any': const <String>[],
+          'profile_flags_any': const <String>[],
+          'product_forms_any': const <String>[],
+          'nutrient_forms_any': const <String>[],
+        },
+        'dose': {
+          'basis': 'per_day',
+          'comparator': '>=',
+          'value': 1500,
+          'unit': 'mg',
+          'severity_if_met': 'caution',
+          'severity_if_not_met': 'informational',
+        },
+      },
+      'dose_decision': {
+        'clinical_severity': 'caution',
+        'evaluation_status': status,
+        'consumer_disposition': disposition,
+      },
+    };
+
+    bool unread(
+      Map<String, dynamic> row, {
+      Set<String> conditions = const {},
+      Set<String> drugClasses = const {},
+    }) => hasUnreadDoseRule(
+      parseBlobWarnings({
+        'warnings': [row],
+      }),
+      userConditions: conditions,
+      userDrugClasses: drugClasses,
+    );
+
+    test('an unread amount on a rule that applies to this person counts', () {
+      expect(unread(card(), conditions: {'high_cholesterol'}), isTrue);
+      expect(
+        unread(card(status: 'form_unknown'), conditions: {'high_cholesterol'}),
+        isTrue,
+      );
+      expect(
+        unread(
+          card(conditions: const [], drugClasses: const ['statins']),
+          drugClasses: {'statins'},
+        ),
+        isTrue,
+      );
+    });
+
+    test('the same rule on someone it does not apply to does not count', () {
+      expect(unread(card(), conditions: {'pregnancy'}), isFalse);
+      expect(unread(card()), isFalse);
+      expect(
+        unread(
+          card(excludedConditions: const ['pregnancy']),
+          conditions: {'high_cholesterol', 'pregnancy'},
+        ),
+        isFalse,
+      );
+    });
+
+    test('a rule with no target applies to every viewer', () {
+      final untargeted = card(conditions: const [], gateType: 'dose');
+
+      expect(unread(untargeted), isTrue);
+      expect(unread(untargeted, conditions: {'pregnancy'}), isTrue);
+    });
+
+    test('an amount that was read does not count', () {
+      expect(
+        unread(
+          card(status: 'below_threshold'),
+          conditions: {'high_cholesterol'},
+        ),
+        isFalse,
+      );
+      expect(
+        unread(card(status: 'excluded_form'), conditions: {'high_cholesterol'}),
+        isFalse,
+      );
+    });
+
+    test('a beta-carotene rule the pipeline suppressed adds nothing', () {
+      Map<String, dynamic> carotene(String disposition) => {
+        ...card(
+          status: 'amount_unknown',
+          disposition: disposition,
+          conditions: const ['current_smoker'],
+        ),
+        'ingredient_canonical_id': 'beta_carotene',
+      };
+
+      for (final cardsShown in [true, false]) {
+        expect(
+          hasUnreadDoseRule(
+            parseBlobWarnings({
+              'warnings': [carotene('suppress')],
+            }),
+            userConditions: {'current_smoker'},
+            userDrugClasses: const {},
+            cardsShown: cardsShown,
+          ),
+          isFalse,
+        );
+      }
+      expect(
+        hasUnreadDoseRule(
+          parseBlobWarnings({
+            'warnings': [carotene('review')],
+          }),
+          userConditions: {'current_smoker'},
+          userDrugClasses: const {},
+          cardsShown: false,
+        ),
+        isTrue,
+      );
+    });
+
+    group('a beta-carotene form the pipeline could not settle', () {
+      Map<String, dynamic> carotene({String gateType = 'condition'}) => {
+        ...card(
+          status: 'form_unknown',
+          conditions: const ['current_smoker'],
+          gateType: gateType,
+        ),
+        'ingredient_canonical_id': 'beta_carotene',
+      };
+
+      bool read(Map<String, dynamic> row, Set<String> conditions) =>
+          hasUnreadDoseRule(
+            parseBlobWarnings({
+              'warnings': [row],
+            }),
+            userConditions: conditions,
+            userDrugClasses: const {},
+          );
+
+      test('stays unread for the person its condition card names', () {
+        expect(read(carotene(), {'current_smoker'}), isTrue);
+        expect(read(carotene(), const {}), isFalse);
+      });
+
+      test('its every-viewer dose card adds nothing, for anyone', () {
+        final dose = {
+          ...carotene(gateType: 'dose'),
+          'profile_gate': {
+            'gate_type': 'dose',
+            'requires': <String, Object?>{},
+            'excludes': <String, Object?>{},
+          },
+        };
+
+        expect(read(dose, const {}), isFalse);
+        expect(read(dose, {'current_smoker'}), isFalse);
+      });
+    });
+
+    test('a surface that shows no card counts one the pipeline kept', () {
+      for (final disposition in ['review', 'block', 'suppress']) {
+        expect(
+          hasUnreadDoseRule(
+            parseBlobWarnings({
+              'warnings': [
+                card(status: 'form_unknown', disposition: disposition),
+              ],
+            }),
+            userConditions: {'high_cholesterol'},
+            userDrugClasses: const {},
+            cardsShown: false,
+          ),
+          isTrue,
+          reason: disposition,
+        );
+      }
+    });
+
+    test('a card already on screen does not count', () {
+      for (final disposition in ['review', 'block']) {
+        expect(
+          unread(
+            card(disposition: disposition),
+            conditions: {'high_cholesterol'},
+          ),
+          isFalse,
+          reason: disposition,
+        );
+      }
+    });
+
+    test('a beneficial rule does not count', () {
+      expect(
+        unread(card(direction: 'beneficial'), conditions: {'high_cholesterol'}),
+        isFalse,
+      );
+    });
+  });
 }

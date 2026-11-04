@@ -68,11 +68,13 @@ void main() {
     probeRemoteRelease: () async => remote,
     verificationKeys: keys ?? signer.keys,
     appVersion: '1.0.0',
-    stageCatalog: ({required version, storagePath, expectedSha256}) async {
-      if (stageError != null) throw stageError;
-      calls?.add('catalog $version $storagePath $expectedSha256');
-      return File('catalog.staging');
-    },
+    stageCatalog:
+        ({required version, storagePath, expectedSha256, compressed}) async {
+          if (stageError != null) throw stageError;
+          if (compressed != null) calls?.add('compressed ${compressed.path}');
+          calls?.add('catalog $version $storagePath $expectedSha256');
+          return File('catalog.staging');
+        },
     stageRules:
         ({
           required version,
@@ -292,6 +294,46 @@ void main() {
       expect(candidate.minRulesVersion, '1.0.15');
     });
 
+    test('a signed compressed entry reaches the download', () async {
+      final calls = <String>[];
+      final text = signer.manifestText(
+        sequence: 10,
+        catalogVersion: _catalog,
+        catalogSha256: _shaA,
+        minRulesVersion: '1.0.15',
+        compressed: {
+          'decompressed_size': 66,
+          'path': 'v$_catalog/pharmaguide_core.db.gz',
+          'sha256': _shaB,
+          'size': 8,
+        },
+      );
+      await stage(
+        RemoteRelease(
+          dbVersion: _catalog,
+          checksum: 'sha256:$_shaA',
+          signedRelease: text,
+          releaseSignature: await signer.sign(text),
+        ),
+        installed,
+        calls: calls,
+      );
+      expect(calls, [
+        'compressed v$_catalog/pharmaguide_core.db.gz',
+        'catalog $_catalog v$_catalog/pharmaguide_core.db $_shaA',
+      ]);
+    });
+
+    test('a phone with no room reports and changes nothing', () async {
+      final result = await stage(
+        await signed(),
+        installed,
+        calls: [],
+        stageError: const CatalogStorageFullException(),
+      );
+      expect(result, isA<CatalogStageFailed>());
+    });
+
     test('a rules-only release downloads only the rules', () async {
       final calls = <String>[];
       final result = await stage(
@@ -427,8 +469,9 @@ void main() {
     test('a thrown probe is unreachable', () async {
       final svc = CatalogUpdaterService(
         probeRemoteRelease: () async => throw const SocketException('offline'),
-        stageCatalog: ({required version, storagePath, expectedSha256}) =>
-            throw StateError('must not download'),
+        stageCatalog:
+            ({required version, storagePath, expectedSha256, compressed}) =>
+                throw StateError('must not download'),
         stageRules:
             ({
               required version,

@@ -96,6 +96,7 @@ import 'package:pharmaguide/services/perf_trace_service.dart';
 import 'package:pharmaguide/services/health/rda_reference_contract.dart';
 import 'package:pharmaguide/services/sharing/share_service.dart';
 import 'package:pharmaguide/services/warnings/interaction_warning.dart';
+import 'package:pharmaguide/services/warnings/condition_gate.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 /// Null-preserving safe map read for detail-blob fields. Uses the shared
@@ -722,9 +723,23 @@ class _ProductDetailV2ConnectedState
     final profileRelevanceSummary = buildProfileRelevanceSummary(
       fitResult: fitResult,
       topGoalLabel: topGoalLabelFromFit(fitResult),
+      // A threshold that applies here and couldn't be read is no all-clear.
       checksFailed:
           personalizedChecksFailed ||
-          !catalogProductCanReportNoConcerns(_product),
+          !catalogProductCanReportNoConcerns(_product) ||
+          hasUnreadDoseRule(
+            [
+              ...personalizedWarnings,
+              ...profileRuleWarnings,
+              ...parseBlobWarnings(
+                detailBlob,
+                productStatus: _product?.productStatus,
+              ),
+            ],
+            userConditions: userConditionsSet,
+            userDrugClasses: userDrugClassesSet,
+            userProfileFlags: userProfileFlagsSet,
+          ),
       warnings: partitionedWarnings.profile,
       interactionHint: interactionHint,
       matchedAllergens: matchedAllergens,

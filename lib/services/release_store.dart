@@ -1675,6 +1675,72 @@ Future<void> flushDirectory(String path) async {
   }
 }
 
+typedef _StatvfsNative = Int32 Function(Pointer<Utf8>, Pointer<Void>);
+typedef _StatvfsDart = int Function(Pointer<Utf8>, Pointer<Void>);
+
+/// `struct statvfs` up to `f_bavail` on iOS and macOS, where counts are 32-bit.
+final class _StatvfsDarwin extends Struct {
+  @UnsignedLong()
+  external int bsize;
+  @UnsignedLong()
+  external int frsize;
+  @Uint32()
+  external int blocks;
+  @Uint32()
+  external int bfree;
+  @Uint32()
+  external int bavail;
+}
+
+/// The same on Android and Linux, where counts are `unsigned long`.
+final class _StatvfsLinux extends Struct {
+  @UnsignedLong()
+  external int bsize;
+  @UnsignedLong()
+  external int frsize;
+  @UnsignedLong()
+  external int blocks;
+  @UnsignedLong()
+  external int bfree;
+  @UnsignedLong()
+  external int bavail;
+}
+
+/// Bytes an app can write on the disk holding [path], or null if that can't be
+/// read. A check that doesn't know goes ahead, because a failed write leaves the
+/// current release in place. On iOS this doesn't count space the system could
+/// purge, so it can refuse an update it could have fit; the phone keeps its
+/// release and asks again.
+Future<int?> availableDiskBytes(String path) async {
+  final darwin = Platform.isIOS || Platform.isMacOS;
+  if (!darwin && !Platform.isAndroid && !Platform.isLinux) return null;
+  // Larger than the struct on every platform: only its first fields are named.
+  final buffer = calloc<Uint8>(512);
+  final native = path.toNativeUtf8();
+  try {
+    final statvfs = DynamicLibrary.process()
+        .lookupFunction<_StatvfsNative, _StatvfsDart>('statvfs');
+    if (statvfs(native, buffer.cast()) != 0) return null;
+    final int blockSize;
+    final int blocks;
+    if (darwin) {
+      final stat = buffer.cast<_StatvfsDarwin>().ref;
+      blockSize = stat.frsize;
+      blocks = stat.bavail;
+    } else {
+      final stat = buffer.cast<_StatvfsLinux>().ref;
+      blockSize = stat.frsize;
+      blocks = stat.bavail;
+    }
+    return blockSize > 0 ? blockSize * blocks : null;
+  } on Object {
+    return null;
+  } finally {
+    calloc.free(buffer);
+    malloc.free(native);
+  }
+}
+
 /// Busy, locked, I/O, full disk and can't-open say something about this moment.
 /// Anything else, such as corrupt bytes or a failed validation, is about the
 /// release itself.

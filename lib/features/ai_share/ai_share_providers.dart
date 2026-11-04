@@ -1,3 +1,4 @@
+import 'package:pharmaguide/services/auth/pg_auth_service.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:pharmaguide/features/ai_share/ai_connections_repository.dart';
 import 'package:pharmaguide/services/settings/app_preferences.dart';
@@ -6,7 +7,10 @@ import 'package:pharmaguide/services/sharing/ai_share_snapshot_client.dart';
 
 /// The only client that uploads an AI-share snapshot (ADR-009).
 final aiShareSnapshotClientProvider = Provider<AiShareSnapshotClient>(
-  (ref) => AiShareSnapshotClient.production(),
+  (ref) => AiShareSnapshotClient.production(
+    null,
+    ref.watch(accountSwitchGuardProvider)?.prepareAiShare,
+  ),
 );
 
 /// Device-only record of what was shared per connection and the opt-in.

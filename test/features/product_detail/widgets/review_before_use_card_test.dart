@@ -19,6 +19,7 @@ import 'package:pharmaguide/services/fit_score/e1_dosage_calculator.dart';
 import 'package:pharmaguide/services/fit_score/e2a_goal_calculator.dart';
 import 'package:pharmaguide/services/fit_score/e2b_age_calculator.dart';
 import 'package:pharmaguide/services/fit_score/fit_score_service.dart';
+import 'package:pharmaguide/services/stack/stack_nutrient_models.dart';
 
 FitScoreResult _fit({
   FitAssessmentState state = FitAssessmentState.limitedFit,
@@ -734,6 +735,32 @@ void main() {
         );
 
         expect(summary.status, ProfileRelevanceStatus.notRecommended);
+      });
+
+      test('a limit that could not be compared is no all-clear', () {
+        final summary = _summary(
+          fitResult: const FitScoreResult(
+            missingFields: [],
+            state: FitAssessmentState.limitedFit,
+            mappedCoverage: 1,
+            nutrientStatuses: [
+              NutrientStatus(
+                total: NutrientTotal(
+                  canonicalId: 'vitamin_e',
+                  displayName: 'Vitamin E',
+                  totalAmount: 670,
+                  unit: 'mg',
+                  contributions: [],
+                ),
+                tier: NutrientTier.adequate,
+                ulAssessmentIndeterminate: true,
+              ),
+            ],
+          ),
+        );
+
+        expect(summary.status, ProfileRelevanceStatus.coverageLimited);
+        expect(summary.headline, 'Profile assessment unavailable');
       });
 
       test('a failed check with nothing found is no all-clear', () {

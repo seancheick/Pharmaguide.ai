@@ -1,5 +1,5 @@
 import 'package:flutter_test/flutter_test.dart';
-import 'package:pharmaguide/core/constants/consumer_disposition.dart';
+import 'package:pharmaguide/services/signals/clinical_signal_envelope.dart';
 import 'package:pharmaguide/core/constants/severity.dart';
 import 'package:pharmaguide/services/stack/stack_dose_summer.dart';
 import 'package:pharmaguide/services/stack/stack_nutrient_models.dart';
@@ -31,6 +31,348 @@ const _surgeryOmegaRule = StackDoseThresholdRule(
 
 void main() {
   group('StackDoseSummer', () {
+    test(
+      'strict exported lower bound remains a single truthful Stack signal',
+      () {
+        final warning = InteractionWarning.fromJson({
+          'type': 'interaction',
+          'title': 'Caffeine / pregnancy',
+          'severity': 'avoid',
+          'evidence_level': 'established',
+          'ingredient_name': 'Caffeine',
+          'ingredient_canonical_id': 'caffeine',
+          'condition_ids': ['pregnancy'],
+          'dose_decision': {
+            'evaluation_status': 'above_threshold',
+            'consumer_disposition': 'review',
+            'clinical_severity': 'avoid',
+            'evaluated_daily_amount': 200,
+            'evaluated_unit': 'mg',
+            'threshold': 200,
+            'threshold_unit': 'mg',
+            'comparator': '>',
+            'decision_rule': {
+              'threshold': 200,
+              'threshold_unit': 'mg',
+              'comparator': '>',
+              'consumer_disposition_if_met': 'review',
+              'consumer_disposition_if_not_met': 'suppress',
+            },
+          },
+        });
+        final rules = stackDoseThresholdRulesFromWarnings(
+          [warning, warning],
+          stackEntryId: 'a',
+          productName: 'Caffeine',
+        );
+        final alerts = const StackDoseSummer()
+            .thresholdAlertsFromNormalizedRules(
+              userConditions: ['pregnancy'],
+              thresholdRules: rules,
+            );
+        expect(alerts, hasLength(1));
+        expect(
+          alerts.single.totalValue,
+          200,
+          reason: 'never invent an epsilon',
+        );
+        expect(alerts.single.contributions, hasLength(1));
+        expect(alerts.single.clinicalSeverity, Severity.avoid);
+        expect(
+          ClinicalSignal.fromDoseThreshold(alerts.single).body,
+          contains('more than 200 mg'),
+        );
+      },
+    );
+
+    test('whole beta-carotene amount keeps only selected exposure bounds', () {
+      const rules = [
+        StackDoseThresholdRule(
+          conditionId: 'smoker',
+          canonicalId: 'beta_carotene',
+          thresholdValue: 200,
+          thresholdUnit: 'mcg rae',
+          comparator: '>',
+          normalizedDailyAmount: 200,
+          normalizedDailyUnit: 'mcg rae',
+          normalizedAmountIsStrictLowerBound: true,
+          sourceStackEntryId: 'a',
+        ),
+        StackDoseThresholdRule(
+          conditionId: 'smoker',
+          canonicalId: 'beta_carotene',
+          thresholdValue: 100,
+          thresholdUnit: 'mcg rae',
+          comparator: '>',
+          normalizedDailyAmount: 300,
+          normalizedDailyUnit: 'mcg rae',
+          sourceStackEntryId: 'a',
+        ),
+        StackDoseThresholdRule(
+          conditionId: 'smoker',
+          canonicalId: 'beta_carotene',
+          thresholdValue: 200,
+          thresholdUnit: 'mcg rae',
+          comparator: '>',
+          normalizedDailyAmount: 100,
+          normalizedDailyUnit: 'mcg rae',
+          sourceStackEntryId: 'b',
+        ),
+      ];
+      final alerts = const StackDoseSummer().thresholdAlertsFromNormalizedRules(
+        userConditions: ['smoker'],
+        thresholdRules: rules,
+      );
+      final higher = alerts.singleWhere((alert) => alert.thresholdValue == 200);
+      expect(higher.totalValue, 400);
+      expect(higher.contributions, hasLength(2));
+      expect(
+        higher.totalIsStrictLowerBound,
+        isFalse,
+        reason: 'larger exact amount replaces the same product lower bound',
+      );
+    });
+
+    for (final exactAmount in [200.0, 300.0]) {
+      for (final reverse in [false, true]) {
+        test(
+          'merged bound follows selected amount $exactAmount reverse=$reverse',
+          () {
+            InteractionWarning warning(double amount, bool strict) =>
+                InteractionWarning(
+                  severity: Severity.avoid,
+                  evidenceLevel: EvidenceLevel.established,
+                  title: 'Caffeine',
+                  mechanism: '',
+                  management: '',
+                  ingredientName: 'Caffeine',
+                  ingredientCanonicalId: 'caffeine',
+                  conditionIds: const ['pregnancy'],
+                  doseDecision: DoseDecision(
+                    evaluationStatus: strict || amount > 200
+                        ? 'above_threshold'
+                        : 'below_threshold',
+                    consumerDisposition: strict || amount > 200
+                        ? 'review'
+                        : 'suppress',
+                    evaluatedDailyAmount: amount,
+                    evaluatedUnit: 'mg',
+                    threshold: 200,
+                    thresholdUnit: 'mg',
+                    comparator: '>',
+                    decisionRule: const DoseDecisionRule(
+                      threshold: 200,
+                      thresholdUnit: 'mg',
+                      comparator: '>',
+                      consumerDispositionIfMet: 'review',
+                    ),
+                  ),
+                );
+            final warnings = [warning(200, true), warning(exactAmount, false)];
+            final rules = stackDoseThresholdRulesFromWarnings(
+              reverse ? warnings.reversed : warnings,
+              stackEntryId: 'one',
+            );
+            expect(rules, hasLength(1));
+            expect(rules.single.normalizedDailyAmount, exactAmount);
+            expect(
+              rules.single.normalizedAmountIsStrictLowerBound,
+              exactAmount == 200,
+            );
+            final alerts = const StackDoseSummer()
+                .thresholdAlertsFromNormalizedRules(
+                  userConditions: ['pregnancy'],
+                  thresholdRules: rules,
+                );
+            expect(alerts, hasLength(1));
+            expect(alerts.single.contributions, hasLength(1));
+            expect(alerts.single.totalIsStrictLowerBound, exactAmount == 200);
+          },
+        );
+      }
+    }
+
+    for (final control in [
+      (
+        status: 'below_threshold',
+        disposition: 'suppress',
+        amount: 200.0,
+        comparator: '>',
+      ),
+      (
+        status: 'form_unknown',
+        disposition: 'review',
+        amount: 200.0,
+        comparator: '>',
+      ),
+      (
+        status: 'amount_unknown',
+        disposition: 'review',
+        amount: 200.0,
+        comparator: '>',
+      ),
+      (
+        status: 'above_threshold',
+        disposition: 'suppress',
+        amount: 200.0,
+        comparator: '>',
+      ),
+      (
+        status: 'above_threshold',
+        disposition: 'review',
+        amount: 100.0,
+        comparator: '>',
+      ),
+      (
+        status: 'above_threshold',
+        disposition: 'review',
+        amount: 200.0,
+        comparator: '<',
+      ),
+      (
+        status: 'above_threshold',
+        disposition: 'review',
+        amount: 200.0,
+        comparator: '==',
+      ),
+    ]) {
+      test('does not infer strict exposure from $control', () {
+        final rules = stackDoseThresholdRulesFromWarnings([
+          InteractionWarning(
+            severity: Severity.avoid,
+            evidenceLevel: EvidenceLevel.established,
+            title: 'Caffeine',
+            mechanism: '',
+            management: '',
+            ingredientName: 'Caffeine',
+            ingredientCanonicalId: 'caffeine',
+            conditionIds: const ['pregnancy'],
+            doseDecision: DoseDecision(
+              evaluationStatus: control.status,
+              consumerDisposition: control.disposition,
+              evaluatedDailyAmount: control.amount,
+              evaluatedUnit: 'mg',
+              threshold: 200,
+              thresholdUnit: 'mg',
+              comparator: control.comparator,
+              decisionRule: DoseDecisionRule(
+                threshold: 200,
+                thresholdUnit: 'mg',
+                comparator: control.comparator,
+                consumerDispositionIfMet: 'review',
+                consumerDispositionIfNotMet: 'suppress',
+              ),
+            ),
+          ),
+        ], stackEntryId: 'a');
+        expect(rules.single.normalizedAmountIsStrictLowerBound, isFalse);
+        if (control.comparator == '>') {
+          expect(
+            const StackDoseSummer().thresholdAlertsFromNormalizedRules(
+              userConditions: ['pregnancy'],
+              thresholdRules: rules,
+            ),
+            isEmpty,
+          );
+        }
+      });
+    }
+
+    test(
+      'adds exact amounts to an authored strict bound without inventing a point',
+      () {
+        const rules = [
+          StackDoseThresholdRule(
+            conditionId: 'pregnancy',
+            canonicalId: 'caffeine',
+            thresholdValue: 200,
+            thresholdUnit: 'mg',
+            comparator: '>',
+            normalizedDailyAmount: 200,
+            normalizedDailyUnit: 'mg',
+            normalizedAmountIsStrictLowerBound: true,
+            sourceStackEntryId: 'a',
+          ),
+          StackDoseThresholdRule(
+            conditionId: 'pregnancy',
+            canonicalId: 'caffeine',
+            thresholdValue: 200,
+            thresholdUnit: 'mg',
+            comparator: '>',
+            normalizedDailyAmount: 100,
+            normalizedDailyUnit: 'mg',
+            sourceStackEntryId: 'b',
+          ),
+        ];
+        final alerts = const StackDoseSummer()
+            .thresholdAlertsFromNormalizedRules(
+              userConditions: ['pregnancy'],
+              thresholdRules: rules,
+            );
+        expect(alerts, hasLength(1));
+        expect(alerts.single.totalValue, 300);
+        expect(
+          ClinicalSignal.fromDoseThreshold(alerts.single).body,
+          contains('more than 300 mg'),
+        );
+        expect(
+          const StackDoseSummer().thresholdAlertsFromNormalizedRules(
+            userConditions: ['heart_disease'],
+            thresholdRules: rules,
+          ),
+          isEmpty,
+        );
+      },
+    );
+
+    for (final proof in [
+      (threshold: null, unit: 'mg', comparator: '>'),
+      (threshold: 100.0, unit: 'mg', comparator: '>'),
+      (threshold: 200.0, unit: null, comparator: '>'),
+      (threshold: 200.0, unit: 'g', comparator: '>'),
+      (threshold: 200.0, unit: 'mg', comparator: null),
+      (threshold: 200.0, unit: 'mg', comparator: '>='),
+    ]) {
+      test('strict proof requires the same assessed rule $proof', () {
+        final rules = stackDoseThresholdRulesFromWarnings([
+          InteractionWarning(
+            severity: Severity.avoid,
+            evidenceLevel: EvidenceLevel.established,
+            title: 'Caffeine',
+            mechanism: '',
+            management: '',
+            ingredientName: 'Caffeine',
+            ingredientCanonicalId: 'caffeine',
+            conditionIds: const ['pregnancy'],
+            doseDecision: DoseDecision(
+              evaluationStatus: 'above_threshold',
+              consumerDisposition: 'review',
+              evaluatedDailyAmount: 200,
+              evaluatedUnit: 'mg',
+              threshold: proof.threshold,
+              thresholdUnit: proof.unit,
+              comparator: proof.comparator,
+              decisionRule: const DoseDecisionRule(
+                threshold: 200,
+                thresholdUnit: 'mg',
+                comparator: '>',
+                consumerDispositionIfMet: 'review',
+                consumerDispositionIfNotMet: 'suppress',
+              ),
+            ),
+          ),
+        ]);
+        expect(rules.single.normalizedAmountIsStrictLowerBound, isFalse);
+        expect(
+          const StackDoseSummer().thresholdAlertsFromNormalizedRules(
+            userConditions: ['pregnancy'],
+            thresholdRules: rules,
+          ),
+          isEmpty,
+        );
+      });
+    }
+
     test('extracts stack threshold rules from emitted warning metadata', () {
       final rules = stackDoseThresholdRulesFromWarnings([
         const InteractionWarning(
@@ -172,6 +514,67 @@ void main() {
       expect(alerts.single.clinicalSeverity, Severity.caution);
       expect(alerts.single.consumerDisposition, ConsumerDisposition.review);
       expect(alerts.single.contributions, hasLength(2));
+    });
+
+    group('beta-carotene read against two lines', () {
+      StackDoseThresholdRule row(
+        String id,
+        double threshold,
+        double amount, {
+        String canonicalId = 'beta_carotene',
+      }) => StackDoseThresholdRule(
+        conditionId: 'current_smoker',
+        canonicalId: canonicalId,
+        thresholdValue: threshold,
+        thresholdUnit: 'mcg rae',
+        normalizedDailyAmount: amount,
+        normalizedDailyUnit: 'mcg rae',
+        sourceStackEntryId: id,
+        sourceProductName: id,
+      );
+
+      List<StackDoseThresholdAlert> read(List<StackDoseThresholdRule> rules) =>
+          const StackDoseSummer().thresholdAlertsFromNormalizedRules(
+            userConditions: const ['current_smoker'],
+            thresholdRules: rules,
+          );
+
+      test('every alert states the whole stack', () {
+        final alerts = read([
+          row('a', 7500, 7500),
+          row('a', 10000, 7500),
+          row('b', 10000, 14280),
+        ]);
+
+        expect(alerts, hasLength(2));
+        for (final alert in alerts) {
+          expect(alert.totalValue, 21780, reason: '${alert.thresholdValue}');
+          expect(alert.contributions.map((c) => c.stackEntryId).toSet(), {
+            'a',
+            'b',
+          });
+        }
+      });
+
+      test('a line that was not crossed stays silent', () {
+        final alerts = read([
+          row('a', 7500, 5000),
+          row('a', 10000, 5000),
+          row('b', 10000, 14280),
+        ]);
+
+        expect(alerts.map((a) => a.thresholdValue), [10000]);
+        expect(alerts.single.totalValue, 19280);
+      });
+
+      test('another nutrient keeps each line to its own rows', () {
+        final alerts = read([
+          row('a', 7500, 7500, canonicalId: 'vitamin_b3_niacin'),
+          row('b', 10000, 14280, canonicalId: 'vitamin_b3_niacin'),
+        ]);
+
+        expect(alerts.map((a) => a.totalValue), [7500, 14280]);
+      });
     });
 
     test('mixed catalog policies still aggregate one rule conservatively', () {
@@ -647,6 +1050,86 @@ void main() {
       expect(totals['caffeine']?.excludedContributions, hasLength(3));
     });
 
+    test('a skipped parent and form of one material are not added', () {
+      Map<String, dynamic> row(String path, double amount) => {
+        'canonical_id': 'elderberry',
+        'standard_name': 'Elderberry',
+        'raw_source_path': path,
+        'dose_role': 'declared_total',
+        'skip_ul_check': true,
+        'skip_ul_reason': 'not_ul_applicable',
+        'ul_assessment_status': 'not_applicable',
+        'per_day_min': amount,
+        'per_day_max': amount,
+        'converted_unit': 'mg',
+      };
+
+      // 293421: 50 mg extract with 3200 mg of raw herb nested under it.
+      final totals = const StackDoseSummer().sum([
+        StackItemNutrients(
+          stackEntryId: 'a',
+          productName: 'A',
+          ingredients: [
+            row('ingredientRows[6]', 50),
+            row('ingredientRows[6].nestedRows[0]', 3200),
+          ],
+        ),
+      ]);
+
+      expect(totals['elderberry']?.contributions, isEmpty);
+      expect(totals['elderberry']?.excludedContributions, hasLength(2));
+      expect(
+        totals['elderberry']?.excludedContributions.first.reason,
+        StackDoseExclusionReason.skippedByPipeline,
+      );
+    });
+
+    test('a skipped row the pipeline can read joins the total', () {
+      final totals = const StackDoseSummer().sum([
+        const StackItemNutrients(
+          stackEntryId: 'a',
+          productName: 'Readable',
+          ingredients: [
+            {
+              'standard_name': 'Caffeine',
+              'dose_role': 'declared_total',
+              'skip_ul_check': true,
+              'ul_assessment_status': 'not_applicable',
+              'per_day_min': 300.0,
+              'per_day_max': 300.0,
+              'converted_unit': 'mg',
+            },
+          ],
+        ),
+      ]);
+
+      expect(totals['caffeine']?.totalValue, 300);
+      expect(totals['caffeine']?.excludedContributions, isEmpty);
+    });
+
+    test('an indeterminate row stays out and marks the total', () {
+      final totals = const StackDoseSummer().sum([
+        const StackItemNutrients(
+          stackEntryId: 'a',
+          productName: 'Unresolved',
+          ingredients: [
+            {
+              'standard_name': 'Caffeine',
+              'dose_role': 'declared_total',
+              'skip_ul_check': true,
+              'ul_assessment_status': 'indeterminate',
+              'per_day_min': 300.0,
+              'per_day_max': 300.0,
+              'converted_unit': 'mg',
+            },
+          ],
+        ),
+      ]);
+
+      expect(totals['caffeine']?.totalValue, 0);
+      expect(totals['caffeine']?.excludedContributions, hasLength(1));
+    });
+
     test('flags cumulative condition thresholds across products', () {
       const summer = StackDoseSummer();
       final totals = summer.sum([
@@ -796,6 +1279,469 @@ void main() {
       expect(alerts.single.canonicalId, 'omega_3');
       expect(alerts.single.totalValue, 3200);
       expect(alerts.single.contributions, hasLength(1));
+    });
+  });
+
+  group('cards for one rule on one product', () {
+    const summer = StackDoseSummer();
+
+    InteractionWarning card(
+      num? amount, {
+      String unreadDisposition = 'review',
+    }) => InteractionWarning.fromJson({
+      'type': 'interaction',
+      'severity': 'caution',
+      'title': 'Vitamin A / smokers',
+      'ingredient_name': 'Vitamin A',
+      'ingredient_canonical_id': 'beta_carotene',
+      'condition_ids': ['current_smoker'],
+      'dose_decision': {
+        'clinical_severity': 'caution',
+        'evaluation_status': amount == null
+            ? 'amount_unknown'
+            : 'below_threshold',
+        'consumer_disposition': amount == null ? unreadDisposition : 'suppress',
+        'evaluated_daily_amount': amount,
+        'evaluated_unit': amount == null ? null : 'mcg rae',
+        'decision_rule': {
+          'threshold': 10000,
+          'threshold_unit': 'mcg rae',
+          'comparator': '>=',
+          'consumer_disposition_if_met': 'review',
+          'consumer_disposition_if_not_met': 'suppress',
+        },
+      },
+    });
+
+    List<StackDoseThresholdRule> rules(List<InteractionWarning> cards) =>
+        stackDoseThresholdRulesFromWarnings(
+          cards,
+          stackEntryId: 'a',
+          productName: 'A',
+        );
+
+    test('the card with an amount wins whichever comes first', () {
+      for (final cards in [
+        [card(null), card(4500)],
+        [card(4500), card(null)],
+      ]) {
+        final result = rules(cards);
+
+        expect(result, hasLength(1));
+        expect(result.single.normalizedDailyAmount, 4500);
+        expect(result.single.normalizedDailyUnit, 'mcg rae');
+        expect(result.single.amountUnresolved, isTrue);
+      }
+    });
+
+    test('of two amounts the larger stands, and nothing is unresolved', () {
+      final result = rules([card(86), card(4500)]);
+
+      expect(result.single.normalizedDailyAmount, 4500);
+      expect(result.single.amountUnresolved, isFalse);
+    });
+
+    test('a card with no amount alone carries none and stays unresolved', () {
+      final result = rules([card(null), card(null)]);
+
+      expect(result.single.normalizedDailyAmount, isNull);
+      expect(result.single.amountUnresolved, isTrue);
+    });
+
+    test('a numeric zero was read, so nothing is unresolved', () {
+      for (final cards in [
+        [card(0), card(4500)],
+        [card(4500), card(0)],
+        [card(0), card(0)],
+      ]) {
+        expect(rules(cards).single.amountUnresolved, isFalse);
+      }
+      expect(rules([card(0), card(4500)]).single.normalizedDailyAmount, 4500);
+    });
+
+    test('a card the pipeline suppressed adds nothing to the amount', () {
+      final suppressed = card(null, unreadDisposition: 'suppress');
+
+      expect(rules([suppressed]), isEmpty);
+      expect(rules([suppressed, card(4500)]).single.amountUnresolved, isFalse);
+    });
+
+    test('220806 + 178431 stays 12,000 and keeps the unresolved mark', () {
+      final alerts = summer.thresholdAlertsFromNormalizedRules(
+        userConditions: const ['current_smoker'],
+        thresholdRules: [
+          ...stackDoseThresholdRulesFromWarnings(
+            [card(null), card(4500)],
+            stackEntryId: '220806',
+            productName: 'A',
+          ),
+          ...stackDoseThresholdRulesFromWarnings(
+            [card(7500)],
+            stackEntryId: '178431',
+            productName: 'B',
+          ),
+        ],
+      );
+
+      expect(alerts.single.totalValue, 12000);
+      expect(alerts.single.contributions, hasLength(2));
+      expect(alerts.single.isIncomplete, isTrue);
+    });
+
+    test('a whole mixed-carotenoid weight never counts as beta-carotene', () {
+      const summer = StackDoseSummer();
+      final totals = summer.sum([
+        const StackItemNutrients(
+          stackEntryId: 'a',
+          productName: 'Blend',
+          ingredients: [
+            {
+              'canonical_id': 'mixed_carotenoids',
+              'standard_name': 'Mixed Carotenoids',
+              'dose_role': 'declared_total',
+              'per_day_min': 30000.0,
+              'per_day_max': 30000.0,
+              'converted_unit': 'mcg RAE',
+            },
+            {
+              'canonical_id': 'carotenoid_blend',
+              'standard_name': 'Proprietary Mixed Carotenoid Blend',
+              'dose_role': 'declared_total',
+              'per_day_min': 30000.0,
+              'per_day_max': 30000.0,
+              'converted_unit': 'mcg RAE',
+            },
+          ],
+        ),
+      ]);
+
+      final alerts = summer.thresholdAlerts(
+        totals: totals,
+        userConditions: const ['current_smoker'],
+        thresholdRules: const [
+          StackDoseThresholdRule(
+            conditionId: 'current_smoker',
+            canonicalId: 'beta_carotene',
+            thresholdValue: 7500,
+            thresholdUnit: 'mcg rae',
+          ),
+        ],
+      );
+
+      expect(totals.containsKey('beta_carotene'), isFalse);
+      expect(alerts, isEmpty);
+    });
+
+    test('with every amount read the alert is complete', () {
+      final alerts = summer.thresholdAlertsFromNormalizedRules(
+        userConditions: const ['current_smoker'],
+        thresholdRules: [
+          ...stackDoseThresholdRulesFromWarnings(
+            [card(4500)],
+            stackEntryId: 'a',
+            productName: 'A',
+          ),
+          ...stackDoseThresholdRulesFromWarnings(
+            [card(7500)],
+            stackEntryId: 'b',
+            productName: 'B',
+          ),
+        ],
+      );
+
+      expect(alerts.single.totalValue, 12000);
+      expect(alerts.single.isIncomplete, isFalse);
+    });
+  });
+
+  group('betaCaroteneStackCardAlert', () {
+    const summer = StackDoseSummer();
+    const riskFactors = [
+      'asbestos_exposure',
+      'current_smoker',
+      'former_smoker',
+    ];
+
+    InteractionWarning doseCard({
+      num? amount,
+      String canonicalId = 'beta_carotene',
+      num threshold = 10000,
+      String comparator = '>=',
+      List<String> conditionIds = riskFactors,
+      List<String> requiredConditions = const [],
+      String dispositionIfMet = 'review',
+    }) => InteractionWarning.fromJson({
+      'type': 'interaction',
+      'severity': 'informational',
+      'title': 'Vitamin A / dose',
+      'ingredient_name': 'Vitamin A',
+      'ingredient_canonical_id': canonicalId,
+      'condition_ids': conditionIds,
+      'profile_gate': {
+        'gate_type': 'dose',
+        'requires': {'conditions_any': requiredConditions},
+        'dose': {'severity_if_met': 'caution'},
+      },
+      'dose_decision': {
+        'clinical_severity': 'informational',
+        'evaluation_status': amount == null
+            ? 'amount_unknown'
+            : 'below_threshold',
+        'consumer_disposition': 'suppress',
+        'evaluated_daily_amount': amount,
+        'evaluated_unit': amount == null ? null : 'mcg rae',
+        'threshold': threshold,
+        'threshold_unit': 'mcg rae',
+        'comparator': comparator,
+        'decision_rule': {
+          'threshold': threshold,
+          'threshold_unit': 'mcg rae',
+          'comparator': comparator,
+          'consumer_disposition_if_met': dispositionIfMet,
+          'consumer_disposition_if_not_met': 'suppress',
+        },
+      },
+    });
+
+    ({
+      String stackEntryId,
+      String productName,
+      Iterable<InteractionWarning> warnings,
+    })
+    product(String id, List<InteractionWarning> warnings) =>
+        (stackEntryId: id, productName: id, warnings: warnings);
+
+    test('two products crossing 20 mg show the approved wording verbatim', () {
+      final alert = summer.betaCaroteneStackCardAlert(
+        userConditions: const [],
+        products: [
+          product('a', [doseCard(amount: 7500)]),
+          product('b', [doseCard(amount: 7500)]),
+        ],
+      );
+
+      expect(alert, isNotNull);
+      expect(alert!.totalValue, 15000);
+      expect(alert.clinicalSeverity, Severity.caution);
+      expect(alert.consumerDisposition, ConsumerDisposition.review);
+      expect(alert.isIncomplete, isFalse);
+      expect(alert.contributions, hasLength(2));
+      expect(
+        ClinicalSignal.fromDoseThreshold(alert).body,
+        'Your stack supplies 20 mg or more of beta-carotene a day. At similar '
+        'doses it raised lung cancer risk in smokers, former smokers and '
+        'asbestos-exposed workers. Ask your doctor if any apply to you.',
+      );
+    });
+
+    group('a vitamin A row that reads only as a carotenoid mixture', () {
+      // 293269 prints Beta-Carotene and Mixed Carotenoids with no fraction, and
+      // 328639 prints Mixed Carotenoids. Both state vitamin A activity, not
+      // beta-carotene mass, so neither figure can reach the 20 mg tier.
+      Map<String, dynamic> row(num mcgRae) => {
+        'canonical_id': 'vitamin_a',
+        'standard_name': 'Vitamin A',
+        'matched_form': 'beta-carotene from mixed carotenoids',
+        'raw_source_path': 'ingredientRows[1]',
+        'dose_role': 'declared_total',
+        'skip_ul_check': true,
+        'skip_ul_reason': 'beta_carotene_no_established_ul',
+        'ul_assessment_status': 'not_applicable',
+        'per_day_min': mcgRae,
+        'per_day_max': mcgRae,
+        'converted_unit': 'mcg RAE',
+      };
+
+      test('its activity figure is no beta-carotene total', () {
+        final totals = summer.sum([
+          for (final (id, mcgRae) in const [('293269', 7000), ('328639', 9000)])
+            StackItemNutrients(
+              stackEntryId: id,
+              productName: id,
+              ingredients: [row(mcgRae)],
+            ),
+        ]);
+
+        expect(totals.containsKey('beta_carotene'), isFalse);
+      });
+
+      test('a card naming vitamin A adds nothing, however large', () {
+        final alert = summer.betaCaroteneStackCardAlert(
+          userConditions: const [],
+          products: [
+            product('293269', [
+              doseCard(amount: 7000, canonicalId: 'vitamin_a'),
+            ]),
+            product('328639', [
+              doseCard(amount: 9000, canonicalId: 'vitamin_a'),
+            ]),
+          ],
+        );
+
+        expect(alert, isNull);
+      });
+
+      test('a card with no usable amount makes no card and no figure', () {
+        final alert = summer.betaCaroteneStackCardAlert(
+          userConditions: const [],
+          products: [
+            product('293269', [doseCard()]),
+            product('328639', [doseCard()]),
+          ],
+        );
+
+        expect(alert, isNull);
+      });
+    });
+
+    test('exactly 20 mg shows the card and just under it does not', () {
+      expect(
+        summer.betaCaroteneStackCardAlert(
+          userConditions: const [],
+          products: [
+            product('a', [doseCard(amount: 6000)]),
+            product('b', [doseCard(amount: 4000)]),
+          ],
+        ),
+        isNotNull,
+      );
+      expect(
+        summer.betaCaroteneStackCardAlert(
+          userConditions: const [],
+          products: [
+            product('a', [doseCard(amount: 6000)]),
+            product('b', [doseCard(amount: 3999)]),
+          ],
+        ),
+        isNull,
+      );
+    });
+
+    test(
+      'any risk-factor id on the card withholds it; other conditions do not',
+      () {
+        final products = [
+          product('a', [doseCard(amount: 15000)]),
+        ];
+        for (final riskFactor in riskFactors) {
+          expect(
+            summer.betaCaroteneStackCardAlert(
+              userConditions: [riskFactor],
+              products: products,
+            ),
+            isNull,
+            reason: riskFactor,
+          );
+        }
+        expect(
+          summer.betaCaroteneStackCardAlert(
+            userConditions: const ['pregnancy'],
+            products: products,
+          ),
+          isNotNull,
+        );
+      },
+    );
+
+    test('one product counts one amount when both rules land on it', () {
+      final alert = summer.betaCaroteneStackCardAlert(
+        userConditions: const [],
+        products: [
+          product('a', [doseCard(amount: 4500), doseCard(amount: 1000)]),
+          product('b', [doseCard(amount: 5000)]),
+        ],
+      );
+
+      expect(alert, isNull);
+    });
+
+    test('an unread suppressed card adds nothing and leaves it complete', () {
+      for (final cards in [
+        [doseCard(amount: 4500), doseCard()],
+        [doseCard(), doseCard(amount: 4500)],
+      ]) {
+        final alert = summer.betaCaroteneStackCardAlert(
+          userConditions: const [],
+          products: [
+            product('a', cards),
+            product('b', [doseCard(amount: 7500)]),
+          ],
+        );
+
+        expect(alert, isNotNull);
+        expect(alert!.totalValue, 12000);
+        expect(alert.isIncomplete, isFalse);
+        expect(
+          ClinicalSignal.fromDoseThreshold(alert).body,
+          kBetaCaroteneStackCardBody,
+        );
+      }
+    });
+
+    test('only unread amounts make no claim of 20 mg', () {
+      expect(
+        summer.betaCaroteneStackCardAlert(
+          userConditions: const [],
+          products: [
+            product('a', [doseCard()]),
+          ],
+        ),
+        isNull,
+      );
+    });
+
+    test(
+      'cards other than the every-viewer 20 mg beta-carotene tier are out',
+      () {
+        for (final card in [
+          doseCard(amount: 15000, canonicalId: 'vitamin_a'),
+          doseCard(amount: 15000, conditionIds: const []),
+          doseCard(amount: 15000, threshold: 7500),
+          doseCard(amount: 15000, requiredConditions: const ['current_smoker']),
+          doseCard(amount: 15000, dispositionIfMet: 'suppress'),
+        ]) {
+          expect(
+            summer.betaCaroteneStackCardAlert(
+              userConditions: const [],
+              products: [
+                product('a', [card]),
+              ],
+            ),
+            isNull,
+          );
+        }
+      },
+    );
+
+    test(
+      'a mixture read as zero adds nothing and leaves the card complete',
+      () {
+        final alert = summer.betaCaroteneStackCardAlert(
+          userConditions: const [],
+          products: [
+            product('a', [doseCard(amount: 14280)]),
+            product('b', [doseCard(amount: 0)]),
+          ],
+        );
+
+        expect(alert, isNotNull);
+        expect(alert!.totalValue, 14280);
+        expect(alert.contributions.map((c) => c.productName), ['a']);
+        expect(alert.isIncomplete, isFalse);
+      },
+    );
+
+    test('an unknown comparator hedges instead of claiming 20 mg', () {
+      final alert = summer.betaCaroteneStackCardAlert(
+        userConditions: const [],
+        products: [
+          product('a', [doseCard(amount: 15000, comparator: '~')]),
+        ],
+      );
+
+      expect(alert, isNotNull);
+      expect(alert!.isIncomplete, isTrue);
+      expect(alert.consumerBody, isNull);
     });
   });
 }

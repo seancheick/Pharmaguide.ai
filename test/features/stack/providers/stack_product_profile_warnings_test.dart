@@ -131,6 +131,69 @@ void main() {
           as Map,
     );
   });
+  group('a dose rule this product has no number for', () {
+    Map<String, dynamic> blobWith(String status, String disposition) {
+      final rule = Map<String, dynamic>.from(
+        (sjw['warnings'] as List).cast<Map<String, dynamic>>().firstWhere(
+          (w) => (w['condition_ids'] as List?)?.contains('pregnancy') ?? false,
+        ),
+      );
+      return {
+        ...sjw,
+        'warnings': [
+          {
+            ...rule,
+            'title': 'Probe rule',
+            'ingredient_canonical_id': 'beta_carotene',
+            'severity': 'caution',
+            'display_mode_default': disposition == 'suppress'
+                ? 'suppress'
+                : 'informational',
+            'dose_decision': {
+              'clinical_severity': 'caution',
+              'consumer_disposition': disposition,
+              'evaluation_status': status,
+              'decision_rule': {
+                'basis': 'per_day',
+                'comparator': '>=',
+                'threshold': 7500.0,
+                'threshold_unit': 'mcg RAE',
+                'consumer_disposition_if_met': 'review',
+                'consumer_disposition_if_not_met': 'suppress',
+              },
+            },
+          },
+        ],
+        'warnings_profile_gated': const <Map<String, dynamic>>[],
+      };
+    }
+
+    for (final (status, disposition, unread) in const [
+      ('excluded_form', 'suppress', false),
+      ('amount_unknown', 'suppress', false),
+      ('form_unknown', 'suppress', true),
+      ('amount_unknown', 'review', true),
+      ('form_unknown', 'review', true),
+    ]) {
+      test('$status $disposition is no Stack finding', () async {
+        await reportFor(
+          blobWith(status, disposition),
+          inspect: (container, report) async {
+            expect(
+              report.stackInteractions.where(
+                (w) => w.agent2Name == 'Probe rule',
+              ),
+              isEmpty,
+            );
+            expect(
+              await container.read(stackDoseRulesUnreadProvider.future),
+              unread,
+            );
+          },
+        );
+      });
+    }
+  });
   test('frozen SJW pregnancy warning reaches combined Stack', () async {
     final report = await reportFor(sjw);
     final warnings = report.stackInteractions.where(
@@ -237,6 +300,68 @@ void main() {
       ]);
     },
   );
+  test(
+    'strict caffeine bound reaches shared Stack once with honest copy',
+    () async {
+      final warning = {
+        'type': 'interaction',
+        'severity': 'avoid',
+        'evidence_level': 'established',
+        'title': 'Caffeine / pregnancy',
+        'mechanism': 'Authored dose concern',
+        'ingredient_name': 'Caffeine',
+        'ingredient_canonical_id': 'caffeine',
+        'condition_ids': ['pregnancy'],
+        'dose_decision': {
+          'evaluation_status': 'above_threshold',
+          'consumer_disposition': 'review',
+          'clinical_severity': 'avoid',
+          'evaluated_daily_amount': 200,
+          'evaluated_unit': 'mg',
+          'threshold': 200,
+          'threshold_unit': 'mg',
+          'comparator': '>',
+          'decision_rule': {
+            'threshold': 200,
+            'threshold_unit': 'mg',
+            'comparator': '>',
+            'consumer_disposition_if_met': 'review',
+            'consumer_disposition_if_not_met': 'suppress',
+          },
+        },
+      };
+      await reportFor(
+        {
+          'warnings': [warning, warning],
+        },
+        resolvedRules: [],
+        inspect: (container, report) async {
+          final alerts = await container.read(
+            stackDoseThresholdAlertsProvider.future,
+          );
+          expect(alerts, hasLength(1));
+          final snapshot = const StackIntelligenceEngine().summarizeFromReports(
+            stackSize: 1,
+            safetyReport: report,
+            recalledReport: const RecalledIngredientsReport(violations: []),
+            synergyReport: SynergyReport.empty(),
+            doseThresholdAlerts: alerts,
+          );
+          expect(snapshot.reviewSignals, hasLength(1));
+          expect(
+            snapshot.reviewSignals.single.body,
+            contains('more than 200 mg'),
+          );
+          expect(
+            report.stackInteractions,
+            isEmpty,
+            reason: 'dose owner prevents a duplicate warning',
+          );
+        },
+      );
+    },
+  );
+
   test(
     'shared Product Detail suppression keeps benefits and no-data notes out',
     () async {

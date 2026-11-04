@@ -37,6 +37,27 @@ String normalizeDoseUnit(String raw) {
       .trim();
 }
 
+/// Whether an amount in [actual] already reads in the nutrient reference unit
+/// [expected]. An empty reference matches anything; an empty amount unit doesn't.
+///
+/// 'mcg'~'ug', 'mcg rae'~'ug rae', and 'mcg dfe'~'ug dfe' are not listed:
+/// [normalizeDoseUnit] folds the ASCII "ug" spelling to "mcg" on both sides. The
+/// entries are genuine semantic aliases (a plain mass unit standing in for a
+/// nutrient-specific form) that no normalizer can fold away.
+bool doseUnitMatchesReference(String actual, String expected) {
+  final expectedUnit = normalizeDoseUnit(expected);
+  if (expectedUnit.isEmpty) return true;
+  final actualUnit = normalizeDoseUnit(actual);
+  if (actualUnit.isEmpty) return false;
+  if (actualUnit == expectedUnit) return true;
+
+  const aliases = <String, Set<String>>{
+    'mg alpha tocopherol': {'mg alpha-tocopherol', 'mg'},
+    'mg ne': {'mg'},
+  };
+  return aliases[expectedUnit]?.contains(actualUnit) ?? false;
+}
+
 /// Grams per one unit of [unit] for the simple mass family (g / mg / mcg and
 /// their spellings), or `null` when [unit] is not a simple mass unit
 /// (e.g. `iu`, `mcg rae`, `mcg dfe` — form-dependent, never guessed here).

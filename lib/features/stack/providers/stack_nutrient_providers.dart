@@ -19,15 +19,19 @@ import 'dart:convert';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:pharmaguide/core/constants/consumer_disposition.dart';
 import 'package:pharmaguide/data/database/core_database.dart';
+import 'package:pharmaguide/data/database/user_database.dart';
 import 'package:pharmaguide/data/providers/detail_blob_provider.dart';
 import 'package:pharmaguide/data/providers/database_providers.dart';
 import 'package:pharmaguide/data/providers/reference_data_provider.dart'
     as ref_data;
+import 'package:pharmaguide/features/stack/providers/active_stack_provider.dart';
 import 'package:pharmaguide/features/profile/profile_provider.dart';
 import 'package:pharmaguide/features/product_detail/providers/profile_warning_rule_provider.dart';
 import 'package:pharmaguide/services/medications/medication_class_bridge.dart';
 import 'package:pharmaguide/services/health/product_health_facts.dart';
 import 'package:pharmaguide/services/stack/stack_dose_summer.dart';
+import 'package:pharmaguide/services/warnings/condition_gate.dart';
+import 'package:pharmaguide/services/warnings/interaction_warning.dart';
 import 'package:pharmaguide/services/stack/stack_nutrient_aggregator.dart';
 import 'package:pharmaguide/services/stack/stack_nutrient_models.dart';
 import 'package:pharmaguide/services/stack/stack_ul_checker.dart';
@@ -169,6 +173,96 @@ final stackNutrientStatusesProvider = FutureProvider<StackNutrientStatuses>((
   );
 });
 
+/// The profile's drug classes plus those of the stack's medications.
+Set<String> _activeDrugClasses(
+  ProfileState profile,
+  List<UserStacksLocalData> stackEntries,
+) {
+  final activeDrugClasses = profile.drugClasses.toSet();
+  final bridgeClassIds = <String>[];
+  for (final entry in stackEntries) {
+    if (entry.type != 'medication') continue;
+    final raw = entry.drugClassesCol;
+    if (raw == null || raw.isEmpty) continue;
+    try {
+      final decoded = jsonDecode(raw);
+      if (decoded is List) {
+        bridgeClassIds.addAll(
+          decoded
+              .map((value) => value.toString().trim())
+              .where((value) => value.isNotEmpty),
+        );
+      }
+    } on FormatException {
+      // Malformed local metadata contributes no class. The existing
+      // medication safety surface remains responsible for its diagnostics.
+    }
+  }
+  activeDrugClasses.addAll(
+    MedicationClassBridge.profileGateIdsForClasses(bridgeClassIds),
+  );
+  return activeDrugClasses;
+}
+
+/// Whether a stack product has a dose rule that applies to this person and
+/// couldn't be read ([hasUnreadDoseRule]). Stack Health reads it as an
+/// incomplete check. A product whose data can't load makes no claim here.
+final stackDoseRulesUnreadProvider = FutureProvider<bool>((ref) async {
+  final stackEntries = await ref.watch(activeStackProvider.future);
+  if (stackEntries.isEmpty) return false;
+  final profile = await ref.watch(loadedProfileProvider.future);
+  final userProfileFlags = await ref.watch(
+    evaluatorProfileFlagsProvider.future,
+  );
+  final userConditions = profile.conditionsForEvaluator.toSet();
+  final userDrugClasses = _activeDrugClasses(profile, stackEntries);
+  final products =
+      <
+        ({
+          Iterable<InteractionWarning> warnings,
+          Iterable<Map<String, dynamic>> rows,
+        })
+      >[];
+  for (final entry in stackEntries) {
+    final dsldId = entry.dsldId;
+    if (dsldId == null || dsldId.isEmpty) continue;
+    final Map<String, dynamic>? blob;
+    try {
+      blob = await ref.watch(detailBlobProvider(dsldId).future);
+    } on Object {
+      return true;
+    }
+    // Its rules can't be read, so the check can't claim to have run them.
+    if (blob == null) return true;
+    final resolvedRuleWarnings = await ref.watch(
+      profileWarningRuleWarningsProvider(dsldId).future,
+    );
+    final facts = ProductHealthFacts.fromDetailBlob(
+      blob,
+      resolvedRuleWarnings: resolvedRuleWarnings,
+    );
+    if (hasUnreadDoseRule(
+      facts.warnings,
+      userConditions: userConditions,
+      userDrugClasses: userDrugClasses,
+      userProfileFlags: userProfileFlags,
+      cardsShown: false,
+    )) {
+      return true;
+    }
+    products.add((
+      warnings: facts.warnings,
+      rows: facts.activeIngredients.isNotEmpty
+          ? facts.activeIngredients
+          : facts.nutrients,
+    ));
+  }
+  return const StackDoseSummer().betaCaroteneMaximumUnresolved(
+    userConditions: userConditions,
+    products: products,
+  );
+}, retry: (_, _) => null);
+
 final stackDoseThresholdAlertsProvider =
     FutureProvider<List<StackDoseThresholdAlert>>((ref) async {
       final userDb = ref.watch(userDatabaseProvider);
@@ -179,35 +273,18 @@ final stackDoseThresholdAlertsProvider =
       if (stackEntries.isEmpty) {
         return const <StackDoseThresholdAlert>[];
       }
-      final activeDrugClasses = profile.drugClasses.toSet();
-      final bridgeClassIds = <String>[];
-      for (final entry in stackEntries) {
-        if (entry.type != 'medication') continue;
-        final raw = entry.drugClassesCol;
-        if (raw == null || raw.isEmpty) continue;
-        try {
-          final decoded = jsonDecode(raw);
-          if (decoded is List) {
-            bridgeClassIds.addAll(
-              decoded
-                  .map((value) => value.toString().trim())
-                  .where((value) => value.isNotEmpty),
-            );
-          }
-        } on FormatException {
-          // Malformed local metadata contributes no class. The existing
-          // medication safety surface remains responsible for its diagnostics.
-        }
-      }
-      activeDrugClasses.addAll(
-        MedicationClassBridge.profileGateIdsForClasses(bridgeClassIds),
-      );
-      if (profile.conditions.isEmpty && activeDrugClasses.isEmpty) {
-        return const <StackDoseThresholdAlert>[];
-      }
+      final activeDrugClasses = _activeDrugClasses(profile, stackEntries);
 
       final items = <StackItemNutrients>[];
       final thresholdRules = <StackDoseThresholdRule>[];
+      final productWarnings =
+          <
+            ({
+              String stackEntryId,
+              String productName,
+              Iterable<InteractionWarning> warnings,
+            })
+          >[];
       for (final entry in stackEntries) {
         final dsldId = entry.dsldId;
         if (dsldId == null || dsldId.isEmpty) continue;
@@ -235,6 +312,11 @@ final stackDoseThresholdAlertsProvider =
           blob,
           resolvedRuleWarnings: resolvedRuleWarnings,
         );
+        productWarnings.add((
+          stackEntryId: entry.id,
+          productName: entry.name,
+          warnings: facts.warnings,
+        ));
         thresholdRules.addAll(
           stackDoseThresholdRulesFromWarnings(
             facts.warnings,
@@ -254,21 +336,25 @@ final stackDoseThresholdAlertsProvider =
         );
       }
 
-      if (thresholdRules.isEmpty) return const <StackDoseThresholdAlert>[];
-
       const summer = StackDoseSummer();
+      final betaCaroteneCard = summer.betaCaroteneStackCardAlert(
+        userConditions: profile.conditions,
+        products: productWarnings,
+      );
       final normalizedRules = thresholdRules
           .where(
             (rule) =>
-                rule.normalizedDailyAmount != null &&
-                rule.normalizedDailyUnit?.isNotEmpty == true,
+                rule.amountUnresolved ||
+                (rule.normalizedDailyAmount != null &&
+                    rule.normalizedDailyUnit?.isNotEmpty == true),
           )
           .toList(growable: false);
       final legacyRules = thresholdRules
           .where(
             (rule) =>
-                rule.normalizedDailyAmount == null ||
-                rule.normalizedDailyUnit?.isNotEmpty != true,
+                !rule.amountUnresolved &&
+                (rule.normalizedDailyAmount == null ||
+                    rule.normalizedDailyUnit?.isNotEmpty != true),
           )
           .toList(growable: false);
       final alerts = <StackDoseThresholdAlert>[
@@ -285,6 +371,7 @@ final stackDoseThresholdAlertsProvider =
             userDrugClasses: activeDrugClasses,
             thresholdRules: legacyRules,
           ),
+        ?betaCaroteneCard,
       ];
       if (alerts.length < 2) return alerts;
 
@@ -319,6 +406,11 @@ final stackDoseThresholdAlertsProvider =
           canonicalId: basis.canonicalId,
           displayName: basis.displayName,
           totalValue: basis.totalValue,
+          totalIsStrictLowerBound:
+              basis.totalIsStrictLowerBound ||
+              (existing.totalValue == alert.totalValue &&
+                  (existing.totalIsStrictLowerBound ||
+                      alert.totalIsStrictLowerBound)),
           unit: basis.unit,
           thresholdValue: basis.thresholdValue,
           thresholdUnit: basis.thresholdUnit,
@@ -327,6 +419,7 @@ final stackDoseThresholdAlertsProvider =
           isIncomplete: existing.isIncomplete || alert.isIncomplete,
           clinicalSeverity: clinicalSeverity,
           consumerDisposition: consumerDisposition,
+          consumerBody: basis.consumerBody,
         );
       }
       return byIdentity.values.toList(growable: false);

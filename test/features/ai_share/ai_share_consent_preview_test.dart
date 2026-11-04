@@ -94,6 +94,83 @@ void main() {
     });
   }
 
+  testWidgets(
+    'reset cleanup finishes before capturing the new consent revision',
+    (tester) async {
+      final prefs = AiSharePrefsStore(MemoryPreferencesStore());
+      final id = aiConnectionFixture().connectionId;
+      await prefs.recordShare(
+        id,
+        AiShareScope.detailedReport,
+        24,
+        keepUpdated: true,
+      );
+      var pendingReset = true;
+      var uploaded = false;
+      final client = AiShareSnapshotClient(
+        isSignedIn: () => true,
+        beforeCreate: () async {
+          if (!pendingReset) return;
+          await prefs.clear();
+          pendingReset = false;
+        },
+        invoke: (_, _) async {
+          uploaded = true;
+          return const AiShareInvokeResponse(
+            status: 201,
+            data: {
+              'snapshot_id': 'fresh',
+              'expires_at': '2026-12-01T00:00:00Z',
+            },
+          );
+        },
+      );
+      await tester.pumpWidget(app(client: client, preferences: prefs));
+      await tester.pumpAndSettle();
+      await tester.tap(find.byKey(const Key('ai_share_submit')));
+      await tester.pumpAndSettle();
+      expect(uploaded, isTrue);
+      final saved = await prefs.read(id);
+      expect(
+        saved,
+        isNotNull,
+        reason: 'cleanup must not invalidate the new consent',
+      );
+      expect(
+        saved!.keepUpdated,
+        isFalse,
+        reason: 'reset revoked the old opt-in',
+      );
+    },
+  );
+
+  testWidgets('leaving during reset cleanup never creates a snapshot', (
+    tester,
+  ) async {
+    final cleanup = Completer<void>();
+    var uploads = 0;
+    final client = AiShareSnapshotClient(
+      isSignedIn: () => true,
+      beforeCreate: () => cleanup.future,
+      invoke: (_, _) async {
+        uploads++;
+        return const AiShareInvokeResponse(
+          status: 201,
+          data: {'snapshot_id': 'fresh', 'expires_at': '2026-12-01T00:00:00Z'},
+        );
+      },
+    );
+    await tester.pumpWidget(app(client: client));
+    await tester.pumpAndSettle();
+    await tester.tap(find.byKey(const Key('ai_share_submit')));
+    await tester.pump();
+    await tester.pumpWidget(const SizedBox.shrink());
+    cleanup.complete();
+    await tester.pumpAndSettle();
+    expect(uploads, 0);
+    expect(tester.takeException(), isNull);
+  });
+
   testWidgets('disabled snapshot endpoint gives honest availability guidance', (
     tester,
   ) async {

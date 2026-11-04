@@ -115,11 +115,14 @@ class ProductHealthFacts {
       ];
     }
     if (activeIngredients.isNotEmpty) {
-      // A row hidden by its dose_role stays out here too: no raw row carries
-      // the role (213414: folic acid under a skipped folate total).
+      // A row hidden by its dose_role or a blocking skip stays out here too: no
+      // raw row carries either (213414: folic acid under a skipped folate
+      // total; 16730: a raw amount beside an indeterminate twin).
       final hiddenPaths = {
         for (final row in nutrients)
-          if (!isUsableDoseRow(row) && row['raw_source_path'] != null)
+          if ((!isUsableDoseRow(row) ||
+                  pipelineBlocksDoseReadOnLabel(row, nutrients)) &&
+              row['raw_source_path'] != null)
             row['raw_source_path'],
       };
       return [

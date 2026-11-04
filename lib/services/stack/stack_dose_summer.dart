@@ -7,6 +7,7 @@ import 'package:pharmaguide/services/ingredients/ingredient_canonicalizer.dart';
 import 'package:pharmaguide/services/ingredients/ingredient_row_fields.dart';
 import 'package:pharmaguide/services/stack/stack_nutrient_models.dart';
 import 'package:pharmaguide/services/warnings/interaction_warning.dart';
+import 'package:pharmaguide/services/warnings/profile_gate_evaluator.dart';
 
 List<StackDoseThresholdRule> stackDoseThresholdRulesFromWarnings(
   Iterable<InteractionWarning> warnings, {
@@ -15,11 +16,16 @@ List<StackDoseThresholdRule> stackDoseThresholdRulesFromWarnings(
 }) {
   final rules = <StackDoseThresholdRule>[];
   final seen = <String>{};
+  final decisionRuleAt = <String, int>{};
 
   for (final warning in warnings) {
     final ingredientName = warning.ingredientName?.trim();
     if (ingredientName == null || ingredientName.isEmpty) continue;
     final decision = warning.doseDecision;
+    if (decision != null &&
+        (decision.formExcluded || warning.unreadBetaCaroteneAddsNothing)) {
+      continue;
+    }
     final emittedCanonicalId = warning.ingredientCanonicalId?.trim() ?? '';
     // New declarative rules must use the pipeline-owned identity. Name-based
     // canonicalization remains only for pre-contract cached blobs.
@@ -51,31 +57,55 @@ List<StackDoseThresholdRule> stackDoseThresholdRulesFromWarnings(
         final marker =
             '${target.type}|$targetId|$canonicalId|$decisionThreshold|'
             '${decisionUnit.toLowerCase()}|$decisionComparator';
-        if (!seen.add(marker)) continue;
-        rules.add(
-          StackDoseThresholdRule(
-            conditionId: targetId,
-            targetType: target.type,
-            canonicalId: canonicalId,
-            displayName: ingredientName,
-            thresholdValue: decisionThreshold,
-            thresholdUnit: decisionUnit,
-            comparator: decisionComparator,
-            clinicalSeverity: Severity.fromString(
-              decision.clinicalSeverity ?? warning.severity.name,
-            ),
-            consumerDispositionIfMet: consumerDispositionFromWire(
-              decisionRule?.consumerDispositionIfMet,
-            ),
-            normalizedDailyAmount: decision.evaluatedDailyAmount,
-            normalizedDailyUnit: decision.evaluatedUnit,
-            sourceStackEntryId: stackEntryId,
-            sourceProductName: productName,
+        final rule = StackDoseThresholdRule(
+          conditionId: targetId,
+          targetType: target.type,
+          canonicalId: canonicalId,
+          displayName: ingredientName,
+          thresholdValue: decisionThreshold,
+          thresholdUnit: decisionUnit,
+          comparator: decisionComparator,
+          clinicalSeverity: Severity.fromString(
+            decision.clinicalSeverity ?? warning.severity.name,
           ),
+          consumerDispositionIfMet: consumerDispositionFromWire(
+            decisionRule?.consumerDispositionIfMet,
+          ),
+          // The exported amount can be an exclusive lower bound. At the
+          // exact boundary, retain the pipeline's proven strict comparison;
+          // do not replace it with an invented point amount.
+          normalizedAmountIsStrictLowerBound:
+              decision.evaluationStatus == 'above_threshold' &&
+              const {
+                'block',
+                'review',
+                'good_to_know',
+              }.contains(decision.consumerDisposition) &&
+              decisionComparator == '>' &&
+              decision.evaluatedDailyAmount == decisionThreshold &&
+              normalizeDoseUnit(decision.evaluatedUnit ?? '') ==
+                  normalizeDoseUnit(decisionUnit) &&
+              decision.threshold == decisionThreshold &&
+              normalizeDoseUnit(decision.thresholdUnit ?? '') ==
+                  normalizeDoseUnit(decisionUnit) &&
+              decision.comparator == decisionComparator,
+          normalizedDailyAmount: decision.evaluatedDailyAmount,
+          normalizedDailyUnit: decision.evaluatedUnit,
+          sourceStackEntryId: stackEntryId,
+          sourceProductName: productName,
+          amountUnresolved: decision.amountUnread,
         );
+        final at = decisionRuleAt[marker];
+        if (at == null) {
+          decisionRuleAt[marker] = rules.length;
+          rules.add(rule);
+        } else {
+          rules[at] = rules[at]._mergedWith(rule);
+        }
       }
       continue;
     }
+    if (decision != null && decision.amountUnread) continue;
 
     final rawThresholds =
         warning.doseThresholdEvaluation?['thresholds_checked'];
@@ -121,6 +151,15 @@ List<StackDoseThresholdRule> stackDoseThresholdRulesFromWarnings(
   return rules;
 }
 
+/// Approved wording, shown verbatim. Its "20 mg" is true only of the
+/// 10,000 mcg RAE tier, so the card reads that tier and no other.
+const String kBetaCaroteneStackCardBody =
+    'Your stack supplies 20 mg or more of beta-carotene a day. At similar '
+    'doses it raised lung cancer risk in smokers, former smokers and '
+    'asbestos-exposed workers. Ask your doctor if any apply to you.';
+const double _betaCaroteneCardThresholdMcgRae = 10000;
+const String _betaCaroteneCardUnit = 'mcg rae';
+
 /// Conservative stack-level ingredient dose summer.
 ///
 /// This is intentionally separate from [StackNutrientAggregator]. The nutrient
@@ -154,7 +193,7 @@ class StackDoseSummer {
 
         final unit = readDoseUnit(row);
         final displayName = readDisplayName(row) ?? keys.first;
-        final exclusionReason = _exclusionReason(row, unit);
+        final exclusionReason = _exclusionReason(row, unit, item.ingredients);
 
         for (final key in keys) {
           final total = accum.putIfAbsent(
@@ -297,12 +336,14 @@ class StackDoseSummer {
       );
       final thresholdUnit = normalizeDoseUnit(representative.thresholdUnit);
       var total = 0.0;
+      var totalIsStrictLowerBound = false;
       final contributions = <StackDoseContribution>[];
       for (final rule in rules) {
         final amount = rule.normalizedDailyAmount;
         final unit = normalizeDoseUnit(rule.normalizedDailyUnit ?? '');
         if (amount == null || amount <= 0 || unit != thresholdUnit) continue;
         total += amount;
+        totalIsStrictLowerBound |= rule.normalizedAmountIsStrictLowerBound;
         contributions.add(
           StackDoseContribution(
             stackEntryId: rule.sourceStackEntryId,
@@ -313,15 +354,61 @@ class StackDoseSummer {
         );
       }
       final comparatorKnown = _isKnownComparator(representative.comparator);
+      final thresholdMet =
+          _compareDose(
+            total,
+            representative.comparator,
+            representative.thresholdValue,
+          ) ||
+          (representative.comparator.trim() == '>' &&
+              total == representative.thresholdValue &&
+              totalIsStrictLowerBound);
       if (contributions.isEmpty ||
-          (comparatorKnown &&
-              !_compareDose(
-                total,
-                representative.comparator,
-                representative.thresholdValue,
-              )) ||
+          (comparatorKnown && !thresholdMet) ||
           !consumerDisposition.isVisible) {
         continue;
+      }
+      // A label above the higher line ships its row at that line only, but the
+      // alert states what the whole stack supplies.
+      if (representative.canonicalId == 'beta_carotene') {
+        final byEntry = <String, StackDoseContribution>{};
+        final strictByEntry = <String, bool>{};
+        for (final rule in thresholdRules) {
+          final amount = rule.normalizedDailyAmount;
+          if (rule.canonicalId != representative.canonicalId ||
+              rule.targetType != representative.targetType ||
+              rule.conditionId.trim().toLowerCase() !=
+                  representative.conditionId.trim().toLowerCase() ||
+              amount == null ||
+              amount <= 0 ||
+              normalizeDoseUnit(rule.normalizedDailyUnit ?? '') !=
+                  thresholdUnit) {
+            continue;
+          }
+          final held = byEntry[rule.sourceStackEntryId];
+          if (held == null || amount > held.amount) {
+            strictByEntry[rule.sourceStackEntryId] =
+                rule.normalizedAmountIsStrictLowerBound;
+            byEntry[rule.sourceStackEntryId] = StackDoseContribution(
+              stackEntryId: rule.sourceStackEntryId,
+              productName: rule.sourceProductName,
+              amount: amount,
+              unit: thresholdUnit,
+            );
+          } else if (amount == held.amount) {
+            strictByEntry[rule.sourceStackEntryId] =
+                strictByEntry[rule.sourceStackEntryId]! ||
+                rule.normalizedAmountIsStrictLowerBound;
+          }
+        }
+        final whole = byEntry.values.fold(0.0, (sum, c) => sum + c.amount);
+        if (whole > total) {
+          total = whole;
+          totalIsStrictLowerBound = strictByEntry.values.any((value) => value);
+          contributions
+            ..clear()
+            ..addAll(byEntry.values);
+        }
       }
       alerts.add(
         StackDoseThresholdAlert(
@@ -330,18 +417,214 @@ class StackDoseSummer {
           canonicalId: representative.canonicalId,
           displayName: representative.displayName ?? representative.canonicalId,
           totalValue: total,
+          totalIsStrictLowerBound: totalIsStrictLowerBound,
           unit: thresholdUnit,
           thresholdValue: representative.thresholdValue,
           thresholdUnit: thresholdUnit,
           comparator: representative.comparator,
           contributions: List.unmodifiable(contributions),
-          isIncomplete: !comparatorKnown,
+          isIncomplete:
+              !comparatorKnown || rules.any((rule) => rule.amountUnresolved),
           clinicalSeverity: clinicalSeverity,
           consumerDisposition: consumerDisposition,
         ),
       );
     }
     return alerts;
+  }
+
+  /// The 20 mg beta-carotene card for a stack with no risk-factor id present.
+  ///
+  /// The tier is the every-viewer `/ dose` card the pipeline ships, and a
+  /// person with one of its risk factors gets that tier as a condition alert
+  /// instead. Each product counts once: its two lung-cancer rules describe one
+  /// exposure, so their cards are not added together.
+  StackDoseThresholdAlert? betaCaroteneStackCardAlert({
+    required Iterable<String> userConditions,
+    required Iterable<
+      ({
+        String stackEntryId,
+        String productName,
+        Iterable<InteractionWarning> warnings,
+      })
+    >
+    products,
+  }) {
+    final activeConditions = userConditions
+        .map((value) => value.trim().toLowerCase())
+        .toSet();
+    final contributions = <StackDoseContribution>[];
+    var total = 0.0;
+    var hasUnread = false;
+    var severity = Severity.safe;
+    var disposition = ConsumerDisposition.suppress;
+    String? comparator;
+
+    for (final product in products) {
+      double? productAmount;
+      for (final warning in product.warnings) {
+        final decision = warning.doseDecision;
+        final rule = decision?.decisionRule;
+        final threshold = rule?.threshold ?? decision?.threshold;
+        final unit = rule?.thresholdUnit ?? decision?.thresholdUnit;
+        if (decision == null ||
+            warning.ingredientCanonicalId?.trim() != 'beta_carotene' ||
+            // A card naming no risk factors can't tell who has one.
+            warning.conditionIds.isEmpty ||
+            warning.profileGate?['gate_type'] != 'dose' ||
+            profileGateRequiresProfile(warning.profileGate) ||
+            threshold != _betaCaroteneCardThresholdMcgRae ||
+            unit == null ||
+            normalizeDoseUnit(unit) != _betaCaroteneCardUnit) {
+          continue;
+        }
+        if (warning.conditionIds.any(
+          (id) => activeConditions.contains(id.trim().toLowerCase()),
+        )) {
+          return null;
+        }
+
+        comparator ??= (rule?.comparator ?? decision.comparator)?.trim();
+        final gateDose = warning.profileGate?['dose'];
+        final severityIfMet = Severity.fromString(
+          (gateDose is Map ? gateDose['severity_if_met']?.toString() : null) ??
+              '',
+        );
+        if (severityIfMet.weight > severity.weight) severity = severityIfMet;
+        final dispositionIfMet = consumerDispositionFromWire(
+          rule?.consumerDispositionIfMet,
+        );
+        if (dispositionIfMet.rank > disposition.rank) {
+          disposition = dispositionIfMet;
+        }
+
+        final amount = decision.evaluatedDailyAmount;
+        final amountUnit = normalizeDoseUnit(decision.evaluatedUnit ?? '');
+        if (amount == null ||
+            amount < 0 ||
+            amountUnit != _betaCaroteneCardUnit) {
+          hasUnread = hasUnread || !warning.unreadBetaCaroteneAddsNothing;
+        } else if (amount > 0 &&
+            (productAmount == null || amount > productAmount)) {
+          productAmount = amount;
+        }
+      }
+      if (productAmount == null) continue;
+      total += productAmount;
+      contributions.add(
+        StackDoseContribution(
+          stackEntryId: product.stackEntryId,
+          productName: product.productName,
+          amount: productAmount,
+          unit: _betaCaroteneCardUnit,
+        ),
+      );
+    }
+
+    final readComparator = comparator ?? '';
+    final comparatorKnown = _isKnownComparator(readComparator);
+    if (contributions.isEmpty ||
+        !disposition.isVisible ||
+        (comparatorKnown &&
+            !_compareDose(
+              total,
+              readComparator,
+              _betaCaroteneCardThresholdMcgRae,
+            ))) {
+      return null;
+    }
+    return StackDoseThresholdAlert(
+      conditionId: 'unknown',
+      targetType: 'risk_status',
+      canonicalId: 'beta_carotene',
+      displayName: 'Beta-carotene',
+      totalValue: total,
+      unit: _betaCaroteneCardUnit,
+      thresholdValue: _betaCaroteneCardThresholdMcgRae,
+      thresholdUnit: _betaCaroteneCardUnit,
+      comparator: readComparator,
+      contributions: List.unmodifiable(contributions),
+      isIncomplete: hasUnread || !comparatorKnown,
+      clinicalSeverity: severity,
+      consumerDisposition: disposition,
+      consumerBody: comparatorKnown ? kBetaCaroteneStackCardBody : null,
+    );
+  }
+
+  /// Whether the most a stack's beta-carotene mixtures could hold reaches a tier
+  /// for this person that its confirmed amounts don't.
+  ///
+  /// The two stay apart: an amount on a decision is confirmed and can cross a
+  /// tier, and a mixture row's `safety_exposure` high is only the maximum, so it
+  /// can leave the check unresolved but never make an alert or a card. The
+  /// pipeline owns the conversion, and a mcg RAE row with no mass has a high of 0.
+  bool betaCaroteneMaximumUnresolved({
+    required Iterable<String> userConditions,
+    required Iterable<
+      ({
+        Iterable<InteractionWarning> warnings,
+        Iterable<Map<String, dynamic>> rows,
+      })
+    >
+    products,
+  }) {
+    final activeConditions = userConditions
+        .map((value) => value.trim().toLowerCase())
+        .toSet();
+    var maximum = 0.0;
+    final tiers = <({double threshold, String comparator})>{};
+    final confirmedByProduct =
+        <Map<({double threshold, String comparator}), double>>[];
+
+    for (final product in products) {
+      for (final row in product.rows) {
+        // Not readCanonicalId: it answers vitamin_a, the row's nutrient group.
+        if (row['canonical_id'] != 'beta_carotene' ||
+            readUlDoseUnit(row) != _betaCaroteneCardUnit) {
+          continue;
+        }
+        maximum += readUlDoseRange(row)?.high ?? 0;
+      }
+      final confirmed = <({double threshold, String comparator}), double>{};
+      for (final warning in product.warnings) {
+        final decision = warning.doseDecision;
+        final rule = decision?.decisionRule;
+        final threshold = rule?.threshold ?? decision?.threshold;
+        final unit = rule?.thresholdUnit ?? decision?.thresholdUnit;
+        final comparator = (rule?.comparator ?? decision?.comparator)?.trim();
+        if (decision == null ||
+            warning.ingredientCanonicalId?.trim() != 'beta_carotene' ||
+            !warning.conditionIds.any(
+              (id) => activeConditions.contains(id.trim().toLowerCase()),
+            ) ||
+            threshold == null ||
+            comparator == null ||
+            !_isKnownComparator(comparator) ||
+            normalizeDoseUnit(unit ?? '') != _betaCaroteneCardUnit) {
+          continue;
+        }
+        final tier = (threshold: threshold, comparator: comparator);
+        tiers.add(tier);
+        final amount = decision.evaluatedDailyAmount;
+        if (amount != null &&
+            amount > (confirmed[tier] ?? 0) &&
+            normalizeDoseUnit(decision.evaluatedUnit ?? '') ==
+                _betaCaroteneCardUnit) {
+          confirmed[tier] = amount;
+        }
+      }
+      confirmedByProduct.add(confirmed);
+    }
+
+    if (maximum <= 0) return false;
+    return tiers.any((tier) {
+      final confirmed = confirmedByProduct.fold<double>(
+        0,
+        (total, product) => total + (product[tier] ?? 0),
+      );
+      return !_compareDose(confirmed, tier.comparator, tier.threshold) &&
+          _compareDose(confirmed + maximum, tier.comparator, tier.threshold);
+    });
   }
 
   bool _compareDose(double amount, String comparator, double threshold) {
@@ -695,8 +978,9 @@ class StackDoseSummer {
   StackDoseExclusionReason? _exclusionReason(
     Map<String, dynamic> row,
     String unit,
+    List<Map<String, dynamic>> labelRows,
   ) {
-    if (row['skip_ul_check'] == true) {
+    if (pipelineBlocksDoseReadOnLabel(row, labelRows)) {
       return StackDoseExclusionReason.skippedByPipeline;
     }
     if (unit.isEmpty) return StackDoseExclusionReason.missingUnit;
@@ -781,9 +1065,11 @@ class StackDoseThresholdRule {
     this.clinicalSeverity = Severity.caution,
     this.consumerDispositionIfMet = ConsumerDisposition.review,
     this.normalizedDailyAmount,
+    this.normalizedAmountIsStrictLowerBound = false,
     this.normalizedDailyUnit,
     this.sourceStackEntryId = '',
     this.sourceProductName = '',
+    this.amountUnresolved = false,
   });
 
   final String conditionId;
@@ -799,9 +1085,67 @@ class StackDoseThresholdRule {
   final Severity clinicalSeverity;
   final ConsumerDisposition consumerDispositionIfMet;
   final double? normalizedDailyAmount;
+
+  /// Internal arithmetic metadata carried from the authored dose decision.
+  final bool normalizedAmountIsStrictLowerBound;
   final String? normalizedDailyUnit;
   final String sourceStackEntryId;
   final String sourceProductName;
+
+  /// The pipeline could not read this product's amount for this rule, on this
+  /// card or another for the same rule, so [normalizedDailyAmount] may not be
+  /// its whole exposure. Its label rows are no substitute for that amount.
+  final bool amountUnresolved;
+
+  bool get _hasAmount =>
+      (normalizedDailyAmount ?? -1) >= 0 &&
+      normalizedDailyUnit?.trim().isNotEmpty == true;
+
+  /// One product's two cards for one rule describe one exposure: the larger
+  /// amount stands, in place of adding them or keeping whichever came first.
+  StackDoseThresholdRule _mergedWith(StackDoseThresholdRule other) {
+    final sameUnit =
+        normalizeDoseUnit(normalizedDailyUnit ?? '') ==
+        normalizeDoseUnit(other.normalizedDailyUnit ?? '');
+    final amountFrom = !_hasAmount
+        ? other
+        : other._hasAmount &&
+              sameUnit &&
+              other.normalizedDailyAmount! > normalizedDailyAmount!
+        ? other
+        : this;
+    return StackDoseThresholdRule(
+      conditionId: conditionId,
+      targetType: targetType,
+      canonicalId: canonicalId,
+      displayName: displayName,
+      thresholdValue: thresholdValue,
+      thresholdUnit: thresholdUnit,
+      comparator: comparator,
+      clinicalSeverity: other.clinicalSeverity.weight > clinicalSeverity.weight
+          ? other.clinicalSeverity
+          : clinicalSeverity,
+      consumerDispositionIfMet:
+          other.consumerDispositionIfMet.rank > consumerDispositionIfMet.rank
+          ? other.consumerDispositionIfMet
+          : consumerDispositionIfMet,
+      normalizedDailyAmount: amountFrom.normalizedDailyAmount,
+      normalizedAmountIsStrictLowerBound:
+          amountFrom.normalizedAmountIsStrictLowerBound ||
+          (sameUnit &&
+              normalizedDailyAmount == other.normalizedDailyAmount &&
+              (normalizedAmountIsStrictLowerBound ||
+                  other.normalizedAmountIsStrictLowerBound)),
+      normalizedDailyUnit: amountFrom.normalizedDailyUnit,
+      sourceStackEntryId: sourceStackEntryId,
+      sourceProductName: sourceProductName,
+      amountUnresolved:
+          amountUnresolved ||
+          other.amountUnresolved ||
+          !_hasAmount ||
+          !other._hasAmount,
+    );
+  }
 }
 
 @immutable
@@ -873,6 +1217,7 @@ class StackDoseThresholdAlert {
     required this.canonicalId,
     required this.displayName,
     required this.totalValue,
+    this.totalIsStrictLowerBound = false,
     required this.unit,
     required this.thresholdValue,
     required this.thresholdUnit,
@@ -881,6 +1226,7 @@ class StackDoseThresholdAlert {
     this.isIncomplete = false,
     this.clinicalSeverity = Severity.caution,
     this.consumerDisposition = ConsumerDisposition.review,
+    this.consumerBody,
   });
 
   final String conditionId;
@@ -888,6 +1234,9 @@ class StackDoseThresholdAlert {
   final String canonicalId;
   final String displayName;
   final double totalValue;
+
+  /// The actual total is strictly greater than the recorded lower bound.
+  final bool totalIsStrictLowerBound;
   final String unit;
   final double thresholdValue;
   final String thresholdUnit;
@@ -901,6 +1250,9 @@ class StackDoseThresholdAlert {
   final bool isIncomplete;
   final Severity clinicalSeverity;
   final ConsumerDisposition consumerDisposition;
+
+  /// Approved wording shown as written, in place of the generic threshold text.
+  final String? consumerBody;
 }
 
 enum StackDoseThresholdComparison { below, atOrAbove, unavailable }
