@@ -122,7 +122,7 @@ Map<String, dynamic> filterConditionSummaryByProfileGate({
         (a, b) => a.severity.weight >= b.severity.weight ? a : b,
       );
       out[conditionId] = {
-        if (entry.value case final Map value) ...value,
+        if (entry.value case final Map<dynamic, dynamic> value) ...value,
         'highest_severity': strongest.severity.name,
       };
     } else {
