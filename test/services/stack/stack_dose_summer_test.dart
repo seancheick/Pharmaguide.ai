@@ -965,6 +965,50 @@ void main() {
       expect(alerts.single.isIncomplete, isTrue);
     });
 
+    test('a whole mixed-carotenoid weight never counts as beta-carotene', () {
+      const summer = StackDoseSummer();
+      final totals = summer.sum([
+        const StackItemNutrients(
+          stackEntryId: 'a',
+          productName: 'Blend',
+          ingredients: [
+            {
+              'canonical_id': 'mixed_carotenoids',
+              'standard_name': 'Mixed Carotenoids',
+              'dose_role': 'declared_total',
+              'per_day_min': 30000.0,
+              'per_day_max': 30000.0,
+              'converted_unit': 'mcg RAE',
+            },
+            {
+              'canonical_id': 'carotenoid_blend',
+              'standard_name': 'Proprietary Mixed Carotenoid Blend',
+              'dose_role': 'declared_total',
+              'per_day_min': 30000.0,
+              'per_day_max': 30000.0,
+              'converted_unit': 'mcg RAE',
+            },
+          ],
+        ),
+      ]);
+
+      final alerts = summer.thresholdAlerts(
+        totals: totals,
+        userConditions: const ['current_smoker'],
+        thresholdRules: const [
+          StackDoseThresholdRule(
+            conditionId: 'current_smoker',
+            canonicalId: 'beta_carotene',
+            thresholdValue: 7500,
+            thresholdUnit: 'mcg rae',
+          ),
+        ],
+      );
+
+      expect(totals.containsKey('beta_carotene'), isFalse);
+      expect(alerts, isEmpty);
+    });
+
     test('with every amount read the alert is complete', () {
       final alerts = summer.thresholdAlertsFromNormalizedRules(
         userConditions: const ['current_smoker'],
