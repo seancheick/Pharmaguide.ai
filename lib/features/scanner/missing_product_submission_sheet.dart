@@ -204,6 +204,9 @@ class _MissingProductSubmissionSheetState
   bool _factsPanelLocationConfirmed = false;
   bool _consent = false;
   bool _submitting = false;
+  bool _attemptedSubmission = false;
+  bool _checkingRecovery = false;
+  bool _recoveryDeferred = false;
   bool _submitted = false;
   bool _adding = false;
   bool _checkingIntake = false;
@@ -241,6 +244,12 @@ class _MissingProductSubmissionSheetState
   /// Which optional panel is being added, so only its row shows progress.
   ProductSubmissionEvidenceCategory? _addingOptional;
   ProductSubmissionPhase? _phase;
+  int _uploadedPhotos = 0;
+  int _uploadTotal = 0;
+  bool _captureSaved = false;
+  int _captureSaveVersion = 0;
+  StreamSubscription<void>? _transferSubscription;
+  late final String? _captureOwnerId;
   ProductSubmissionFailure? _failure;
   MissingProductSubmissionDraft? _draft;
 
@@ -258,6 +267,9 @@ class _MissingProductSubmissionSheetState
   @override
   void initState() {
     super.initState();
+    _captureOwnerId = widget.service.backend.authenticatedUserId;
+    _checkingRecovery =
+        widget.resumeSubmissionId != null || widget.retake != null;
     _chosenResubmissionOf = widget.resubmissionOf;
     // A retake's submission already exists; there is no earlier attempt to
     // look up.
@@ -277,12 +289,41 @@ class _MissingProductSubmissionSheetState
             _offerRecovery();
           })
           .catchError((Object _) {
-            // No durable storage: capture still works, recovery does not.
+            if (!mounted) return;
+            setState(() {
+              _checkingRecovery = false;
+              // An exact retry must not overwrite evidence that could not
+              // be reopened. A fresh capture can still use memory only.
+              _recoveryDeferred =
+                  widget.resumeSubmissionId != null || widget.retake != null;
+              if (_recoveryDeferred) {
+                _stepError =
+                    'Saved photos could not be reopened. Close this '
+                    'screen and try again.';
+              }
+            });
           });
     }
   }
 
+  @override
+  void dispose() {
+    // The service owns the send, not this route. Leaving stops observation
+    // only; it cannot cancel or duplicate a server-bound submission.
+    unawaited(_transferSubscription?.cancel());
+    super.dispose();
+  }
+
   ProductSubmissionDraftStorage? _store;
+
+  // Once a server manifest may exist, retry exactly those photos and tags.
+  // The backend intentionally rejects changing evidence under the same id.
+  bool get _editsLocked =>
+      _submitting || _attemptedSubmission || _recoveryDeferred;
+
+  bool get _sameCaptureAccount =>
+      _captureOwnerId != null &&
+      widget.service.backend.authenticatedUserId == _captureOwnerId;
 
   /// Minted once, before any photo is stored, so every save and the eventual
   /// submit describe the same contribution. Recovering a saved capture adopts
@@ -400,7 +441,14 @@ class _MissingProductSubmissionSheetState
     return _CaptureStep.review;
   }
 
-  bool get _canSubmit => _consent && !_submitting && _coverageComplete;
+  bool get _canSubmit =>
+      _consent &&
+      !_submitting &&
+      !_adding &&
+      !_processing &&
+      !_checkingRecovery &&
+      !_recoveryDeferred &&
+      _coverageComplete;
 
   bool get _coverageComplete =>
       _photos.isNotEmpty &&
@@ -414,7 +462,7 @@ class _MissingProductSubmissionSheetState
     bool fromLibrary = false,
     bool autoAdvance = false,
   }) async {
-    if (_submitting || _adding) return;
+    if (_editsLocked || _adding) return;
     if (_photos.length >= _photoCapacity) {
       setState(
         () => _stepError =
@@ -473,7 +521,9 @@ class _MissingProductSubmissionSheetState
       // Placement may ask the user about the photo; checking is done.
       setState(() => _processing = false);
       final placed = await _placeByHints(photo, hints);
-      if (!mounted || placed == null) return;
+      if (!mounted || placed == null || _editsLocked || !_sameCaptureAccount) {
+        return;
+      }
 
       setState(() {
         _photos.add(placed.photo);
@@ -577,7 +627,7 @@ class _MissingProductSubmissionSheetState
     ProductSubmissionEvidenceCategory category, {
     bool autoAdvance = false,
   }) async {
-    if (_submitting || _adding) return;
+    if (_editsLocked || _adding) return;
     final candidates = _photos
         .where((photo) => !photo.categories.contains(category))
         .toList(growable: false);
@@ -642,7 +692,9 @@ class _MissingProductSubmissionSheetState
         ),
       ),
     );
-    if (!mounted || selected == null) return;
+    if (!mounted || selected == null || _editsLocked || !_sameCaptureAccount) {
+      return;
+    }
     final index = _photos.indexOf(selected);
     if (index < 0) return;
     setState(() {
@@ -690,7 +742,7 @@ class _MissingProductSubmissionSheetState
   /// added; capture then lands on the first panel still missing.
   Future<bool> _addSeveralFromLibrary() async {
     final room = _photoCapacity - _photos.length;
-    if (room <= 0 || _adding) return false;
+    if (room <= 0 || _adding || _editsLocked) return false;
     setState(() {
       _adding = true;
       _stepError = null;
@@ -740,7 +792,13 @@ class _MissingProductSubmissionSheetState
         for (var i = 0; i < usable.length; i++)
           (photo: usable[i].photo, blurry: usable[i].blurry, hints: hints[i]),
       ]);
-      if (!mounted || sorted == null || sorted.isEmpty) return false;
+      if (!mounted ||
+          sorted == null ||
+          sorted.isEmpty ||
+          _editsLocked ||
+          !_sameCaptureAccount) {
+        return false;
+      }
 
       setState(() {
         _photos.addAll(sorted);
@@ -805,9 +863,7 @@ class _MissingProductSubmissionSheetState
     if (h.showsFactsPanel) ProductSubmissionEvidenceCategory.supplementFacts,
     if (h.showsOtherIngredients)
       ProductSubmissionEvidenceCategory.ingredientDisclosure,
-    if (!h.showsFactsPanel &&
-        !h.showsOtherIngredients &&
-        h.showsDirectionsOrWarnings)
+    if (h.showsDirectionsOrWarnings)
       ProductSubmissionEvidenceCategory.directionsWarnings,
     if (h.showsSubmissionBarcode) ProductSubmissionEvidenceCategory.barcode,
   };
@@ -1096,6 +1152,15 @@ class _MissingProductSubmissionSheetState
       }
     }
 
+    // A single label photo can show several panels. Keep directions and
+    // warnings alongside the chosen role instead of requiring another shot.
+    if (hints.showsDirectionsOrWarnings) {
+      tagged = tagged.withCategories({
+        ...tagged.categories,
+        ProductSubmissionEvidenceCategory.directionsWarnings,
+      });
+    }
+
     // Only news when the photo was taken for another panel: on the barcode
     // step, finding the barcode is the point of the photo.
     if (hints.showsSubmissionBarcode &&
@@ -1152,7 +1217,7 @@ class _MissingProductSubmissionSheetState
   );
 
   void _removePhoto(ProductSubmissionPhoto photo) {
-    if (_submitting) return;
+    if (_editsLocked) return;
     // A photo the user deleted must not survive on disk.
     unawaited(_persistAfterFrame());
     // Its thumbnail holds the photo's bytes; let both go with the photo.
@@ -1183,7 +1248,7 @@ class _MissingProductSubmissionSheetState
     _CaptureStep? nextStep,
     String? reason,
   }) {
-    if (_submitting) return;
+    if (_editsLocked) return;
     if (reason != null) {
       CrashReportingService().log(
         'facts_ingredients_decision: $reason -> '
@@ -1249,7 +1314,9 @@ class _MissingProductSubmissionSheetState
   /// asks the same thing again. Cancelling the camera leaves the user on that
   /// panel's step, with its example and the same button.
   Future<void> _start({required bool fromLibrary}) async {
-    if (_checkingIntake || _adding) return;
+    if (_checkingIntake || _adding || _checkingRecovery || _recoveryDeferred) {
+      return;
+    }
     _startFromLibrary = fromLibrary;
     await _goForward(fromLibrary: fromLibrary);
     if (!mounted || fromLibrary || _step == _CaptureStep.intro) return;
@@ -1264,7 +1331,7 @@ class _MissingProductSubmissionSheetState
   /// answer re-tags the facts shots in place (it can never delete a photo)
   /// and is also the step's "continue".
   Future<void> _answerFactsQuestion({required bool combined}) async {
-    if (_submitting || _adding) return;
+    if (_editsLocked || _adding) return;
     _setFactsCoversIngredients(
       combined,
       reason: combined ? 'user_said_combined' : 'user_said_separate',
@@ -1337,7 +1404,7 @@ class _MissingProductSubmissionSheetState
 
   /// The checklist's shortcut to any panel, done or not.
   void _jumpTo(_CaptureStep step) {
-    if (_submitting || _adding) return;
+    if (_editsLocked || _adding) return;
     setState(() {
       _step = step;
       _stepError = null;
@@ -1476,20 +1543,42 @@ class _MissingProductSubmissionSheetState
 
   Future<void> _submit() async {
     if (!_canSubmit) return;
+    if (!_sameCaptureAccount) {
+      setState(() {
+        _failure = ProductSubmissionFailure(
+          submissionId: _draftSubmissionId,
+          kind: ProductSubmissionFailureKind.authenticationRequired,
+        );
+      });
+      return;
+    }
     setState(() {
       _submitting = true;
       _failure = null;
+      _phase = ProductSubmissionPhase.savingReport;
+      _uploadedPhotos = 0;
+      _uploadTotal = _photos.length;
     });
 
     final retake = widget.retake;
     if (retake != null) {
       await _persistCapture();
+      if (!_sameCaptureAccount) {
+        await _finishSubmit(
+          ProductSubmissionFailure(
+            submissionId: _draftSubmissionId,
+            kind: ProductSubmissionFailureKind.authenticationRequired,
+          ),
+        );
+        return;
+      }
+      if (!_canResumeSavedCapture()) return;
+      _attemptedSubmission = true;
       final result = await widget.service.submitRetake(
         retake,
         List.unmodifiable(_photos),
-        onPhaseChanged: (phase) {
-          if (mounted) setState(() => _phase = phase);
-        },
+        onPhaseChanged: _updatePhase,
+        onPhotoProgress: _updatePhotoProgress,
       );
       await _finishSubmit(result);
       return;
@@ -1529,14 +1618,78 @@ class _MissingProductSubmissionSheetState
     // Save before the network call, not after. Everything from here on can
     // fail halfway, and the photos are the part the user cannot cheaply redo.
     await _persistCapture();
+    if (!_sameCaptureAccount) {
+      await _finishSubmit(
+        ProductSubmissionFailure(
+          submissionId: _draftSubmissionId,
+          kind: ProductSubmissionFailureKind.authenticationRequired,
+        ),
+      );
+      return;
+    }
+    if (!_canResumeSavedCapture()) return;
+    _attemptedSubmission = true;
 
     final result = await widget.service.submit(
       draft,
-      onPhaseChanged: (phase) {
-        if (mounted) setState(() => _phase = phase);
-      },
+      onPhaseChanged: _updatePhase,
+      onPhotoProgress: _updatePhotoProgress,
     );
     await _finishSubmit(result);
+  }
+
+  bool _canResumeSavedCapture() {
+    // If an older draft exists, never create a newer server manifest unless
+    // the exact retry bytes were durably saved first. A device with no store
+    // can still send, but the screen explicitly does not promise recovery.
+    if (_store == null || _captureSaved) return true;
+    if (mounted) {
+      setState(() {
+        _submitting = false;
+        _phase = null;
+        _stepError =
+            'Couldn’t save these photos on this device. Free up '
+            'some storage and try again. Nothing new was sent.';
+      });
+    }
+    return false;
+  }
+
+  void _updatePhase(ProductSubmissionPhase phase) {
+    if (mounted && _sameCaptureAccount) setState(() => _phase = phase);
+  }
+
+  void _updatePhotoProgress(int completed, int total) {
+    if (!mounted || !_sameCaptureAccount) {
+      return;
+    }
+    setState(() {
+      _uploadedPhotos = completed;
+      _uploadTotal = total;
+    });
+  }
+
+  void _observeTransfer(ProductSubmissionTransfer transfer) {
+    // Reopening a saved capture joins the existing service-owned transfer;
+    // it never creates a new manifest, consent record, or upload.
+    void refresh() {
+      if (!mounted || !_sameCaptureAccount) {
+        return;
+      }
+      setState(() {
+        _submitting = true;
+        _attemptedSubmission = true;
+        _consent = true;
+        _phase = transfer.phase;
+        _uploadedPhotos = transfer.completedPhotos;
+        _uploadTotal = transfer.totalPhotos;
+      });
+    }
+
+    unawaited(_transferSubscription?.cancel());
+    refresh();
+    _transferSubscription = transfer.changes.listen((_) => refresh());
+    unawaited(transfer.result.then(_finishSubmit));
   }
 
   Future<void> _finishSubmit(ProductSubmissionResult result) async {
@@ -1545,9 +1698,16 @@ class _MissingProductSubmissionSheetState
       await _discardDraft(result.submissionId);
     }
     if (!mounted) return;
+    unawaited(_transferSubscription?.cancel());
+    _transferSubscription = null;
     setState(() {
       _submitting = false;
-      if (result is ProductSubmissionSuccess) {
+      if (!_sameCaptureAccount) {
+        _failure = ProductSubmissionFailure(
+          submissionId: result.submissionId,
+          kind: ProductSubmissionFailureKind.authenticationRequired,
+        );
+      } else if (result is ProductSubmissionSuccess) {
         _submitted = true;
       } else {
         _failure = result as ProductSubmissionFailure;
@@ -1572,33 +1732,45 @@ class _MissingProductSubmissionSheetState
   /// several minutes of the user's effort.
   Future<void> _persistCapture() async {
     final store = _store;
-    final userId = widget.service.backend.authenticatedUserId;
-    if (store == null || _photos.isEmpty || userId == null || userId.isEmpty) {
+    final userId = _captureOwnerId;
+    final version = ++_captureSaveVersion;
+    _captureSaved = false;
+    if (store == null ||
+        _photos.isEmpty ||
+        userId == null ||
+        userId.isEmpty ||
+        !_sameCaptureAccount) {
       return;
     }
     try {
-      await store.save(
-        userId: userId,
-        submissionId: _draftSubmissionId,
-        upc: widget.upc,
-        identifier: widget.identifier,
-        photos: List.unmodifiable(_photos),
-        consentVersion: productSubmissionConsentVersion,
-        resubmissionOf: _chosenResubmissionOf,
-        noSeparateIngredientPanel: _factsCarriesIngredients,
-        evidenceRevision: (widget.retake?.fromRevision ?? 0) + 1,
-      );
+      await store
+          .save(
+            userId: userId,
+            submissionId: _draftSubmissionId,
+            upc: widget.upc,
+            identifier: widget.identifier,
+            photos: List.unmodifiable(_photos),
+            consentVersion: productSubmissionConsentVersion,
+            resubmissionOf: _chosenResubmissionOf,
+            noSeparateIngredientPanel: _factsCarriesIngredients,
+            evidenceRevision: (widget.retake?.fromRevision ?? 0) + 1,
+          )
+          .timeout(const Duration(seconds: 5));
+      if (version == _captureSaveVersion) _captureSaved = true;
     } on Object {
-      // Best effort by design: never fail capture over local bookkeeping.
+      // Keep capture usable. Submit will report that its retry bytes could
+      // not be saved instead of replacing a valid older draft on the server.
     }
   }
 
   Future<void> _discardDraft(String submissionId) async {
     final store = _store;
-    final userId = widget.service.backend.authenticatedUserId;
+    final userId = _captureOwnerId;
     if (store == null || userId == null || userId.isEmpty) return;
     try {
-      await store.discard(userId, submissionId);
+      await store
+          .discard(userId, submissionId)
+          .timeout(const Duration(seconds: 5));
     } on Object {
       // A draft left behind is retried and discarded on the next launch.
     }
@@ -1608,9 +1780,33 @@ class _MissingProductSubmissionSheetState
   /// same four photos again. The recovered draft keeps its submission id, so
   /// finishing it replays the server's idempotent sequence.
   Future<void> _offerRecovery() async {
+    try {
+      await _restoreOfferedCapture();
+    } on Object {
+      if (mounted &&
+          (widget.resumeSubmissionId != null || widget.retake != null)) {
+        setState(() {
+          _recoveryDeferred = true;
+          _stepError =
+              'Saved photos could not be reopened. Close this '
+              'screen and try again.';
+        });
+      }
+    } finally {
+      if (mounted) setState(() => _checkingRecovery = false);
+    }
+  }
+
+  Future<void> _restoreOfferedCapture() async {
     final store = _store;
-    final userId = widget.service.backend.authenticatedUserId;
-    if (store == null || !mounted || userId == null || userId.isEmpty) return;
+    final userId = _captureOwnerId;
+    if (store == null ||
+        !mounted ||
+        userId == null ||
+        userId.isEmpty ||
+        !_sameCaptureAccount) {
+      return;
+    }
     if (_step != _CaptureStep.intro || _photos.isNotEmpty) return;
     final String savedId;
     final int photoCount;
@@ -1618,13 +1814,19 @@ class _MissingProductSubmissionSheetState
     if (retake != null) {
       // A retake's capture is saved under its own submission, never found by
       // barcode, and only counts for the request it answered.
-      final RestoredCapture? saved;
-      try {
-        saved = await store.restore(userId, retake.submissionId);
-      } on Object {
+      final saved = await store.restore(userId, retake.submissionId);
+      if (!mounted || !_sameCaptureAccount) {
         return;
       }
-      if (saved == null || !mounted) return;
+      if (saved == null) {
+        // Null can mean a missing file or a failed hash check, not merely
+        // that this is a new retake. Never replace an existing retry record.
+        final records = await store.list(userId);
+        if (records.any((p) => p.submissionId == retake.submissionId)) {
+          throw StateError('Saved retake evidence could not be restored');
+        }
+        return;
+      }
       if (saved.retakeOfRevision != retake.fromRevision) {
         await store.discard(userId, retake.submissionId);
         return;
@@ -1633,21 +1835,30 @@ class _MissingProductSubmissionSheetState
       photoCount = saved.photos.length;
     } else {
       final PendingProductSubmission? pending;
-      try {
-        if (widget.resumeSubmissionId != null) {
-          final records = await store.list(userId);
-          pending = records
-              .where((p) => p.submissionId == widget.resumeSubmissionId)
-              .firstOrNull;
-        } else if (widget.identifier != null) {
-          pending = null;
-        } else {
-          pending = await store.findByUpc(userId, widget.upc);
-        }
-      } on Object {
+      if (widget.resumeSubmissionId != null) {
+        final records = await store.list(userId);
+        pending = records
+            .where((p) => p.submissionId == widget.resumeSubmissionId)
+            .firstOrNull;
+      } else if (widget.identifier != null) {
+        pending = null;
+      } else {
+        pending = await store.findByUpc(userId, widget.upc);
+      }
+      if (!mounted || !_sameCaptureAccount) {
         return;
       }
-      if (pending == null || !mounted) return;
+      if (pending == null) {
+        if (widget.resumeSubmissionId != null) {
+          setState(() {
+            _recoveryDeferred = true;
+            _stepError =
+                'These saved photos are no longer on this device. '
+                'Close this screen to check the submission status.';
+          });
+        }
+        return;
+      }
       // A saved capture belonging to a different attempt for this same
       // barcode is not this one's evidence. Sending it would carry the wrong
       // lineage (or none), and the server's open-submission guard would
@@ -1657,36 +1868,76 @@ class _MissingProductSubmissionSheetState
       savedId = pending.submissionId;
       photoCount = pending.photoCount;
     }
-    final resume = await showDialog<bool>(
-      context: context,
-      builder: (dialogContext) => AlertDialog(
-        scrollable: true,
-        title: const Text('Finish your photos?'),
-        content: Text(
-          'You already took $photoCount '
-          '${photoCount == 1 ? 'photo' : 'photos'} of this product '
-          'and they were never sent. You can pick up where you left off.',
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.of(dialogContext).pop(false),
-            child: const Text('Start over'),
-          ),
-          FilledButton(
-            onPressed: () => Navigator.of(dialogContext).pop(true),
-            child: const Text('Finish sending'),
-          ),
-        ],
-      ),
-    );
-    if (!mounted) return;
-    if (resume != true) {
+    final transfer = widget.service.activeTransfer(savedId);
+    final bool? resume = transfer != null
+        ? true
+        : await showDialog<bool>(
+            context: context,
+            builder: (dialogContext) => AlertDialog(
+              scrollable: true,
+              title: const Text('Finish your photos?'),
+              content: Text(
+                'You already took $photoCount '
+                '${photoCount == 1 ? 'photo' : 'photos'} of this product '
+                'and sending has not been confirmed. '
+                'You can pick up where you left off.',
+              ),
+              actions: [
+                TextButton(
+                  onPressed: () => Navigator.of(
+                    dialogContext,
+                  ).pop(retake == null ? false : null),
+                  child: Text(retake == null ? 'Start over' : 'Not now'),
+                ),
+                FilledButton(
+                  onPressed: () => Navigator.of(dialogContext).pop(true),
+                  child: const Text('Finish sending'),
+                ),
+              ],
+            ),
+          );
+    if (!mounted || !_sameCaptureAccount) {
+      return;
+    }
+    if (resume == null) {
+      // Dismissing recovery is not permission to replace its exact retry
+      // bytes. Close the capture too, and fail closed if it is embedded in
+      // a route that cannot pop (as in a test or future caller).
+      setState(() => _recoveryDeferred = true);
+      await Navigator.of(context).maybePop(false);
+      return;
+    }
+    if (!resume) {
       await store.discard(userId, savedId);
+      if (!mounted || !_sameCaptureAccount) {
+        return;
+      }
+      // Explicitly starting over is a new attempt, never a changed manifest
+      // under the id the server may already have accepted. Retakes keep their
+      // existing revision instead and offer "Not now" without discarding it.
+      _draftSubmissionId = newProductSubmissionId();
+      _draft = null;
+      _attemptedSubmission = false;
       return;
     }
     final restored = await store.restore(userId, savedId);
-    if (!mounted) return;
+    if (!mounted || !_sameCaptureAccount) {
+      return;
+    }
+    if (restored == null && transfer != null) {
+      // Success can retire the draft while it is being restored. Its server
+      // receipt remains authoritative even when the local files are gone.
+      setState(() {
+        _draftSubmissionId = savedId;
+        _step = _CaptureStep.review;
+      });
+      _observeTransfer(transfer);
+      return;
+    }
     if (restored == null) {
+      if (widget.resumeSubmissionId != null || retake != null) {
+        throw StateError('Saved evidence could not be restored');
+      }
       // The kept bytes no longer match their manifest, so they are not the
       // user's evidence any more. Say so plainly rather than sending them.
       await store.discard(userId, savedId);
@@ -1708,7 +1959,12 @@ class _MissingProductSubmissionSheetState
       // finished: a half-taken set resumes at the first missing panel.
       _step = _firstUnsatisfiedStep();
       _stepError = null;
+      _captureSaved = true;
+      // A complete restored capture may already have an immutable manifest
+      // on the server after a lost response. Preserve it for an exact retry.
+      _attemptedSubmission = _coverageComplete;
     });
+    if (transfer != null) _observeTransfer(transfer);
   }
 
   @override
@@ -1787,7 +2043,7 @@ class _MissingProductSubmissionSheetState
                 if (canGoBack)
                   TextButton.icon(
                     key: const Key('missing-product-back'),
-                    onPressed: _submitting ? null : _goBack,
+                    onPressed: _editsLocked ? null : _goBack,
                     icon: const Icon(Icons.chevron_left_rounded, size: 22),
                     label: const Text('Back'),
                   ),
@@ -1797,9 +2053,7 @@ class _MissingProductSubmissionSheetState
                   // Photos taken so far are kept on the phone; opening this
                   // barcode again offers to finish them.
                   tooltip: 'Close',
-                  onPressed: _submitting
-                      ? null
-                      : () => Navigator.of(context).pop(false),
+                  onPressed: () => Navigator.of(context).pop(false),
                   icon: Icon(Icons.close_rounded, color: context.v2.fgMuted),
                 ),
               ],
@@ -1833,7 +2087,7 @@ class _MissingProductSubmissionSheetState
       required bool current,
     }) {
       final covered = _covered(category);
-      final onTap = _submitting || _adding ? null : () => _jumpTo(target);
+      final onTap = _editsLocked || _adding ? null : () => _jumpTo(target);
       final tone = covered || current ? v2.accentStrong : v2.fgMuted;
       return Expanded(
         child: Semantics(
@@ -2062,7 +2316,7 @@ class _MissingProductSubmissionSheetState
   List<Widget> _captureContent(BuildContext context) {
     final category = _stepCategory(_step);
     final photos = _photosTagged(category);
-    final busy = _submitting || _adding;
+    final busy = _editsLocked || _adding;
     final reusable = _photos.any(
       (photo) => !photo.categories.contains(category),
     );
@@ -2105,7 +2359,7 @@ class _MissingProductSubmissionSheetState
         _PhotoThumbnailStrip(
           photos: photos,
           thumbnailFor: _thumbnailFor,
-          enabled: !_submitting,
+          enabled: !_editsLocked,
           onRemove: _removePhoto,
           addTile: _AddPhotoTile(
             key: Key('missing-product-add-${category.wireValue}'),
@@ -2170,13 +2424,13 @@ class _MissingProductSubmissionSheetState
   /// Ingredients" — which was on that panel after all. Re-tag the facts
   /// photos (never delete) and move on from there.
   Future<void> _ingredientsAreOnFacts() async {
-    if (_submitting || _adding) return;
+    if (_editsLocked || _adding) return;
     _setFactsCoversIngredients(true, reason: 'user_corrected_to_combined');
     await _goForward();
   }
 
   List<Widget> _reviewContent(BuildContext context) {
-    final busy = _submitting || _adding;
+    final busy = _editsLocked || _adding;
     final missing = [
       for (final step in _visibleSteps)
         if (step != _CaptureStep.intro &&
@@ -2197,12 +2451,19 @@ class _MissingProductSubmissionSheetState
         'send.',
         style: V2Typography.body(color: context.v2.fgMuted),
       ),
+      if (_attemptedSubmission && !_submitting) ...[
+        const SizedBox(height: V2Spacing.space8),
+        Text(
+          'Retry keeps these same photos so your submission is not duplicated.',
+          style: V2Typography.caption(color: context.v2.fgMuted),
+        ),
+      ],
       const SizedBox(height: V2Spacing.space16),
       _ReviewPhotoGrid(
         photos: _photos,
         thumbnailFor: _thumbnailFor,
         labelFor: _photoLabel,
-        enabled: !_submitting,
+        enabled: !_editsLocked,
         onRemove: _removePhoto,
       ),
       if (missing.isNotEmpty) ...[
@@ -2236,7 +2497,7 @@ class _MissingProductSubmissionSheetState
               ),
               TextButton(
                 key: const Key('missing-product-facts-change-to-separate'),
-                onPressed: _submitting
+                onPressed: _editsLocked
                     ? null
                     : () => _setFactsCoversIngredients(
                         false,
@@ -2478,7 +2739,8 @@ class _MissingProductSubmissionSheetState
       ];
     }
     // Also closed while library photos are being read and sorted.
-    final busy = _checkingIntake || _adding;
+    final busy =
+        _checkingIntake || _adding || _checkingRecovery || _recoveryDeferred;
     final cameraLabel = widget.preferLibrary
         ? 'Take photos instead'
         : _startLabel;
@@ -2537,7 +2799,7 @@ class _MissingProductSubmissionSheetState
   List<Widget> _captureActions(BuildContext context) {
     final category = _stepCategory(_step);
     final hasPhotos = _photosTagged(category).isNotEmpty;
-    final busy = _submitting || _adding;
+    final busy = _editsLocked || _adding;
     if (_step == _CaptureStep.facts &&
         hasPhotos &&
         !_factsPanelLocationSettled) {
@@ -2629,8 +2891,7 @@ class _MissingProductSubmissionSheetState
         ? switch (_phase) {
             ProductSubmissionPhase.savingReport => 'Saving your report…',
             ProductSubmissionPhase.uploadingPhotos =>
-              'Uploading ${_photos.length} photo'
-                  '${_photos.length == 1 ? '' : 's'}…',
+              'Uploaded $_uploadedPhotos of $_uploadTotal photos…',
             ProductSubmissionPhase.succeeded => 'Done',
             ProductSubmissionPhase.failed => 'Something went wrong',
             null => 'Sending…',
@@ -2669,11 +2930,31 @@ class _MissingProductSubmissionSheetState
         onPressed: _canSubmit ? _submit : null,
       ),
       const SizedBox(height: V2Spacing.space8),
-      Text(
-        helper,
-        textAlign: TextAlign.center,
-        style: V2Typography.caption(color: context.v2.fgMuted),
+      Semantics(
+        liveRegion: true,
+        child: Text(
+          helper,
+          textAlign: TextAlign.center,
+          style: V2Typography.caption(color: context.v2.fgMuted),
+        ),
       ),
+      if (_submitting) ...[
+        const SizedBox(height: V2Spacing.space8),
+        Text(
+          _captureSaved
+              ? 'You can leave this screen while sending. Keep the app open. '
+                    'If interrupted, finish from Your contributions.'
+              : 'Keep the app open while sending. These photos could not be '
+                    'saved on this device for recovery.',
+          textAlign: TextAlign.center,
+          style: V2Typography.caption(color: context.v2.fgMuted),
+        ),
+        _secondaryButton(
+          key: const Key('missing-product-continue-using-app'),
+          label: 'Continue using app',
+          onPressed: () => Navigator.of(context).pop(false),
+        ),
+      ],
     ];
   }
 
@@ -2686,8 +2967,12 @@ class _MissingProductSubmissionSheetState
       return 'You already have an open submission for this barcode. '
           'Check its status under Settings → Product submissions.';
     }
+    if (failure.cause is TimeoutException) {
+      return 'Sending took too long. Your submission is not confirmed. '
+          'Try again to resume the same submission.';
+    }
     return 'Could not submit this product. Your photos remain here so you '
-        'can try again.';
+        'can try again with the same photos.';
   }
 
   String _stepTitle(_CaptureStep step) => switch (step) {

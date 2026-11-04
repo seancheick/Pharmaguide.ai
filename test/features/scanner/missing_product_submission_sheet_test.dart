@@ -1293,6 +1293,257 @@ void main() {
     );
   });
 
+  for (final holdQuality in [true, false]) {
+    testWidgets('optional photo ${holdQuality ? 'quality check' : 'OCR'} '
+        'must finish before submit snapshots evidence', (tester) async {
+      final quality = Completer<PhotoQualityResult>();
+      final text = Completer<String>();
+      final backend = _Backend(authenticatedUserId: _userId);
+      final store = _MemoryDraftStorage();
+      await tester.pumpWidget(
+        _harness(
+          backend: backend,
+          draftStore: store,
+          qualityGate: (photo) async {
+            if (holdQuality &&
+                photo.categories.contains(
+                  ProductSubmissionEvidenceCategory.directionsWarnings,
+                )) {
+              return await quality.future;
+            }
+            return _okQuality;
+          },
+          readPhotoText: (photo) async {
+            if (!holdQuality &&
+                photo.categories.contains(
+                  ProductSubmissionEvidenceCategory.directionsWarnings,
+                )) {
+              return await text.future;
+            }
+            return '';
+          },
+        ),
+      );
+      await _captureRequiredEvidence(tester);
+      await tester.tap(find.byKey(const Key('missing-product-consent')));
+      await tester.pump();
+      final add = find.byKey(
+        const Key('missing-product-add-directions_warnings'),
+      );
+      await tester.ensureVisible(add);
+      await tester.pumpAndSettle();
+      await tester.tap(add);
+      await tester.pump();
+      expect(
+        tester
+            .widget<FilledButton>(
+              find.byKey(const Key('missing-product-submit')),
+            )
+            .onPressed,
+        isNull,
+      );
+      expect(backend.persistedSubmissionIds, isEmpty);
+      if (holdQuality) {
+        quality.complete(_okQuality);
+      } else {
+        text.complete('Directions: Take one capsule daily.');
+      }
+      await tester.pumpAndSettle();
+      await tester.tap(find.byKey(const Key('missing-product-submit')));
+      await tester.pumpAndSettle();
+      expect(backend.manifest, hasLength(5));
+      expect(
+        backend.manifest.last['categories'],
+        contains('directions_warnings'),
+      );
+      expect(find.text('Thanks — it’s in review'), findsOneWidget);
+    });
+  }
+
+  testWidgets('sending shows real progress and leaves Close available', (
+    tester,
+  ) async {
+    final pending = Completer<void>();
+    final backend = _Backend(authenticatedUserId: _userId)
+      ..pendingUpload = pending;
+    final store = _MemoryDraftStorage();
+    await tester.pumpWidget(_harness(backend: backend, draftStore: store));
+    await _captureRequiredEvidence(tester);
+    await tester.tap(find.byKey(const Key('missing-product-consent')));
+    await tester.pump();
+    await tester.tap(find.byKey(const Key('missing-product-submit')));
+    await tester.pump();
+
+    expect(find.text('Uploaded 0 of 4 photos…'), findsOneWidget);
+    expect(
+      tester
+          .widget<IconButton>(find.byKey(const Key('missing-product-close')))
+          .onPressed,
+      isNotNull,
+    );
+    expect(find.text('Continue using app'), findsOneWidget);
+    expect(await store.list(_userId), hasLength(1));
+
+    // Leaving the route does not cancel an authorized send or lose its bytes.
+    await tester.pumpWidget(const SizedBox());
+    pending.complete();
+    await tester.pumpAndSettle();
+    expect(backend.uploaded, hasLength(4));
+    expect(await store.list(_userId), isEmpty);
+    expect(tester.takeException(), isNull);
+  });
+
+  testWidgets('reopening a sending capture observes the same transfer', (
+    tester,
+  ) async {
+    final pending = Completer<void>();
+    final backend = _Backend(authenticatedUserId: _userId)
+      ..pendingUpload = pending;
+    final store = _MemoryDraftStorage();
+    await tester.pumpWidget(_harness(backend: backend, draftStore: store));
+    await _captureRequiredEvidence(tester);
+    await tester.tap(find.byKey(const Key('missing-product-consent')));
+    await tester.pump();
+    await tester.tap(find.byKey(const Key('missing-product-submit')));
+    await tester.pump();
+    await tester.pumpWidget(const SizedBox());
+
+    await tester.pumpWidget(_harness(backend: backend, draftStore: store));
+    await tester.pump();
+    expect(find.text('Finish your photos?'), findsNothing);
+    expect(find.text('Uploaded 0 of 4 photos…'), findsOneWidget);
+    expect(backend.persistedSubmissionIds, [_submissionId]);
+
+    pending.complete();
+    await tester.pumpAndSettle();
+    expect(find.text('Thanks — it’s in review'), findsOneWidget);
+    expect(backend.persistedSubmissionIds, [_submissionId]);
+    expect(backend.uploaded, hasLength(4));
+    expect(await store.list(_userId), isEmpty);
+  });
+
+  testWidgets('completed transfer wins a race with draft restoration', (
+    tester,
+  ) async {
+    final pending = Completer<void>();
+    final backend = _Backend(authenticatedUserId: _userId)
+      ..pendingUpload = pending;
+    final store = _MemoryDraftStorage();
+    await tester.pumpWidget(_harness(backend: backend, draftStore: store));
+    await _captureRequiredEvidence(tester);
+    await tester.tap(find.byKey(const Key('missing-product-consent')));
+    await tester.pump();
+    await tester.tap(find.byKey(const Key('missing-product-submit')));
+    await tester.pump();
+    await tester.pumpWidget(const SizedBox());
+
+    final restoration = Completer<void>();
+    store.pendingRestore = restoration;
+    await tester.pumpWidget(_harness(backend: backend, draftStore: store));
+    await tester.pump();
+    pending.complete();
+    await tester.pump();
+    expect(await store.list(_userId), isEmpty);
+    restoration.complete();
+    await tester.pumpAndSettle();
+    expect(find.text('Thanks — it’s in review'), findsOneWidget);
+    expect(find.textContaining('could not be reopened'), findsNothing);
+  });
+
+  testWidgets('a new account cannot send the previous capture', (tester) async {
+    final backend = _Backend(authenticatedUserId: _userId);
+    final store = _MemoryDraftStorage();
+    await tester.pumpWidget(_harness(backend: backend, draftStore: store));
+    await _captureRequiredEvidence(tester);
+    backend.authenticatedUserId = '10000000-0000-4000-8000-000000000099';
+    await tester.tap(find.byKey(const Key('missing-product-consent')));
+    await tester.pump();
+    await tester.tap(find.byKey(const Key('missing-product-submit')));
+    await tester.pumpAndSettle();
+    expect(backend.persistedSubmissionIds, isEmpty);
+    expect(backend.uploaded, isEmpty);
+    expect(store.savedForUsers.toSet(), {_userId});
+    expect(
+      find.text('Sign in before submitting product photos.'),
+      findsOneWidget,
+    );
+  });
+
+  testWidgets('account switch during disk save stops before sending', (
+    tester,
+  ) async {
+    final backend = _Backend(authenticatedUserId: _userId);
+    final store = _MemoryDraftStorage();
+    await tester.pumpWidget(_harness(backend: backend, draftStore: store));
+    await _captureRequiredEvidence(tester);
+    final pending = Completer<void>();
+    store.pendingSave = pending;
+    await tester.tap(find.byKey(const Key('missing-product-consent')));
+    await tester.pump();
+    await tester.tap(find.byKey(const Key('missing-product-submit')));
+    await tester.pump();
+    backend.authenticatedUserId = '10000000-0000-4000-8000-000000000099';
+    pending.complete();
+    await tester.pumpAndSettle();
+    expect(backend.persistedSubmissionIds, isEmpty);
+    expect(backend.uploaded, isEmpty);
+    expect(store.savedForUsers.toSet(), {_userId});
+  });
+
+  testWidgets('failed save cannot send a newer manifest than the disk draft', (
+    tester,
+  ) async {
+    final backend = _Backend(authenticatedUserId: _userId);
+    final store = _MemoryDraftStorage();
+    await tester.pumpWidget(_harness(backend: backend, draftStore: store));
+    await _captureRequiredEvidence(tester);
+    store.failSave = true;
+    await tester.tap(find.byKey(const Key('missing-product-consent')));
+    await tester.pump();
+    await tester.tap(find.byKey(const Key('missing-product-submit')));
+    await tester.pumpAndSettle();
+    expect(backend.persistedSubmissionIds, isEmpty);
+    expect(backend.uploaded, isEmpty);
+    expect(find.textContaining('Nothing new was sent.'), findsOneWidget);
+    store.failSave = false;
+    await tester.tap(find.byKey(const Key('missing-product-submit')));
+    await tester.pumpAndSettle();
+    expect(find.text('Thanks — it’s in review'), findsOneWidget);
+  });
+
+  testWidgets('failed upload preserves the same immutable retry photos', (
+    tester,
+  ) async {
+    final backend = _Backend(authenticatedUserId: _userId)
+      ..uploadFailuresRemaining = 1;
+    await tester.pumpWidget(_harness(backend: backend));
+    await _captureRequiredEvidence(tester);
+    await tester.tap(find.byKey(const Key('missing-product-consent')));
+    await tester.pump();
+    await tester.tap(find.byKey(const Key('missing-product-submit')));
+    await tester.pumpAndSettle();
+    expect(
+      tester
+          .widget<TextButton>(find.byKey(const Key('missing-product-back')))
+          .onPressed,
+      isNull,
+    );
+    await tester.drag(
+      find.byKey(const Key('missing-product-scroll')),
+      const Offset(0, 800),
+    );
+    await tester.pumpAndSettle();
+    expect(
+      find.textContaining('Retry keeps these same photos'),
+      findsOneWidget,
+    );
+    final originalManifest = backend.manifest.toString();
+    await tester.tap(find.byKey(const Key('missing-product-submit')));
+    await tester.pumpAndSettle();
+    expect(backend.manifest.toString(), originalManifest);
+    expect(find.text('Thanks — it’s in review'), findsOneWidget);
+  });
+
   group('interrupted capture recovery', () {
     late _MemoryDraftStorage store;
 
@@ -1388,6 +1639,54 @@ void main() {
 
       expect(await store.list(_userId), isEmpty);
       expect(find.text('Add this product'), findsOneWidget);
+      await _captureRequiredEvidence(tester);
+      await tester.tap(find.byKey(const Key('missing-product-consent')));
+      await tester.pump();
+      await tester.tap(find.byKey(const Key('missing-product-submit')));
+      await tester.pumpAndSettle();
+      expect(backend.persistedSubmissionIds.single, isNot(_submissionId));
+    });
+
+    testWidgets('dismissed exact alternate-code recovery cannot overwrite it', (
+      tester,
+    ) async {
+      final identifier = ProductSubmissionIdentifier(
+        observedCode: 'X002FLZ3X7',
+        brandName: 'Acme',
+        fullName: 'Fixture',
+      );
+      final saved = _photo(MissingProductSubmissionDraft.requiredCategories);
+      await store.save(
+        userId: _userId,
+        submissionId: _submissionId,
+        upc: '',
+        identifier: identifier,
+        photos: [saved],
+        consentVersion: productSubmissionConsentVersion,
+      );
+      var picks = 0;
+      await tester.pumpWidget(
+        _harness(
+          backend: _Backend(authenticatedUserId: _userId),
+          draftStore: store,
+          identifier: identifier,
+          resumeSubmissionId: _submissionId,
+          pickPhoto: (tags) async {
+            picks++;
+            return _photo(tags);
+          },
+        ),
+      );
+      await tester.pumpAndSettle();
+      Navigator.of(tester.element(find.byType(AlertDialog))).pop();
+      await tester.pumpAndSettle();
+      final start = find.byKey(const Key('missing-product-start'));
+      if (start.evaluate().isNotEmpty) {
+        expect(tester.widget<FilledButton>(start).onPressed, isNull);
+      }
+      expect(picks, 0);
+      final restored = await store.restore(_userId, _submissionId);
+      expect(restored!.photos.single.contentSha256, saved.contentSha256);
     });
 
     testWidgets('a completed capture is saved before the network call', (
@@ -1870,6 +2169,40 @@ void main() {
       );
     });
 
+    testWidgets('a combined Facts photo also covers directions and warnings', (
+      tester,
+    ) async {
+      final backend = _Backend(authenticatedUserId: _userId);
+      await tester.pumpWidget(
+        _harness(
+          backend: backend,
+          readPhotoText: (photo) async => photo.categories.contains(facts)
+              ? 'Supplement Facts\nServing Size 1 Capsule\n'
+                    'Other Ingredients: cellulose\n'
+                    'Suggested Use: take one capsule daily.\n'
+                    'Warning: keep out of reach of children.\n0 50428 38139 7'
+              : '',
+        ),
+      );
+      await tapKey(tester, 'missing-product-start');
+      await tapKey(tester, 'missing-product-add-supplement_facts');
+      await tapKey(tester, 'missing-product-next');
+      expect(_stepTitle(tester), 'Review & submit');
+      await submitFromReview(tester);
+
+      // One photo carries all printed panels, without duplicating uploads.
+      expect(backend.manifest, hasLength(2));
+      expect(
+        backend.manifest[1]['categories'],
+        unorderedEquals([
+          'supplement_facts',
+          'ingredient_disclosure',
+          'directions_warnings',
+          'barcode',
+        ]),
+      );
+    });
+
     testWidgets('the barcode photo itself gets no "barcode found" note', (
       tester,
     ) async {
@@ -2019,7 +2352,8 @@ void main() {
       final text = {
         photos[0].photoId:
             'Supplement Facts\nServing Size 1 Capsule\n'
-            'Other Ingredients: cellulose\n0 50428 38139 7',
+            'Other Ingredients: cellulose\nWarning: keep out of reach of children.\n'
+            '0 50428 38139 7',
         photos[1].photoId: 'NATURE BRAND\nVitamin D3',
         photos[2].photoId:
             'Directions: take one daily. Warning: keep out '
@@ -2051,6 +2385,10 @@ void main() {
         isTrue,
       );
       expect(selected(tester, 'missing-product-sort-0-barcode'), isTrue);
+      expect(
+        selected(tester, 'missing-product-sort-0-directions_warnings'),
+        isTrue,
+      );
       expect(
         selected(tester, 'missing-product-sort-1-front_identity'),
         isFalse,
@@ -2101,11 +2439,46 @@ void main() {
         unorderedEquals([
           'supplement_facts',
           'ingredient_disclosure',
+          'directions_warnings',
           'barcode',
         ]),
       );
       expect(backend.manifest[1]['categories'], ['front_identity']);
       expect(backend.manifest[2]['categories'], ['directions_warnings']);
+    });
+
+    testWidgets('a combined-panel directions suggestion can be deselected', (
+      tester,
+    ) async {
+      await tester.pumpWidget(
+        _harness(
+          backend: _Backend(authenticatedUserId: _userId),
+          pickPhotosFromLibrary: (_) async => (
+            photos: [
+              _photo({front}),
+            ],
+            unreadable: 0,
+          ),
+          readPhotoText: (_) async =>
+              'Supplement Facts\nOther Ingredients: cellulose\n'
+              'Suggested Use: take one capsule daily.',
+        ),
+      );
+      await tester.tap(find.byKey(const Key('missing-product-start-library')));
+      await tester.pumpAndSettle();
+      const key = 'missing-product-sort-0-directions_warnings';
+      expect(selected(tester, key), isTrue);
+      await tester.tap(find.byKey(const Key(key)));
+      await tester.pumpAndSettle();
+      expect(selected(tester, key), isFalse);
+      expect(
+        selected(tester, 'missing-product-sort-0-supplement_facts'),
+        isTrue,
+      );
+      expect(
+        selected(tester, 'missing-product-sort-0-ingredient_disclosure'),
+        isTrue,
+      );
     });
 
     testWidgets('unusable photos are skipped, counted, or left out', (
@@ -2284,7 +2657,11 @@ void main() {
     ) async {
       final backend = _Backend(authenticatedUserId: _userId);
       await tester.pumpWidget(
-        _harness(backend: backend, retake: factsRetake()),
+        _harness(
+          backend: backend,
+          draftStore: _MemoryDraftStorage(),
+          retake: factsRetake(),
+        ),
       );
       await tester.pumpAndSettle();
 
@@ -2340,6 +2717,7 @@ void main() {
       await tester.pumpWidget(
         _harness(
           backend: backend,
+          draftStore: _MemoryDraftStorage(),
           retake: factsRetake(digests: {repeat.contentSha256}),
           pickPhoto: (_) async => repeat,
         ),
@@ -2358,6 +2736,97 @@ void main() {
       );
       expect(find.byTooltip('Remove photo'), findsNothing);
     });
+
+    for (final dismissByBack in [false, true]) {
+      testWidgets('retake recovery ${dismissByBack ? 'dismissal' : 'Not now'} '
+          'cannot replace saved retry photos', (tester) async {
+        final store = _MemoryDraftStorage();
+        final saved = _photo({
+          ProductSubmissionEvidenceCategory.supplementFacts,
+        });
+        await store.save(
+          userId: _userId,
+          submissionId: _submissionId,
+          upc: _upc,
+          photos: [saved],
+          consentVersion: productSubmissionConsentVersion,
+          evidenceRevision: 2,
+        );
+        var picks = 0;
+        await tester.pumpWidget(
+          _harness(
+            backend: _Backend(authenticatedUserId: _userId),
+            draftStore: store,
+            retake: factsRetake(),
+            pickPhoto: (tags) async {
+              picks++;
+              return _photo(tags);
+            },
+          ),
+        );
+        await tester.pumpAndSettle();
+        if (dismissByBack) {
+          Navigator.of(tester.element(find.byType(AlertDialog))).pop();
+        } else {
+          await tester.tap(find.text('Not now'));
+        }
+        await tester.pumpAndSettle();
+        final start = find.byKey(const Key('missing-product-start'));
+        if (start.evaluate().isNotEmpty) {
+          expect(tester.widget<FilledButton>(start).onPressed, isNull);
+        }
+        expect(picks, 0);
+        final restored = await store.restore(_userId, _submissionId);
+        expect(restored!.photos.single.contentSha256, saved.contentSha256);
+      });
+    }
+
+    for (final corrupt in [false, true]) {
+      testWidgets('unreadable retake evidence cannot be replaced '
+          '(corrupt: $corrupt)', (tester) async {
+        final store = _MemoryDraftStorage();
+        final saved = _photo({
+          ProductSubmissionEvidenceCategory.supplementFacts,
+        });
+        await store.save(
+          userId: _userId,
+          submissionId: _submissionId,
+          upc: _upc,
+          photos: [saved],
+          consentVersion: productSubmissionConsentVersion,
+          evidenceRevision: 2,
+        );
+        store.corruptOnRestore = corrupt;
+        store.failRestore = !corrupt;
+        var picks = 0;
+        await tester.pumpWidget(
+          _harness(
+            backend: _Backend(authenticatedUserId: _userId),
+            draftStore: store,
+            retake: factsRetake(),
+            pickPhoto: (tags) async {
+              picks++;
+              return _photo(tags);
+            },
+          ),
+        );
+        await tester.pumpAndSettle();
+        expect(find.textContaining('could not be reopened'), findsOneWidget);
+        expect(
+          tester
+              .widget<FilledButton>(
+                find.byKey(const Key('missing-product-start')),
+              )
+              .onPressed,
+          isNull,
+        );
+        expect(picks, 0);
+        expect(
+          store.captures[_submissionId]!.photos.single.contentSha256,
+          saved.contentSha256,
+        );
+      });
+    }
 
     testWidgets('an unfinished retake resumes under its own submission', (
       tester,
@@ -2406,6 +2875,10 @@ class _MemoryDraftStorage implements ProductSubmissionDraftStorage {
   final Map<String, PendingProductSubmission> records = {};
   final Map<String, String> owners = {};
   bool corruptOnRestore = false;
+  bool failRestore = false;
+  bool failSave = false;
+  Completer<void>? pendingSave;
+  Completer<void>? pendingRestore;
 
   final List<String> savedForUsers = [];
 
@@ -2421,6 +2894,8 @@ class _MemoryDraftStorage implements ProductSubmissionDraftStorage {
     bool noSeparateIngredientPanel = false,
     int evidenceRevision = 1,
   }) async {
+    if (pendingSave != null) await pendingSave!.future;
+    if (failSave) throw StateError('storage full');
     savedForUsers.add(userId);
     owners[submissionId] = userId;
     captures[submissionId] = RestoredCapture(
@@ -2466,6 +2941,8 @@ class _MemoryDraftStorage implements ProductSubmissionDraftStorage {
 
   @override
   Future<RestoredCapture?> restore(String userId, String submissionId) async {
+    if (pendingRestore != null) await pendingRestore!.future;
+    if (failRestore) throw StateError('storage unavailable');
     if (corruptOnRestore) return null;
     if (owners[submissionId] != userId) return null;
     return captures[submissionId];
@@ -2488,7 +2965,7 @@ class _Backend implements ProductSubmissionBackend {
   });
 
   @override
-  final String? authenticatedUserId;
+  String? authenticatedUserId;
   Map<String, Object?>? persistedIdentifier;
   String? persistedKind;
   bool? persistedCueFlag;
@@ -2532,6 +3009,7 @@ class _Backend implements ProductSubmissionBackend {
   }
 
   int uploadFailuresRemaining = 0;
+  Completer<void>? pendingUpload;
 
   @override
   Future<void> uploadPhoto({
@@ -2544,6 +3022,7 @@ class _Backend implements ProductSubmissionBackend {
       uploadFailuresRemaining -= 1;
       throw StateError('upload interrupted');
     }
+    if (pendingUpload != null) await pendingUpload!.future;
     uploaded.add(objectPath);
   }
 

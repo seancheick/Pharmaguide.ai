@@ -35,6 +35,18 @@ void main() {
     expect(hints.showsDirectionsOrWarnings, isTrue);
   });
 
+  test('directions remain detectable alongside facts and ingredients', () {
+    final hints = readPanelHints(
+      'Supplement Facts\nServing Size 1 Capsule\n'
+      'Other Ingredients: cellulose\nSuggested Use: take one capsule daily.\n'
+      'Warning: keep out of reach of children.',
+      submission: _submission,
+    );
+    expect(hints.showsFactsPanel, isTrue);
+    expect(hints.showsOtherIngredients, isTrue);
+    expect(hints.showsDirectionsOrWarnings, isTrue);
+  });
+
   test('finds the Other Ingredients list, even split across lines', () {
     for (final text in [
       'Other Ingredients: rice flour, gelatin capsule.',
