@@ -22,6 +22,7 @@ import 'package:pharmaguide/data/database/user_database.dart';
 import 'package:pharmaguide/data/providers/database_providers.dart';
 import 'package:pharmaguide/data/supabase/detail_blob_service.dart';
 import 'package:pharmaguide/services/connectivity_service.dart';
+import 'package:pharmaguide/services/crash_reporting_service.dart';
 
 /// PURE serve decision for a cached detail-blob row.
 ///
@@ -148,14 +149,23 @@ final detailBlobForRowProvider = FutureProvider.family
         // Return its verified bytes, but only the current row owns the
         // single durable cache entry. Serialize the check with cache writes.
         if (ref.mounted) {
-          await userDb.transaction(() async {
-            if (!ref.mounted) return;
-            final current = await coreDb.findById(dsldId);
-            if (!ref.mounted || current?.detailBlobSha256 != expectedSha) {
-              return;
-            }
-            await userDb.cacheDetail(dsldId, jsonEncode(blob), expectedSha);
-          });
+          try {
+            await userDb.transaction(() async {
+              if (!ref.mounted) return;
+              final current = await coreDb.findById(dsldId);
+              if (!ref.mounted || current?.detailBlobSha256 != expectedSha) {
+                return;
+              }
+              await userDb.cacheDetail(dsldId, jsonEncode(blob), expectedSha);
+            });
+          } on Object catch (_, trace) {
+            // Database exceptions can include statement parameters.
+            CrashReportingService().recordError(
+              StateError('Could not cache verified catalog detail'),
+              trace,
+              hint: 'detail_blob:cache_write_failed',
+            );
+          }
         }
         return blob;
       },

@@ -2,7 +2,7 @@
 
 > Version: 2.0.0 — 2026-06-09
 > Scope: how the Flutter app reads the V4 pipeline export.
-> Canonical pipeline contract: `FINAL_EXPORT_SCHEMA_V1.md` / export schema `2.0.0`.
+> Canonical pipeline contract: [FINAL_EXPORT_SCHEMA_V1.md](https://github.com/seancheick/PharmaGuide_Pipeline/blob/main/scripts/FINAL_EXPORT_SCHEMA_V1.md), export schema `2.5.0`.
 
 App persistence layout:
 

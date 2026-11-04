@@ -173,6 +173,24 @@ void main() {
       },
     );
 
+    test('a cache write failure still returns the verified blob', () async {
+      await seedProduct('p1', blobSha: 'verified-sha');
+      await userDb.customStatement("""
+        CREATE TRIGGER reject_detail_write BEFORE INSERT ON product_detail_cache
+        BEGIN SELECT RAISE(ABORT, 'cache unavailable'); END
+      """);
+      final container = buildContainer(_FakeBlobService({'v': 'verified'}));
+      final provider = detailBlobForRowProvider((
+        dsldId: 'p1',
+        expectedSha: 'verified-sha',
+      ));
+      final subscription = container.listen(provider, (_, _) {});
+      addTearDown(subscription.close);
+
+      expect(await container.read(provider.future), {'v': 'verified'});
+      expect(await userDb.getCachedDetail('p1'), isNull);
+    });
+
     test(
       'stale-sha cache row triggers a re-fetch and persists the new sha',
       () async {
