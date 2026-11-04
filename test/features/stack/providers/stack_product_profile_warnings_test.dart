@@ -238,6 +238,68 @@ void main() {
     },
   );
   test(
+    'strict caffeine bound reaches shared Stack once with honest copy',
+    () async {
+      final warning = {
+        'type': 'interaction',
+        'severity': 'avoid',
+        'evidence_level': 'established',
+        'title': 'Caffeine / pregnancy',
+        'mechanism': 'Authored dose concern',
+        'ingredient_name': 'Caffeine',
+        'ingredient_canonical_id': 'caffeine',
+        'condition_ids': ['pregnancy'],
+        'dose_decision': {
+          'evaluation_status': 'above_threshold',
+          'consumer_disposition': 'review',
+          'clinical_severity': 'avoid',
+          'evaluated_daily_amount': 200,
+          'evaluated_unit': 'mg',
+          'threshold': 200,
+          'threshold_unit': 'mg',
+          'comparator': '>',
+          'decision_rule': {
+            'threshold': 200,
+            'threshold_unit': 'mg',
+            'comparator': '>',
+            'consumer_disposition_if_met': 'review',
+            'consumer_disposition_if_not_met': 'suppress',
+          },
+        },
+      };
+      await reportFor(
+        {
+          'warnings': [warning, warning],
+        },
+        resolvedRules: [],
+        inspect: (container, report) async {
+          final alerts = await container.read(
+            stackDoseThresholdAlertsProvider.future,
+          );
+          expect(alerts, hasLength(1));
+          final snapshot = const StackIntelligenceEngine().summarizeFromReports(
+            stackSize: 1,
+            safetyReport: report,
+            recalledReport: const RecalledIngredientsReport(violations: []),
+            synergyReport: SynergyReport.empty(),
+            doseThresholdAlerts: alerts,
+          );
+          expect(snapshot.reviewSignals, hasLength(1));
+          expect(
+            snapshot.reviewSignals.single.body,
+            contains('more than 200 mg'),
+          );
+          expect(
+            report.stackInteractions,
+            isEmpty,
+            reason: 'dose owner prevents a duplicate warning',
+          );
+        },
+      );
+    },
+  );
+
+  test(
     'shared Product Detail suppression keeps benefits and no-data notes out',
     () async {
       final report = await reportFor({

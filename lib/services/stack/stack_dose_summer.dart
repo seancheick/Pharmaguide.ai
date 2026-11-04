@@ -67,6 +67,24 @@ List<StackDoseThresholdRule> stackDoseThresholdRulesFromWarnings(
             consumerDispositionIfMet: consumerDispositionFromWire(
               decisionRule?.consumerDispositionIfMet,
             ),
+            // The exported amount can be an exclusive lower bound. At the
+            // exact boundary, retain the pipeline's proven strict comparison;
+            // do not replace it with an invented point amount.
+            normalizedAmountIsStrictLowerBound:
+                decision.evaluationStatus == 'above_threshold' &&
+                const {
+                  'block',
+                  'review',
+                  'good_to_know',
+                }.contains(decision.consumerDisposition) &&
+                decisionComparator == '>' &&
+                decision.evaluatedDailyAmount == decisionThreshold &&
+                normalizeDoseUnit(decision.evaluatedUnit ?? '') ==
+                    normalizeDoseUnit(decisionUnit) &&
+                decision.threshold == decisionThreshold &&
+                normalizeDoseUnit(decision.thresholdUnit ?? '') ==
+                    normalizeDoseUnit(decisionUnit) &&
+                decision.comparator == decisionComparator,
             normalizedDailyAmount: decision.evaluatedDailyAmount,
             normalizedDailyUnit: decision.evaluatedUnit,
             sourceStackEntryId: stackEntryId,
@@ -297,12 +315,14 @@ class StackDoseSummer {
       );
       final thresholdUnit = normalizeDoseUnit(representative.thresholdUnit);
       var total = 0.0;
+      var totalIsStrictLowerBound = false;
       final contributions = <StackDoseContribution>[];
       for (final rule in rules) {
         final amount = rule.normalizedDailyAmount;
         final unit = normalizeDoseUnit(rule.normalizedDailyUnit ?? '');
         if (amount == null || amount <= 0 || unit != thresholdUnit) continue;
         total += amount;
+        totalIsStrictLowerBound |= rule.normalizedAmountIsStrictLowerBound;
         contributions.add(
           StackDoseContribution(
             stackEntryId: rule.sourceStackEntryId,
@@ -313,13 +333,17 @@ class StackDoseSummer {
         );
       }
       final comparatorKnown = _isKnownComparator(representative.comparator);
+      final thresholdMet =
+          _compareDose(
+            total,
+            representative.comparator,
+            representative.thresholdValue,
+          ) ||
+          (representative.comparator.trim() == '>' &&
+              total == representative.thresholdValue &&
+              totalIsStrictLowerBound);
       if (contributions.isEmpty ||
-          (comparatorKnown &&
-              !_compareDose(
-                total,
-                representative.comparator,
-                representative.thresholdValue,
-              )) ||
+          (comparatorKnown && !thresholdMet) ||
           !consumerDisposition.isVisible) {
         continue;
       }
@@ -330,6 +354,7 @@ class StackDoseSummer {
           canonicalId: representative.canonicalId,
           displayName: representative.displayName ?? representative.canonicalId,
           totalValue: total,
+          totalIsStrictLowerBound: totalIsStrictLowerBound,
           unit: thresholdUnit,
           thresholdValue: representative.thresholdValue,
           thresholdUnit: thresholdUnit,
@@ -781,6 +806,7 @@ class StackDoseThresholdRule {
     this.clinicalSeverity = Severity.caution,
     this.consumerDispositionIfMet = ConsumerDisposition.review,
     this.normalizedDailyAmount,
+    this.normalizedAmountIsStrictLowerBound = false,
     this.normalizedDailyUnit,
     this.sourceStackEntryId = '',
     this.sourceProductName = '',
@@ -799,6 +825,9 @@ class StackDoseThresholdRule {
   final Severity clinicalSeverity;
   final ConsumerDisposition consumerDispositionIfMet;
   final double? normalizedDailyAmount;
+
+  /// Internal arithmetic metadata carried from the authored dose decision.
+  final bool normalizedAmountIsStrictLowerBound;
   final String? normalizedDailyUnit;
   final String sourceStackEntryId;
   final String sourceProductName;
@@ -873,6 +902,7 @@ class StackDoseThresholdAlert {
     required this.canonicalId,
     required this.displayName,
     required this.totalValue,
+    this.totalIsStrictLowerBound = false,
     required this.unit,
     required this.thresholdValue,
     required this.thresholdUnit,
@@ -888,6 +918,9 @@ class StackDoseThresholdAlert {
   final String canonicalId;
   final String displayName;
   final double totalValue;
+
+  /// The actual total is strictly greater than the recorded lower bound.
+  final bool totalIsStrictLowerBound;
   final String unit;
   final double thresholdValue;
   final String thresholdUnit;

@@ -319,6 +319,11 @@ final stackDoseThresholdAlertsProvider =
           canonicalId: basis.canonicalId,
           displayName: basis.displayName,
           totalValue: basis.totalValue,
+          totalIsStrictLowerBound:
+              basis.totalIsStrictLowerBound ||
+              (existing.totalValue == alert.totalValue &&
+                  (existing.totalIsStrictLowerBound ||
+                      alert.totalIsStrictLowerBound)),
           unit: basis.unit,
           thresholdValue: basis.thresholdValue,
           thresholdUnit: basis.thresholdUnit,

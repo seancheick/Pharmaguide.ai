@@ -1,5 +1,5 @@
 import 'package:flutter_test/flutter_test.dart';
-import 'package:pharmaguide/core/constants/consumer_disposition.dart';
+import 'package:pharmaguide/services/signals/clinical_signal_envelope.dart';
 import 'package:pharmaguide/core/constants/severity.dart';
 import 'package:pharmaguide/services/stack/stack_dose_summer.dart';
 import 'package:pharmaguide/services/stack/stack_nutrient_models.dart';
@@ -31,6 +31,241 @@ const _surgeryOmegaRule = StackDoseThresholdRule(
 
 void main() {
   group('StackDoseSummer', () {
+    test(
+      'strict exported lower bound remains a single truthful Stack signal',
+      () {
+        final warning = InteractionWarning.fromJson({
+          'type': 'interaction',
+          'title': 'Caffeine / pregnancy',
+          'severity': 'avoid',
+          'evidence_level': 'established',
+          'ingredient_name': 'Caffeine',
+          'ingredient_canonical_id': 'caffeine',
+          'condition_ids': ['pregnancy'],
+          'dose_decision': {
+            'evaluation_status': 'above_threshold',
+            'consumer_disposition': 'review',
+            'clinical_severity': 'avoid',
+            'evaluated_daily_amount': 200,
+            'evaluated_unit': 'mg',
+            'threshold': 200,
+            'threshold_unit': 'mg',
+            'comparator': '>',
+            'decision_rule': {
+              'threshold': 200,
+              'threshold_unit': 'mg',
+              'comparator': '>',
+              'consumer_disposition_if_met': 'review',
+              'consumer_disposition_if_not_met': 'suppress',
+            },
+          },
+        });
+        final rules = stackDoseThresholdRulesFromWarnings(
+          [warning, warning],
+          stackEntryId: 'a',
+          productName: 'Caffeine',
+        );
+        final alerts = const StackDoseSummer()
+            .thresholdAlertsFromNormalizedRules(
+              userConditions: ['pregnancy'],
+              thresholdRules: rules,
+            );
+        expect(alerts, hasLength(1));
+        expect(
+          alerts.single.totalValue,
+          200,
+          reason: 'never invent an epsilon',
+        );
+        expect(alerts.single.contributions, hasLength(1));
+        expect(alerts.single.clinicalSeverity, Severity.avoid);
+        expect(
+          ClinicalSignal.fromDoseThreshold(alerts.single).body,
+          contains('more than 200 mg'),
+        );
+      },
+    );
+
+    for (final control in [
+      (
+        status: 'below_threshold',
+        disposition: 'suppress',
+        amount: 200.0,
+        comparator: '>',
+      ),
+      (
+        status: 'form_unknown',
+        disposition: 'review',
+        amount: 200.0,
+        comparator: '>',
+      ),
+      (
+        status: 'amount_unknown',
+        disposition: 'review',
+        amount: 200.0,
+        comparator: '>',
+      ),
+      (
+        status: 'above_threshold',
+        disposition: 'suppress',
+        amount: 200.0,
+        comparator: '>',
+      ),
+      (
+        status: 'above_threshold',
+        disposition: 'review',
+        amount: 100.0,
+        comparator: '>',
+      ),
+      (
+        status: 'above_threshold',
+        disposition: 'review',
+        amount: 200.0,
+        comparator: '<',
+      ),
+      (
+        status: 'above_threshold',
+        disposition: 'review',
+        amount: 200.0,
+        comparator: '==',
+      ),
+    ]) {
+      test('does not infer strict exposure from $control', () {
+        final rules = stackDoseThresholdRulesFromWarnings([
+          InteractionWarning(
+            severity: Severity.avoid,
+            evidenceLevel: EvidenceLevel.established,
+            title: 'Caffeine',
+            mechanism: '',
+            management: '',
+            ingredientName: 'Caffeine',
+            ingredientCanonicalId: 'caffeine',
+            conditionIds: const ['pregnancy'],
+            doseDecision: DoseDecision(
+              evaluationStatus: control.status,
+              consumerDisposition: control.disposition,
+              evaluatedDailyAmount: control.amount,
+              evaluatedUnit: 'mg',
+              threshold: 200,
+              thresholdUnit: 'mg',
+              comparator: control.comparator,
+              decisionRule: DoseDecisionRule(
+                threshold: 200,
+                thresholdUnit: 'mg',
+                comparator: control.comparator,
+                consumerDispositionIfMet: 'review',
+                consumerDispositionIfNotMet: 'suppress',
+              ),
+            ),
+          ),
+        ], stackEntryId: 'a');
+        expect(rules.single.normalizedAmountIsStrictLowerBound, isFalse);
+        if (control.comparator == '>') {
+          expect(
+            const StackDoseSummer().thresholdAlertsFromNormalizedRules(
+              userConditions: ['pregnancy'],
+              thresholdRules: rules,
+            ),
+            isEmpty,
+          );
+        }
+      });
+    }
+
+    test(
+      'adds exact amounts to an authored strict bound without inventing a point',
+      () {
+        const rules = [
+          StackDoseThresholdRule(
+            conditionId: 'pregnancy',
+            canonicalId: 'caffeine',
+            thresholdValue: 200,
+            thresholdUnit: 'mg',
+            comparator: '>',
+            normalizedDailyAmount: 200,
+            normalizedDailyUnit: 'mg',
+            normalizedAmountIsStrictLowerBound: true,
+            sourceStackEntryId: 'a',
+          ),
+          StackDoseThresholdRule(
+            conditionId: 'pregnancy',
+            canonicalId: 'caffeine',
+            thresholdValue: 200,
+            thresholdUnit: 'mg',
+            comparator: '>',
+            normalizedDailyAmount: 100,
+            normalizedDailyUnit: 'mg',
+            sourceStackEntryId: 'b',
+          ),
+        ];
+        final alerts = const StackDoseSummer()
+            .thresholdAlertsFromNormalizedRules(
+              userConditions: ['pregnancy'],
+              thresholdRules: rules,
+            );
+        expect(alerts, hasLength(1));
+        expect(alerts.single.totalValue, 300);
+        expect(
+          ClinicalSignal.fromDoseThreshold(alerts.single).body,
+          contains('more than 300 mg'),
+        );
+        expect(
+          const StackDoseSummer().thresholdAlertsFromNormalizedRules(
+            userConditions: ['heart_disease'],
+            thresholdRules: rules,
+          ),
+          isEmpty,
+        );
+      },
+    );
+
+    for (final proof in [
+      (threshold: null, unit: 'mg', comparator: '>'),
+      (threshold: 100.0, unit: 'mg', comparator: '>'),
+      (threshold: 200.0, unit: null, comparator: '>'),
+      (threshold: 200.0, unit: 'g', comparator: '>'),
+      (threshold: 200.0, unit: 'mg', comparator: null),
+      (threshold: 200.0, unit: 'mg', comparator: '>='),
+    ]) {
+      test('strict proof requires the same assessed rule $proof', () {
+        final rules = stackDoseThresholdRulesFromWarnings([
+          InteractionWarning(
+            severity: Severity.avoid,
+            evidenceLevel: EvidenceLevel.established,
+            title: 'Caffeine',
+            mechanism: '',
+            management: '',
+            ingredientName: 'Caffeine',
+            ingredientCanonicalId: 'caffeine',
+            conditionIds: const ['pregnancy'],
+            doseDecision: DoseDecision(
+              evaluationStatus: 'above_threshold',
+              consumerDisposition: 'review',
+              evaluatedDailyAmount: 200,
+              evaluatedUnit: 'mg',
+              threshold: proof.threshold,
+              thresholdUnit: proof.unit,
+              comparator: proof.comparator,
+              decisionRule: const DoseDecisionRule(
+                threshold: 200,
+                thresholdUnit: 'mg',
+                comparator: '>',
+                consumerDispositionIfMet: 'review',
+                consumerDispositionIfNotMet: 'suppress',
+              ),
+            ),
+          ),
+        ]);
+        expect(rules.single.normalizedAmountIsStrictLowerBound, isFalse);
+        expect(
+          const StackDoseSummer().thresholdAlertsFromNormalizedRules(
+            userConditions: ['pregnancy'],
+            thresholdRules: rules,
+          ),
+          isEmpty,
+        );
+      });
+    }
+
     test('extracts stack threshold rules from emitted warning metadata', () {
       final rules = stackDoseThresholdRulesFromWarnings([
         const InteractionWarning(
