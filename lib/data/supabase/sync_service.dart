@@ -362,6 +362,7 @@ class SyncService {
   /// - 206 → append to the partial; validate the final size against the
   ///   `Content-Range` total.
   /// - 200 → server ignored the Range; restart from zero (truncate).
+  /// - 416 → the partial reaches or passes the end of the object.
   /// - 400/401/403/404 → [PublicFetchDeniedException] (not retried here;
   ///   caller falls back to the authed path).
   Future<void> _streamPublicDownload(
@@ -404,6 +405,21 @@ class SyncService {
         response.statusCode,
       )) {
         throw PublicFetchDeniedException(response.statusCode);
+      }
+
+      if (response.statusCode == 416 && existing > 0) {
+        // Nothing lies past where this file ends. A whole file, left by a kill
+        // just before its hash check, goes on to that check. Anything else can
+        // never resume, so the retry starts over.
+        final total = _parseContentRangeTotal(
+          response.headers['content-range'],
+        );
+        if (total == existing) return;
+        await stagingFile.delete();
+        throw HttpException(
+          'catalog partial does not fit the object: $existing of $total bytes',
+          uri: request.url,
+        );
       }
 
       final int? expectedTotal;
