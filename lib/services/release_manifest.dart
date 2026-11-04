@@ -10,6 +10,7 @@ import 'package:cryptography/cryptography.dart';
 import 'package:flutter/foundation.dart';
 import 'package:pharmaguide/core/utils/app_version.dart';
 import 'package:pharmaguide/data/providers/database_providers.dart';
+import 'package:pharmaguide/data/supabase/supabase_contract.dart';
 import 'package:pharmaguide/data/supabase/sync_service.dart';
 
 /// Verification keys by key ID, as hex. A build with no keys ignores signed
@@ -50,6 +51,7 @@ class ReleaseArtifact {
     required this.sha256,
     required this.schemaVersion,
     required this.minAppVersion,
+    this.compressed,
   });
 
   final String version;
@@ -57,6 +59,9 @@ class ReleaseArtifact {
   final String sha256;
   final String schemaVersion;
   final String minAppVersion;
+
+  /// Only a catalog has one, and only from releases published since compression.
+  final CompressedCatalog? compressed;
 
   static ReleaseArtifact _parse(Object? raw, String name) {
     if (raw is! Map) throw ReleaseManifestException('$name is not an object');
@@ -78,6 +83,14 @@ class ReleaseArtifact {
       sha256: sha256,
       schemaVersion: field('schema_version'),
       minAppVersion: field('min_app_version'),
+      compressed: name == 'catalog'
+          ? CompressedCatalog.tryParse(
+              raw['compressed'],
+              expectedPath: SupabaseContract.compressedCoreDbPath(
+                field('version'),
+              ),
+            )
+          : null,
     );
   }
 }

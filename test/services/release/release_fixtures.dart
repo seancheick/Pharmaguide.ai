@@ -275,6 +275,7 @@ class ReleaseSigner {
     String minRulesVersion = '1.0.0',
     List<String> blockedCatalog = const [],
     List<String> blockedRules = const [],
+    Map<String, Object?>? compressed,
   }) {
     final rules = rulesVersion == null
         ? null
@@ -288,6 +289,7 @@ class ReleaseSigner {
     return jsonEncode({
       'blocked_versions': {'catalog': blockedCatalog, 'rules': blockedRules},
       'catalog': {
+        'compressed': ?compressed,
         'min_app_version': catalogMinApp,
         'path': 'v$catalogVersion/pharmaguide_core.db',
         'schema_version': catalogSchema,

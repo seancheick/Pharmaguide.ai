@@ -234,12 +234,11 @@ void main() {
     expect(client.ranges.single, isNull);
   });
 
-  http.StreamedResponse rangeNotSatisfiable(int total) =>
-      http.StreamedResponse(
-        const Stream.empty(),
-        416,
-        headers: {'content-range': 'bytes */$total'},
-      );
+  http.StreamedResponse rangeNotSatisfiable(int total) => http.StreamedResponse(
+    const Stream.empty(),
+    416,
+    headers: {'content-range': 'bytes */$total'},
+  );
 
   test('a whole file left by a kill just before its hash check is checked, '
       'not stuck asking for bytes past its end', () async {
@@ -261,24 +260,27 @@ void main() {
     expect(client.ranges, ['bytes=${catalogBytes.length}-']);
   });
 
-  test('a partial longer than the object is dropped and downloaded again',
-      () async {
-    staging().writeAsBytesSync([...catalogBytes, 1, 2, 3]);
-    File('${staging().path}.version').writeAsStringSync(_version);
-    final client = _FakeHttpClient(
-      (request) => request.headers['range'] == null
-          ? whole(catalogBytes)
-          : rangeNotSatisfiable(catalogBytes.length),
-    );
-    final svc = SyncService(
-      appVersion: '1.0.0',
-      httpClientFactory: () => client,
-    );
-    await svc.stageCatalog(
-      downloads: downloads,
-      version: _version,
-      expectedSha256: catalogSha,
-    );
-    expect(client.ranges.last, isNull);
-  }, timeout: const Timeout(Duration(minutes: 1)));
+  test(
+    'a partial longer than the object is dropped and downloaded again',
+    () async {
+      staging().writeAsBytesSync([...catalogBytes, 1, 2, 3]);
+      File('${staging().path}.version').writeAsStringSync(_version);
+      final client = _FakeHttpClient(
+        (request) => request.headers['range'] == null
+            ? whole(catalogBytes)
+            : rangeNotSatisfiable(catalogBytes.length),
+      );
+      final svc = SyncService(
+        appVersion: '1.0.0',
+        httpClientFactory: () => client,
+      );
+      await svc.stageCatalog(
+        downloads: downloads,
+        version: _version,
+        expectedSha256: catalogSha,
+      );
+      expect(client.ranges.last, isNull);
+    },
+    timeout: const Timeout(Duration(minutes: 1)),
+  );
 }
