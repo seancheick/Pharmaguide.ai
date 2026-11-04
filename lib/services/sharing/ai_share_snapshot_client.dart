@@ -181,8 +181,11 @@ class AiShareSnapshotClient {
   }
 
   /// Deletes every snapshot of the signed-in user (sign-out purge, S5).
-  Future<void> deleteAll() async {
+  Future<void> deleteAll({String? onlyFor}) async {
     _requireSignedIn();
+    if (onlyFor != null && currentUserId?.call() != onlyFor) {
+      throw const AiShareNotSignedIn();
+    }
     await _delete({'all': true});
   }
 
