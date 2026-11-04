@@ -15,7 +15,6 @@ import 'package:pharmaguide/data/providers/database_providers.dart';
 import 'package:pharmaguide/data/providers/reference_data_provider.dart'
     as reference_data;
 import 'package:pharmaguide/data/repositories/reference_data_repository.dart';
-import 'package:pharmaguide/features/product_detail/providers/detail_blob_provider.dart';
 import 'package:pharmaguide/features/product_detail/v2/product_detail_v2_connected.dart';
 import 'package:pharmaguide/features/profile/profile_provider.dart';
 import 'package:pharmaguide/features/safety_alerts/providers/safety_alert_providers.dart';
@@ -66,17 +65,26 @@ Future<void> _pumpPage(
   final coreDb = CoreDatabase.memory();
   final userDb = UserDatabase.memory();
   final interactionDb = InteractionDatabase.memory();
+  const detailHash = 'fixture-detail-hash';
   await coreDb
       .into(coreDb.productsCore)
       .insert(
         ProductsCoreCompanion.insert(
           dsldId: _dsldId,
+          detailBlobSha256: const Value(detailHash),
           productName: 'Held Rule Product',
           exportVersion: 'test',
           exportedAt: '2026-11-04T00:00:00Z',
           mappedCoverage: const Value(1),
         ),
       );
+  await userDb.cacheDetail(
+    _dsldId,
+    jsonEncode({
+      'warnings': [warning],
+    }),
+    detailHash,
+  );
   addTearDown(() async {
     await tester.pumpWidget(const SizedBox.shrink());
     await coreDb.close();
@@ -92,11 +100,6 @@ Future<void> _pumpPage(
         interactionDatabaseProvider.overrideWithValue(interactionDb),
         safetyAlertRepositoryProvider.overrideWithValue(_NoAlerts()),
         activeStackProvider.overrideWith((ref) async => const []),
-        detailBlobProvider.overrideWith(
-          (ref, id) async => {
-            'warnings': [warning],
-          },
-        ),
         profileProvider.overrideWith(
           (ref) => ProfileNotifier()
             ..setAgeBracket(ageBracket)

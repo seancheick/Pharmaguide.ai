@@ -8,6 +8,7 @@
 // be detected. [cachedDetailIsServable] is the PURE serve decision; the
 // provider wiring tests verify miss → re-fetch → sha persisted.
 
+import 'dart:async';
 import 'dart:convert';
 
 import 'package:drift/drift.dart' show Value;
@@ -30,6 +31,14 @@ class _FakeBlobService extends DetailBlobService {
     requestedHashes.add(sha256);
     return blob;
   }
+}
+
+class _PendingBlobService extends DetailBlobService {
+  final requests = <String, Completer<Map<String, dynamic>?>>{};
+
+  @override
+  Future<Map<String, dynamic>?> fetchDetailBlobByHash(String sha256) =>
+      requests.putIfAbsent(sha256, Completer.new).future;
 }
 
 void main() {
@@ -116,6 +125,71 @@ void main() {
       addTearDown(container.dispose);
       return container;
     }
+
+    test(
+      'pinned rows keep their blobs across an in-flight catalog switch',
+      () async {
+        await seedProduct('p1', blobSha: 'old-sha');
+        final oldRow = (await coreDb.findById('p1'))!;
+        final service = _PendingBlobService();
+        final container = buildContainer(service);
+        final oldProvider = detailBlobForRowProvider((
+          dsldId: oldRow.dsldId,
+          expectedSha: oldRow.detailBlobSha256,
+        ));
+        final oldSub = container.listen(oldProvider, (_, _) {});
+        addTearDown(oldSub.close);
+        final oldBlob = container.read(oldProvider.future);
+
+        await (coreDb.update(
+          coreDb.productsCore,
+        )..where((row) => row.dsldId.equals('p1'))).write(
+          const ProductsCoreCompanion(detailBlobSha256: Value('new-sha')),
+        );
+        final newRow = (await coreDb.findById('p1'))!;
+        final newProvider = detailBlobForRowProvider((
+          dsldId: newRow.dsldId,
+          expectedSha: newRow.detailBlobSha256,
+        ));
+        final newSub = container.listen(newProvider, (_, _) {});
+        addTearDown(newSub.close);
+        final newBlob = container.read(newProvider.future);
+
+        service.requests.putIfAbsent('new-sha', Completer.new).complete({
+          'v': 'new',
+        });
+        expect(await newBlob, {'v': 'new'});
+        service.requests.putIfAbsent('old-sha', Completer.new).complete({
+          'v': 'old',
+        });
+        expect(await oldBlob, {'v': 'old'});
+        expect(newSub.read().requireValue, {'v': 'new'});
+        expect((await userDb.getCachedDetail('p1'))?.sha256, 'new-sha');
+
+        final offlineService = _FakeBlobService(null);
+        final reopened = buildContainer(offlineService);
+        expect(await reopened.read(newProvider.future), {'v': 'new'});
+        expect(offlineService.requestedHashes, isEmpty);
+      },
+    );
+
+    test('a cache write failure still returns the verified blob', () async {
+      await seedProduct('p1', blobSha: 'verified-sha');
+      await userDb.customStatement("""
+        CREATE TRIGGER reject_detail_write BEFORE INSERT ON product_detail_cache
+        BEGIN SELECT RAISE(ABORT, 'cache unavailable'); END
+      """);
+      final container = buildContainer(_FakeBlobService({'v': 'verified'}));
+      final provider = detailBlobForRowProvider((
+        dsldId: 'p1',
+        expectedSha: 'verified-sha',
+      ));
+      final subscription = container.listen(provider, (_, _) {});
+      addTearDown(subscription.close);
+
+      expect(await container.read(provider.future), {'v': 'verified'});
+      expect(await userDb.getCachedDetail('p1'), isNull);
+    });
 
     test(
       'stale-sha cache row triggers a re-fetch and persists the new sha',

@@ -210,4 +210,4 @@ Search uses 300ms debounce with stale query cancellation:
 - Variables/functions: `camelCase`
 - Constants: `camelCase` (Dart convention, not SCREAMING_SNAKE)
 - Test files: `<source_file>_test.dart` in mirror directory structure under `test/`
-- Score field names are **FROZEN**: use `score_quality_80`, `score_display_100_equivalent` exactly as pipeline exports them. Never rename.
+- Read the shipped `quality_score_v4_100` and `quality_score_status` from the catalog. See the [Flutter data contract](../FLUTTER_DATA_CONTRACT_V1.md) for the projected fields.

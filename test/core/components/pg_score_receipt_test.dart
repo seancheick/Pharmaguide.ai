@@ -63,16 +63,17 @@ Map<String, dynamic> _pillars({
   },
 };
 
-Widget _section(Map<String, dynamic> pillars) => MaterialApp(
-  home: Scaffold(
-    body: SingleChildScrollView(
-      child: buildScoreBreakdownSection(
-        heroScore: 55.7,
-        qualityPillarsV4: pillars,
+Widget _section(Map<String, dynamic> pillars, {double heroScore = 55.7}) =>
+    MaterialApp(
+      home: Scaffold(
+        body: SingleChildScrollView(
+          child: buildScoreBreakdownSection(
+            heroScore: heroScore,
+            qualityPillarsV4: pillars,
+          ),
+        ),
       ),
-    ),
-  ),
-);
+    );
 
 void main() {
   for (final reason in [
@@ -129,6 +130,7 @@ void main() {
               evidence: 10.0,
               evidenceState: 'applicability_unestablished',
             ),
+            heroScore: 65.7,
           ),
         );
         expect(find.text('10/20'), findsOneWidget);
@@ -202,8 +204,7 @@ void main() {
       ]) {
         expect(find.text(hidden), findsNothing, reason: hidden);
       }
-      // The pillar sum stays: it is the one place the six scores add up.
-      expect(find.text('= 56/100'), findsOneWidget);
+      expect(find.text('= 56/100'), findsNothing);
     },
   );
 

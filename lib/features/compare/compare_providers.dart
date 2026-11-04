@@ -50,7 +50,12 @@ final compareEntryProvider = FutureProvider.autoDispose
       var blobFailed = false;
       if (product != null) {
         try {
-          blob = await ref.watch(detailBlobProvider(dsldId).future);
+          blob = await ref.watch(
+            detailBlobForRowProvider((
+              dsldId: dsldId,
+              expectedSha: product.detailBlobSha256,
+            )).future,
+          );
           // `on Object` (not Exception): a thrown Error (TypeError from a
           // malformed blob, StateError from a disposed provider) must be
           // absorbed into blobFailed too — otherwise it kills the whole

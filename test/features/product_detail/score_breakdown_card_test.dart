@@ -9,21 +9,19 @@ import 'package:pharmaguide/features/product_detail/v2/sections/score_breakdown_
 
 void main() {
   Widget buildTestWidget({
-    double? formulation,
-    double? dose,
-    double? evidence,
-    double? transparency,
-    double? verification,
-    double? safetyHygiene,
-    double? heroScore,
-    String? qualityTier,
+    double formulation = 13.9,
+    double dose = 8.7,
+    double evidence = 12,
+    double transparency = 10,
+    double verification = 10,
+    double safetyHygiene = 9,
+    double? heroScore = 64,
   }) {
     return MaterialApp(
       home: Scaffold(
         body: SingleChildScrollView(
           child: buildScoreBreakdownSection(
             heroScore: heroScore,
-            qualityTier: qualityTier,
             qualityPillarsV4: _v4Pillars(
               formulation: formulation,
               dose: dose,
@@ -49,12 +47,12 @@ void main() {
       expect(find.text('Product Analysis'), findsNothing);
     });
 
-    testWidgets('header omits the number when heroScore is null', (
+    testWidgets('section is hidden when the catalog score is null', (
       tester,
     ) async {
-      await tester.pumpWidget(buildTestWidget());
+      await tester.pumpWidget(buildTestWidget(heroScore: null));
 
-      expect(find.text('Why this scored'), findsOneWidget);
+      expect(find.byType(PGScoreBreakdownCard), findsNothing);
     });
 
     testWidgets('renders locked pillar labels in order', (tester) async {
@@ -80,6 +78,7 @@ void main() {
           transparency: 12.5,
           verification: 13,
           safetyHygiene: 9.3,
+          heroScore: 87,
         ),
       );
 
@@ -92,16 +91,12 @@ void main() {
       expect(find.text('8/10'), findsNothing);
     });
 
-    testWidgets('shows "No data" for null pillar scores', (tester) async {
-      await tester.pumpWidget(buildTestWidget());
-
-      expect(find.text('No data'), findsNWidgets(6));
-    });
-
     testWidgets(
       'reveals the pipeline reason but not synthesized badges when tapped',
       (tester) async {
-        await tester.pumpWidget(buildTestWidget(verification: 13));
+        await tester.pumpWidget(
+          buildTestWidget(verification: 13, heroScore: 67),
+        );
 
         await tester.tap(find.text('Testing & Brand'));
         await tester.pumpAndSettle();
@@ -129,7 +124,14 @@ void main() {
       'passes pipeline facts and only named eligible actions to the card',
       (tester) async {
         var evidenceActions = 0;
-        final pillars = _v4Pillars(evidence: 12, formulation: 13.9);
+        final pillars = _v4Pillars(
+          evidence: 12,
+          formulation: 13.9,
+          dose: 8.7,
+          transparency: 10,
+          verification: 10,
+          safetyHygiene: 9,
+        );
         (pillars['evidence'] as Map<String, dynamic>)['explanation'] = {
           'schema_version': 2,
           'facts': [
@@ -243,8 +245,8 @@ void main() {
       expect(find.textContaining('See details'), findsNothing);
 
       final actionTop = tester.getTopLeft(find.text('How PG Score works'));
-      final totalTop = tester.getTopLeft(find.text('= 35/100'));
-      expect(actionTop.dy, greaterThan(totalTop.dy));
+      final lastPillarTop = tester.getTopLeft(find.text('Evidence'));
+      expect(actionTop.dy, greaterThan(lastPillarTop.dy));
 
       await tester.tap(find.text('How PG Score works'));
       expect(helpCount, 1);
@@ -282,9 +284,7 @@ void main() {
     testWidgets('score tint trusts the catalog tier over numeric fallback', (
       tester,
     ) async {
-      await tester.pumpWidget(
-        buildTestWidget(heroScore: 96, qualityTier: 'Poor'),
-      );
+      await tester.pumpWidget(_cardHarness(heroScore: 96, qualityTier: 'Poor'));
       final richText = tester.widget<RichText>(
         find
             .byWidgetPredicate(
@@ -697,11 +697,17 @@ PGPillar _pillar({
   );
 }
 
-Widget _cardHarness({VoidCallback? onAction, VoidCallback? onHowScoringWorks}) {
+Widget _cardHarness({
+  VoidCallback? onAction,
+  VoidCallback? onHowScoringWorks,
+  double heroScore = 63.6,
+  String? qualityTier,
+}) {
   return MaterialApp(
     home: Scaffold(
       body: PGScoreBreakdownCard(
-        heroScore: 63.6,
+        heroScore: heroScore,
+        qualityTier: qualityTier,
         onHowScoringWorks: onHowScoringWorks,
         pillars: [
           const PGPillar(

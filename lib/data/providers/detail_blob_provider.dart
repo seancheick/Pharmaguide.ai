@@ -22,6 +22,7 @@ import 'package:pharmaguide/data/database/user_database.dart';
 import 'package:pharmaguide/data/providers/database_providers.dart';
 import 'package:pharmaguide/data/supabase/detail_blob_service.dart';
 import 'package:pharmaguide/services/connectivity_service.dart';
+import 'package:pharmaguide/services/crash_reporting_service.dart';
 
 /// PURE serve decision for a cached detail-blob row.
 ///
@@ -98,26 +99,31 @@ final detailBlobServiceProvider = Provider<DetailBlobService>((ref) {
   );
 });
 
-/// Async detail-blob fetcher keyed by dsldId.
-///
-/// Autodisposes so consumers do not keep large detail blobs alive after
-/// leaving the relevant product/stack surface.
+/// Reads the current detail blob for a product ID.
 final detailBlobProvider = FutureProvider.family
-    .autoDispose<Map<String, dynamic>?, String>(
-      (ref, dsldId) async {
+    .autoDispose<Map<String, dynamic>?, String>((ref, dsldId) async {
+      final coreDb = ref.watch(coreDatabaseProvider);
+      final product = await coreDb.findById(dsldId);
+      if (!ref.mounted || product == null) return null;
+      final detail = detailBlobForRowProvider((
+        dsldId: dsldId,
+        expectedSha: product.detailBlobSha256,
+      ));
+      // Reconnecting invalidates the ID-based read. Retry a failed hash
+      // read as well, while sharing its in-flight work with pinned callers.
+      if (ref.read(detail).hasError) ref.invalidate(detail);
+      return ref.watch(detail.future);
+    }, retry: (_, _) => null);
+
+/// Reads the immutable blob identified by the caller's catalog row.
+final detailBlobForRowProvider = FutureProvider.family
+    .autoDispose<Map<String, dynamic>?, ({String dsldId, String? expectedSha})>(
+      (ref, key) async {
+        final (:dsldId, :expectedSha) = key;
         final coreDb = ref.watch(coreDatabaseProvider);
         final userDb = ref.watch(userDatabaseProvider);
         final service = ref.watch(detailBlobServiceProvider);
-
-        // The product row is read FIRST so the cache check can compare the
-        // cached sha against the product's CURRENT detail_blob_sha256 — a
-        // cached blob from a previous catalog snapshot must be a miss, not
-        // a stale hit feeding outdated ingredient/warning JSON.
-        final product = await coreDb.findById(dsldId);
-        if (product == null) return null;
-        final expectedSha = product.detailBlobSha256;
         if (expectedSha == null || expectedSha.isEmpty) return null;
-
         final cached = await userDb.getCachedDetail(dsldId);
         if (cached != null &&
             cachedDetailIsServable(
@@ -139,16 +145,31 @@ final detailBlobProvider = FutureProvider.family
             'detail service returned no payload for a declared blob',
           );
         }
-        // Persist the sha alongside the blob: the fetch path verified
-        // sha256(bytes) == expectedSha, so the cached row stays
-        // re-checkable against products_core on every later read.
-        await userDb.cacheDetail(dsldId, jsonEncode(blob), expectedSha);
+        // A pinned read can finish after the catalog or account changes.
+        // Return its verified bytes, but only the current row owns the
+        // single durable cache entry. Serialize the check with cache writes.
+        if (ref.mounted) {
+          try {
+            await userDb.transaction(() async {
+              if (!ref.mounted) return;
+              final current = await coreDb.findById(dsldId);
+              if (!ref.mounted || current?.detailBlobSha256 != expectedSha) {
+                return;
+              }
+              await userDb.cacheDetail(dsldId, jsonEncode(blob), expectedSha);
+            });
+          } on Object catch (_, trace) {
+            // Database exceptions can include statement parameters.
+            CrashReportingService().recordError(
+              StateError('Could not cache verified catalog detail'),
+              trace,
+              hint: 'detail_blob:cache_write_failed',
+            );
+          }
+        }
         return blob;
       },
-      // An unavailable clinical blob must settle as an error immediately so
-      // the surface can render its explicit unavailable state. Riverpod's
-      // default automatic retry otherwise keeps the provider in loading for
-      // multiple backoff cycles and can look like an empty/all-clear result.
-      // User-initiated refresh/invalidation remains the retry mechanism.
+      // Surface an unavailable blob immediately. An explicit refresh or
+      // reconnect retries the same content hash.
       retry: (_, _) => null,
     );
