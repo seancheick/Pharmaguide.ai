@@ -386,10 +386,18 @@ class InteractionWarning {
   /// Legacy aliases `mechanism`/`management`/`source_urls` are also
   /// accepted for backward compat with older cached blobs.
   factory InteractionWarning.fromJson(Map<String, dynamic> json) {
-    final rawUrls = json['sources'] ?? json['source_urls'];
-    final urls = rawUrls is List
-        ? rawUrls.map((e) => e.toString()).toList()
-        : <String>[];
+    final urls = <String>{};
+    for (final citations in [json['sources'], json['source_urls']]) {
+      if (citations is! List) continue;
+      for (final citation in citations) {
+        final url = switch (citation) {
+          final String url => url,
+          {'url': final String url} => url,
+          _ => '',
+        };
+        if (url.trim().isNotEmpty) urls.add(url.trim());
+      }
+    }
 
     final sevContextualRaw = json['severity_contextual']?.toString();
     final sevContextual =
@@ -459,7 +467,7 @@ class InteractionWarning {
       title: json['title']?.toString() ?? '',
       mechanism: (json['detail'] ?? json['mechanism'])?.toString() ?? '',
       management: (json['action'] ?? json['management'])?.toString() ?? '',
-      sourceUrls: urls,
+      sourceUrls: urls.toList(growable: false),
       alertHeadline: alertHeadline,
       alertBody: alertBody,
       informationalNote: json['informational_note']?.toString(),

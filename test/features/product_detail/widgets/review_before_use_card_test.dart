@@ -1291,8 +1291,12 @@ void main() {
       'display_mode_default': 'informational',
       'title': 'Watchlist ingredient: Frangula bark',
       'safety_warning': 'Stimulant laxative for short-term use.',
-      'source_urls': ['https://doi.org/10.2903/j.efsa.2024.8766'],
+      'sources': [],
+      'source_urls': [
+        {'url': 'https://doi.org/10.2903/j.efsa.2024.8766'},
+      ],
     });
+    expect(warning.sourceUrls, ['https://doi.org/10.2903/j.efsa.2024.8766']);
     final section = buildGeneralNotesSection(warnings: [warning]);
     expect(section, isNotNull);
     await tester.pumpWidget(MaterialApp(home: Scaffold(body: section!)));
