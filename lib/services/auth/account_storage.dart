@@ -55,6 +55,8 @@ class AccountStorage {
   static const databaseName = 'user_data.db';
   static const attachmentsName = 'attachments';
   static const _legacyAttachmentsName = 'health_history_attachments';
+  static const _erasingMark = '.erasing.';
+  static const _doneMark = '.done';
 
   final Future<Directory> Function() _supportDirectory;
   final Future<Directory> Function() _documentsDirectory;
@@ -113,6 +115,70 @@ class AccountStorage {
     if (await database.exists()) await database.delete();
     await _cipher?.forget(database.path);
     await folder.delete(recursive: true);
+  }
+
+  /// The step that decides an erase: the whole folder moves in one rename. If
+  /// this throws, nothing changed. Once it returns, the data can't be opened
+  /// again, and [sweepErased] removes it, even after a kill.
+  Future<void> moveAsideToErase(String? uid) async {
+    final folder = await _folderFor(uid);
+    if (!await folder.exists()) return;
+    final stamp = DateTime.now().microsecondsSinceEpoch;
+    await folder.rename('${folder.path}$_erasingMark$stamp');
+  }
+
+  /// Removes every folder [moveAsideToErase] left. The health data goes first,
+  /// whatever else fails. The folder then stays as the record of which [owed]
+  /// steps are still to run, and goes last. A step returns false when it can't
+  /// run yet, and a done step never runs again, so a retry can't touch what the
+  /// person has saved since. Throws the first failure.
+  Future<void> sweepErased(
+    Map<String, Future<bool> Function(String scope)> owed,
+  ) async {
+    final users = (await _folderFor(null)).parent;
+    if (!await users.exists()) return;
+    await for (final entry in users.list()) {
+      final name = p.basename(entry.path);
+      final mark = name.indexOf(_erasingMark);
+      if (entry is! Directory || mark < 0) continue;
+      try {
+        // A key that can't be forgotten is unusable with its folder gone.
+        await _cipher?.forget(p.join(entry.path, databaseName));
+      } finally {
+        try {
+          for (final child in await entry.list().toList()) {
+            if (child.path.endsWith(_doneMark)) continue;
+            await child.delete(recursive: true);
+          }
+        } finally {
+          await _runOwed(entry, name.substring(0, mark), owed);
+        }
+      }
+    }
+  }
+
+  Future<void> _runOwed(
+    Directory folder,
+    String scope,
+    Map<String, Future<bool> Function(String scope)> owed,
+  ) async {
+    (Object, StackTrace)? failure;
+    var finished = true;
+    for (final MapEntry(key: step, value: run) in owed.entries) {
+      final done = File(p.join(folder.path, '$step$_doneMark'));
+      if (await done.exists()) continue;
+      try {
+        if (await run(scope)) {
+          await done.create();
+        } else {
+          finished = false;
+        }
+      } on Object catch (error, stackTrace) {
+        failure ??= (error, stackTrace);
+      }
+    }
+    if (failure != null) Error.throwWithStackTrace(failure.$1, failure.$2);
+    if (finished) await folder.delete(recursive: true);
   }
 
   /// One-way move of the single pre-ADR-013 store into [owner]'s folder.

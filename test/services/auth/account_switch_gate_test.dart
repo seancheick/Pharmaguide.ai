@@ -12,12 +12,19 @@ import 'package:path/path.dart' as p;
 import 'package:pharmaguide/data/database/user_database.dart';
 import 'package:pharmaguide/features/history/providers/health_history_providers.dart';
 import 'package:pharmaguide/features/stack/services/stack_sync_queue.dart';
+import 'package:pharmaguide/services/auth/account_database_cipher.dart';
 import 'package:pharmaguide/services/auth/account_storage.dart';
 import 'package:pharmaguide/services/auth/pg_auth_service.dart';
 import 'package:pharmaguide/services/recent_searches_service.dart';
 import 'package:pharmaguide/services/pending_submission_intent.dart';
+import 'package:pharmaguide/services/sharing/ai_share_prefs_store.dart';
+import 'package:pharmaguide/services/sharing/ai_share_scope.dart';
+import 'package:pharmaguide/services/sharing/ai_share_snapshot_client.dart';
+import 'package:pharmaguide/features/ai_share/ai_share_snapshot_pusher.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:supabase_flutter/supabase_flutter.dart' show AuthChangeEvent;
+
+import '../../features/ai_share/ai_share_test_fixtures.dart';
 
 const _a = 'account-a';
 const _b = 'account-b';
@@ -42,6 +49,36 @@ Future<void> _addHistoryEvent(UserDatabase db, String subjectType) => db
         effectiveAt: DateTime(2026),
       ),
     );
+
+/// Storage whose erase fails, as a held file or a full disk would.
+class _UndeletableStorage extends AccountStorage {
+  _UndeletableStorage({
+    required super.supportDirectory,
+    required super.documentsDirectory,
+    this.moveFails = false,
+    this.sweepFails = false,
+    this.duringMove,
+  });
+
+  final bool moveFails;
+  final bool sweepFails;
+  final void Function()? duringMove;
+
+  @override
+  Future<void> moveAsideToErase(String? uid) async {
+    if (moveFails) throw const FileSystemException('rename refused');
+    await super.moveAsideToErase(uid);
+    duringMove?.call();
+  }
+
+  @override
+  Future<void> sweepErased(
+    Map<String, Future<bool> Function(String)> owed,
+  ) async {
+    if (sweepFails) throw const FileSystemException('delete refused');
+    await super.sweepErased(owed);
+  }
+}
 
 Future<List<String>> _names(UserDatabase db) async =>
     (await db.select(db.userStacksLocal).get()).map((r) => r.name).toList();
@@ -129,15 +166,20 @@ void main() {
       String? Function()? readSessionUid,
       bool askBeforeAdoptingGuest = false,
       Future<void> Function()? clearSharedReport,
+      Future<bool> Function(String uid)? purgeAiShare,
+      Future<void> Function(String uid)? onAccountRemoved,
+      AccountStorage? storageOverride,
     }) {
       final guard = AccountSwitchGuard(
         ownerStore: AccountOwnerStore(),
-        storage: storage,
+        storage: storageOverride ?? storage,
         openDatabase: open ?? (path) async => UserDatabase.open(path),
         onOwnerChange: onOwnerChange,
         readSessionUid: readSessionUid,
         askBeforeAdoptingGuest: askBeforeAdoptingGuest,
         clearSharedReport: clearSharedReport ?? () async {},
+        purgeAiShare: purgeAiShare ?? (_) async => true,
+        onAccountRemoved: onAccountRemoved,
       );
       addTearDown(guard.close);
       return guard;
@@ -524,6 +566,699 @@ void main() {
 
         expect(action, AccountSwitchAction.keep);
         expect(await storage.hasData(_a), isFalse);
+      });
+    });
+
+    group('starting over after a lost key', () {
+      /// Opens normally until [lock] names an account's database as lost.
+      late Object? failure;
+      late String? failingScope;
+      late int opens;
+
+      Future<UserDatabase> openOrFail(String path) async {
+        opens++;
+        final error = failure;
+        if (error != null && path.contains(failingScope!)) throw error;
+        return UserDatabase.open(path);
+      }
+
+      void lock(String? uid, Object error) {
+        failure = error;
+        failingScope = AccountStorage.scopeFor(uid);
+      }
+
+      File databaseOf(String? uid) => File(
+        p.join(
+          support.path,
+          'users',
+          AccountStorage.scopeFor(uid),
+          AccountStorage.databaseName,
+        ),
+      );
+
+      List<Directory> erasingFolders() =>
+          Directory(p.join(support.path, 'users'))
+              .listSync()
+              .whereType<Directory>()
+              .where((entry) => p.basename(entry.path).contains('.erasing.'))
+              .toList();
+
+      setUp(() {
+        failure = null;
+        failingScope = null;
+        opens = 0;
+      });
+
+      /// A guard on the locked account, its data on disk.
+      Future<AccountSwitchGuard> lockedGuard({
+        Future<void> Function()? onOwnerChange,
+        Future<bool> Function(String uid)? purgeAiShare,
+        Future<void> Function(String uid)? onAccountRemoved,
+        String? Function()? readSessionUid,
+        AccountStorage? storageOverride,
+        Object error = const AccountKeyLost(),
+      }) async {
+        final first = guardWith(open: openOrFail);
+        await first.boot(sessionUid: _a);
+        await _addMedication(first.database!, 'Warfarin');
+        await first.close();
+        lock(_a, error);
+        final guard = guardWith(
+          open: openOrFail,
+          onOwnerChange: onOwnerChange,
+          purgeAiShare: purgeAiShare,
+          onAccountRemoved: onAccountRemoved,
+          readSessionUid: readSessionUid,
+          storageOverride: storageOverride,
+        );
+        await guard.boot(sessionUid: _a);
+        expect(guard.database, isNull);
+        return guard;
+      }
+
+      final otherFailures = <String, Object>{
+        'a store read that errors': const AccountKeyUnavailable(),
+        'a damaged database': StateError('file is not a database'),
+        'a full disk': const FileSystemException('No space left on device'),
+      };
+      for (final MapEntry(key: name, value: error) in otherFailures.entries) {
+        test('$name offers a retry only, and the erase refuses', () async {
+          var purges = 0;
+          final guard = await lockedGuard(
+            error: error,
+            purgeAiShare: (_) async {
+              purges++;
+              return true;
+            },
+          );
+          final before = databaseOf(_a).readAsBytesSync();
+
+          expect(guard.canStartOver, isFalse);
+          await expectLater(guard.startOver(), throwsStateError);
+
+          expect(databaseOf(_a).readAsBytesSync(), before);
+          expect(guard.database, isNull);
+          expect(purges, 0);
+
+          failure = null;
+          await guard.retry();
+          expect(await _names(guard.database!), ['Warfarin']);
+        });
+      }
+
+      test('a lost key offers it, and a healthy account never does', () async {
+        final healthy = guardWith(open: openOrFail);
+        await healthy.boot(sessionUid: _a);
+        await _addMedication(healthy.database!, 'Warfarin');
+        expect(healthy.canStartOver, isFalse);
+        await expectLater(healthy.startOver(), throwsStateError);
+        expect(await _names(healthy.database!), ['Warfarin']);
+        await healthy.close();
+
+        lock(_a, const AccountKeyLost());
+        final guard = guardWith(open: openOrFail);
+        await guard.boot(sessionUid: _a);
+        expect(guard.canStartOver, isTrue);
+      });
+
+      test('a retry that opens the data takes the offer away', () async {
+        final guard = await lockedGuard();
+        expect(guard.canStartOver, isTrue);
+
+        failure = null;
+        await guard.retry();
+
+        expect(guard.canStartOver, isFalse);
+        await expectLater(guard.startOver(), throwsStateError);
+        expect(await _names(guard.database!), ['Warfarin']);
+      });
+
+      test('erases the locked account and opens an empty one', () async {
+        final removed = <String>[];
+        final guard = await lockedGuard(
+          onAccountRemoved: (uid) async => removed.add(uid),
+        );
+        final scope = guard.account.scope;
+        await RecentSearchesService(scope: scope).addSearch('warfarin');
+        failure = null;
+
+        await guard.startOver();
+
+        expect(guard.ownerUid, _a);
+        expect(await _names(guard.database!), isEmpty);
+        expect(guard.canStartOver, isFalse);
+        expect(await RecentSearchesService(scope: scope).getRecent(), isEmpty);
+        expect(removed, [_a]);
+      });
+
+      test('another account and the guest keep everything', () async {
+        final others = guardWith(open: openOrFail);
+        await others.boot(sessionUid: _a);
+        await _addMedication(others.database!, 'Warfarin');
+        await signIn(others, _b);
+        await _addMedication(others.database!, 'Metformin');
+        final bScope = others.account.scope;
+        await RecentSearchesService(scope: bScope).addSearch('b search');
+        await signOut(others);
+        await _addMedication(others.database!, 'Guest item');
+        final guestScope = others.account.scope;
+        await RecentSearchesService(
+          scope: guestScope,
+        ).addSearch('guest search');
+        await signIn(others, _a);
+        await others.close();
+
+        lock(_a, const AccountKeyLost());
+        final guard = guardWith(open: openOrFail);
+        await guard.boot(sessionUid: _a);
+        expect(guard.canStartOver, isTrue);
+        failure = null;
+
+        await guard.startOver();
+
+        expect(await _names(guard.database!), isEmpty);
+        await signOut(guard);
+        expect(await _names(guard.database!), ['Guest item']);
+        expect(await RecentSearchesService(scope: guestScope).getRecent(), [
+          'guest search',
+        ]);
+        await signIn(guard, _b);
+        expect(await _names(guard.database!), ['Metformin']);
+        expect(await RecentSearchesService(scope: bScope).getRecent(), [
+          'b search',
+        ]);
+      });
+
+      test(
+        'a guest waiting to be adopted is not pulled into the new start',
+        () async {
+          final seed = guardWith(open: openOrFail);
+          await seed.boot(sessionUid: _a);
+          await _addMedication(seed.database!, 'Warfarin');
+          await signOut(seed);
+          await _addMedication(seed.database!, 'Guest item');
+          await seed.close();
+
+          // No owner on record and a session found: this open adopts the guest
+          // if the account has no database, which is what erasing leaves.
+          lock(_a, const AccountKeyLost());
+          final guard = guardWith(open: openOrFail);
+          await guard.boot(sessionUid: _a);
+          expect(guard.canStartOver, isTrue);
+          failure = null;
+
+          await guard.startOver();
+
+          expect(await _names(guard.database!), isEmpty);
+          expect(databaseOf(null).existsSync(), isTrue);
+          await signOut(guard);
+          expect(await _names(guard.database!), ['Guest item']);
+        },
+      );
+
+      test('a locked guest erases the guest only', () async {
+        final seed = guardWith(open: openOrFail);
+        await seed.boot(sessionUid: _a);
+        await _addMedication(seed.database!, 'Warfarin');
+        await signOut(seed);
+        await _addMedication(seed.database!, 'Guest item');
+        await seed.close();
+
+        lock(null, const AccountKeyLost());
+        final guard = guardWith(open: openOrFail);
+        await guard.boot(sessionUid: null);
+        expect(guard.canStartOver, isTrue);
+        failure = null;
+
+        await guard.startOver();
+
+        expect(guard.ownerUid, isNull);
+        expect(await _names(guard.database!), isEmpty);
+        await signIn(guard, _a);
+        expect(await _names(guard.database!), ['Warfarin']);
+      });
+
+      test('a failed erase changes nothing, and nothing new opens', () async {
+        var ownerWork = 0;
+        var purges = 0;
+        final removed = <String>[];
+        final guard = await lockedGuard(
+          onOwnerChange: () async => ownerWork++,
+          purgeAiShare: (_) async {
+            purges++;
+            return true;
+          },
+          onAccountRemoved: (uid) async => removed.add(uid),
+          storageOverride: _UndeletableStorage(
+            supportDirectory: () async => support,
+            documentsDirectory: () async => documents,
+            moveFails: true,
+          ),
+        );
+        final scope = guard.account.scope;
+        await RecentSearchesService(scope: scope).addSearch('warfarin');
+        final before = databaseOf(_a).readAsBytesSync();
+        final opensBefore = opens;
+        final ownerWorkBefore = ownerWork;
+
+        await expectLater(
+          guard.startOver(),
+          throwsA(isA<FileSystemException>()),
+        );
+
+        expect(guard.database, isNull, reason: 'still locked');
+        expect(guard.canStartOver, isTrue, reason: 'it can be tried again');
+        expect(databaseOf(_a).readAsBytesSync(), before);
+        expect(opens, opensBefore, reason: 'nothing new was created');
+        expect(ownerWork, ownerWorkBefore);
+        expect(purges, 0);
+        expect(removed, isEmpty);
+        expect(await RecentSearchesService(scope: scope).getRecent(), [
+          'warfarin',
+        ]);
+      });
+
+      test(
+        'once the database is gone, a failed cleanup never leaves the person locked',
+        () async {
+          final guard = await lockedGuard(
+            purgeAiShare: (_) async => throw StateError('purge failed'),
+            onAccountRemoved: (_) async => throw StateError('drafts failed'),
+            storageOverride: _UndeletableStorage(
+              supportDirectory: () async => support,
+              documentsDirectory: () async => documents,
+              sweepFails: true,
+            ),
+          );
+          failure = null;
+
+          await guard.startOver();
+
+          expect(await _names(guard.database!), isEmpty);
+        },
+      );
+
+      test(
+        'a kill right after the erase decides is finished next launch',
+        () async {
+          final seed = guardWith(open: openOrFail);
+          await seed.boot(sessionUid: _b);
+          await _addMedication(seed.database!, 'Metformin');
+          await signIn(seed, _a);
+          await _addMedication(seed.database!, 'Warfarin');
+          final scope = seed.account.scope;
+          await RecentSearchesService(scope: scope).addSearch('warfarin');
+          final attachment = File(
+            p.join(p.dirname(databaseOf(_a).path), 'attachments', 'scan.jpg'),
+          )..createSync(recursive: true);
+          await seed.close();
+
+          // Killed here: the folder has moved and nothing else has run.
+          await storage.moveAsideToErase(_a);
+          expect(attachment.existsSync(), isFalse);
+          final users = Directory(p.join(support.path, 'users'));
+          bool leftovers() => users.listSync().any(
+            (entry) => p.basename(entry.path).contains('.erasing.'),
+          );
+          expect(leftovers(), isTrue);
+
+          final guard = guardWith(open: openOrFail);
+          await guard.boot(sessionUid: _a);
+
+          expect(leftovers(), isFalse);
+          expect(await _names(guard.database!), isEmpty);
+          expect(
+            await RecentSearchesService(scope: scope).getRecent(),
+            isEmpty,
+          );
+          await signIn(guard, _b);
+          expect(await _names(guard.database!), ['Metformin']);
+        },
+      );
+
+      test(
+        'a kill right after the erase decides still clears what lives outside the folder',
+        () async {
+          final seed = guardWith(open: openOrFail);
+          await seed.boot(sessionUid: _a);
+          await seed.close();
+          await storage.moveAsideToErase(_a);
+
+          var ownerWork = 0;
+          var purges = 0;
+          final removed = <String>[];
+          final guard = guardWith(
+            open: openOrFail,
+            onOwnerChange: () async => ownerWork++,
+            purgeAiShare: (_) async {
+              purges++;
+              return true;
+            },
+            onAccountRemoved: (uid) async => removed.add(uid),
+          );
+          await guard.boot(sessionUid: _a);
+
+          expect(removed, [_a]);
+          expect(ownerWork, 1, reason: 'their scheduled reminders');
+          expect(purges, 1);
+        },
+      );
+
+      test(
+        'signed out when it finishes: drafts go by the owner on record, and no other session is purged',
+        () async {
+          final seed = guardWith(open: openOrFail);
+          await seed.boot(sessionUid: _a);
+          await seed.close();
+          await storage.moveAsideToErase(_a);
+
+          var purges = 0;
+          final removed = <String>[];
+          final guard = guardWith(
+            open: openOrFail,
+            readSessionUid: () => null,
+            purgeAiShare: (_) async {
+              purges++;
+              return true;
+            },
+            onAccountRemoved: (uid) async => removed.add(uid),
+          );
+          await guard.boot(sessionUid: null);
+
+          expect(removed, [_a]);
+          expect(purges, 0);
+          expect(erasingFolders(), hasLength(1), reason: 'still owed');
+        },
+      );
+
+      test(
+        'an account that never opened here is matched by its session',
+        () async {
+          final seed = guardWith(open: openOrFail);
+          await seed.boot(sessionUid: _a);
+          await seed.close();
+          await storage.databasePathFor(_b);
+          await storage.moveAsideToErase(_b);
+
+          final removed = <String>[];
+          final guard = guardWith(
+            open: openOrFail,
+            readSessionUid: () => _b,
+            onAccountRemoved: (uid) async => removed.add(uid),
+          );
+          await guard.boot(sessionUid: _b);
+
+          expect(removed, [_b]);
+        },
+      );
+
+      test(
+        'a cleanup that fails still removes the health data, and retries next launch',
+        () async {
+          var fail = true;
+          final removed = <String>[];
+          Future<void> drafts(String uid) async {
+            if (fail) throw StateError('drafts failed');
+            removed.add(uid);
+          }
+
+          final guard = await lockedGuard(onAccountRemoved: drafts);
+          final scope = guard.account.scope;
+          File(
+            p.join(p.dirname(databaseOf(_a).path), 'attachments', 'scan.jpg'),
+          ).createSync(recursive: true);
+          failure = null;
+
+          await guard.startOver();
+
+          final marked = erasingFolders();
+          expect(marked, hasLength(1), reason: 'the rest is still owed');
+          expect(p.basename(marked.single.path), startsWith(scope));
+          expect(
+            marked.single.listSync().map((entry) => p.basename(entry.path)),
+            everyElement(endsWith('.done')),
+            reason: 'nothing of the health data is left',
+          );
+          expect(await _names(guard.database!), isEmpty);
+          await guard.close();
+
+          fail = false;
+          final next = guardWith(open: openOrFail, onAccountRemoved: drafts);
+          await next.boot(sessionUid: _a);
+
+          expect(removed, [_a]);
+          expect(marked.single.existsSync(), isFalse);
+        },
+      );
+
+      test(
+        'a session that changes during the erase has nothing of its own deleted',
+        () async {
+          String? session = _a;
+          var purges = 0;
+          final guard = await lockedGuard(
+            readSessionUid: () => session,
+            purgeAiShare: (_) async {
+              purges++;
+              return true;
+            },
+            storageOverride: _UndeletableStorage(
+              supportDirectory: () async => support,
+              documentsDirectory: () async => documents,
+              duringMove: () => session = _b,
+            ),
+          );
+          failure = null;
+
+          await guard.startOver();
+
+          expect(purges, 0);
+          expect(erasingFolders(), hasLength(1), reason: 'still owed');
+        },
+      );
+
+      test(
+        'a purge that can not finish offline is retried next launch, and the folder goes last',
+        () async {
+          var online = false;
+          var purges = 0;
+          Future<bool> purge(String uid) async {
+            purges++;
+            return online;
+          }
+
+          final guard = await lockedGuard(purgeAiShare: purge);
+          failure = null;
+
+          await guard.startOver();
+
+          expect(await _names(guard.database!), isEmpty);
+          expect(erasingFolders(), hasLength(1));
+          await guard.close();
+
+          final stillOffline = guardWith(open: openOrFail, purgeAiShare: purge);
+          await stillOffline.boot(sessionUid: _a);
+          expect(purges, 2);
+          expect(erasingFolders(), hasLength(1));
+          await stillOffline.close();
+
+          online = true;
+          final next = guardWith(open: openOrFail, purgeAiShare: purge);
+          await next.boot(sessionUid: _a);
+          expect(purges, 3);
+          expect(erasingFolders(), isEmpty);
+        },
+      );
+
+      test(
+        'a retry leaves alone what the person saved since the erase',
+        () async {
+          var fail = true;
+          var ownerWork = 0;
+          final removed = <String>[];
+          Future<void> drafts(String uid) async {
+            if (fail) throw StateError('drafts failed');
+            removed.add(uid);
+          }
+
+          final guard = await lockedGuard(
+            onOwnerChange: () async => ownerWork++,
+            onAccountRemoved: drafts,
+          );
+          final scope = guard.account.scope;
+          failure = null;
+
+          await guard.startOver();
+
+          await RecentSearchesService(scope: scope).addSearch('magnesium');
+          final ownerWorkAfterErase = ownerWork;
+          await guard.close();
+
+          fail = false;
+          final next = guardWith(
+            open: openOrFail,
+            onOwnerChange: () async => ownerWork++,
+            onAccountRemoved: drafts,
+          );
+          await next.boot(sessionUid: _a);
+
+          expect(removed, [_a], reason: 'only the failed step ran again');
+          expect(ownerWork, ownerWorkAfterErase, reason: 'reminders set since');
+          expect(await RecentSearchesService(scope: scope).getRecent(), [
+            'magnesium',
+          ]);
+          expect(erasingFolders(), isEmpty);
+        },
+      );
+
+      test(
+        'a purge bound to one account leaves another session alone',
+        () async {
+          final calls = <Object?>[];
+          final done = await purgeAiShareData(
+            prefs: AiSharePrefsStore(MemoryPreferencesStore()),
+            snapshots: AiShareSnapshotClient(
+              isSignedIn: () => true,
+              currentUserId: () => _b,
+              invoke: (_, body) async {
+                calls.add(body);
+                return const AiShareInvokeResponse(status: 204, data: null);
+              },
+            ),
+            onlyFor: _a,
+          );
+
+          expect(done, isFalse);
+          expect(calls, isEmpty);
+        },
+      );
+
+      test(
+        'a reopen that fails after the erase lands on retry, not on the offer',
+        () async {
+          final guard = await lockedGuard();
+          lock(_a, StateError('disk full'));
+
+          await guard.startOver();
+
+          expect(guard.database, isNull);
+          expect(
+            guard.canStartOver,
+            isFalse,
+            reason: 'there is nothing left to erase',
+          );
+          failure = null;
+          await guard.retry();
+          expect(await _names(guard.database!), isEmpty);
+        },
+      );
+
+      test(
+        'the sweep only ever touches a folder moved aside to erase',
+        () async {
+          final seed = guardWith(open: openOrFail);
+          await seed.boot(sessionUid: _a);
+          await _addMedication(seed.database!, 'Warfarin');
+          await seed.close();
+          final before = databaseOf(_a).readAsBytesSync();
+          final removed = <String>[];
+
+          await storage.sweepErased({
+            'step': (scope) async {
+              removed.add(scope);
+              return true;
+            },
+          });
+
+          expect(removed, isEmpty);
+          expect(databaseOf(_a).readAsBytesSync(), before);
+        },
+      );
+
+      test('a session that changed underneath refuses the erase', () async {
+        String? session = _a;
+        final guard = await lockedGuard(readSessionUid: () => session);
+        final before = databaseOf(_a).readAsBytesSync();
+        session = _b;
+
+        await expectLater(guard.startOver(), throwsStateError);
+
+        expect(databaseOf(_a).readAsBytesSync(), before);
+        expect(guard.database, isNull);
+      });
+
+      test('the erased account leaves no reminder behind', () async {
+        var ownerWork = 0;
+        final guard = await lockedGuard(onOwnerChange: () async => ownerWork++);
+        final before = ownerWork;
+        failure = null;
+
+        await guard.startOver();
+
+        expect(ownerWork, before + 1);
+      });
+
+      test('offline: it still finishes, and nothing uploads again', () async {
+        final backend = FakeAiShareBackend()..failWith = StateError('offline');
+        final prefs = AiSharePrefsStore(MemoryPreferencesStore());
+        await prefs.recordShare('c-1', AiShareScope.detailedReport, 24);
+        await prefs.setKeepUpdated('c-1', true);
+        final guard = await lockedGuard(
+          purgeAiShare: (_) =>
+              purgeAiShareData(prefs: prefs, snapshots: backend.client()),
+        );
+        failure = null;
+
+        await guard.startOver();
+
+        expect(await _names(guard.database!), isEmpty);
+        expect(backend.deletes, hasLength(1), reason: 'it did try');
+        expect(await prefs.readAll(), isEmpty);
+
+        backend.failWith = null;
+        final pushed = await AiShareSnapshotPusher(
+          isSignedIn: () => true,
+          prefs: prefs,
+          client: backend.client(),
+          loadData: () async => aiShareFixture(),
+        ).refreshAfterStackChange();
+        expect(pushed, 0);
+        expect(backend.uploads, isEmpty);
+      });
+
+      test('online: the snapshots are deleted', () async {
+        final backend = FakeAiShareBackend();
+        final prefs = AiSharePrefsStore(MemoryPreferencesStore());
+        final guard = await lockedGuard(
+          purgeAiShare: (_) =>
+              purgeAiShareData(prefs: prefs, snapshots: backend.client()),
+        );
+        failure = null;
+
+        await guard.startOver();
+
+        expect(backend.deletes.single.body, {'all': true});
+      });
+
+      testWidgets('a delete that never answers gives up after ten seconds', (
+        tester,
+      ) async {
+        final prefs = AiSharePrefsStore(MemoryPreferencesStore());
+        var finished = false;
+        unawaited(
+          purgeAiShareData(
+            prefs: prefs,
+            snapshots: AiShareSnapshotClient(
+              isSignedIn: () => true,
+              invoke: (_, _) => Completer<AiShareInvokeResponse>().future,
+            ),
+          ).then((_) => finished = true),
+        );
+
+        await tester.pump(const Duration(seconds: 9));
+        expect(finished, isFalse);
+        await tester.pump(const Duration(seconds: 2));
+        expect(finished, isTrue);
       });
     });
 

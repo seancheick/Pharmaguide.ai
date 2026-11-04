@@ -152,21 +152,19 @@ class ProfileState {
   }
 
   static List<String> _decodeList(String json) {
+    final Object? decoded;
     try {
-      final decoded = jsonDecode(json);
-      // whereType eagerly filters non-String entries — `.cast<String>()`
-      // would lazily throw a TypeError (an Error, not Exception) at first
-      // iteration, escaping the catch below and crashing callers.
-      if (decoded is List) return decoded.whereType<String>().toList();
-    } on Exception catch (e, st) {
-      CrashReportingService().recordError(
-        e,
-        st,
-        fatal: false,
-        hint: 'profile:decode_list',
-      );
+      decoded = jsonDecode(json);
+    } on FormatException {
+      // Do not attach the stored health JSON to an error that may be logged.
+      throw const FormatException('Stored profile list is malformed');
     }
-    return [];
+    if (decoded is! List) {
+      throw const FormatException('Stored profile value must be a list');
+    }
+    // Retain the established mixed-list compatibility: known string entries
+    // survive legacy non-string entries, but unreadable shapes are not empty.
+    return decoded.whereType<String>().toList();
   }
 
   /// One-shot migration for legacy allergen IDs that drifted from the
@@ -298,11 +296,13 @@ class ProfileState {
 class ProfileNotifier extends StateNotifier<ProfileState> {
   final UserDatabase? _db;
   final HealthEventRepository? _history;
+  final Object? _initializationError;
   Future<void>? _loadFuture;
   bool _isLoaded = false;
   bool get isLoaded => _isLoaded;
 
-  ProfileNotifier([this._db, this._history]) : super(const ProfileState());
+  ProfileNotifier([this._db, this._history, this._initializationError])
+    : super(const ProfileState());
 
   void setNickname(String? value) => state = state.copyWith(nickname: value);
   void setAgeBracket(String? value) =>
@@ -442,6 +442,7 @@ class ProfileNotifier extends StateNotifier<ProfileState> {
   /// Load profile from DB into state. Call once at startup.
   /// Sets [isLoaded] to true when complete (even if no row found).
   Future<void> loadFromDb() async {
+    if (_initializationError != null) throw _initializationError;
     if (_db == null) {
       _isLoaded = true;
       return;
@@ -451,12 +452,11 @@ class ProfileNotifier extends StateNotifier<ProfileState> {
       if (row != null) {
         state = ProfileState.fromDbRow(row);
       }
-    } on Exception catch (e, st) {
-      // DB read failed — keep default empty state. fatal=false intentionally:
-      // loadFromDb fires on every cold start, so a single user with corrupt
-      // profile data would otherwise trigger a fatal alert storm. Recoverable
-      // on next session, so we surface as a non-fatal Sentry event.
+    } on Object catch (e, st) {
+      // A failed read is not an empty profile. Async safety consumers must
+      // receive the failure, and editors must not save over unread health data.
       CrashReportingService().recordError(e, st, hint: 'profile:load_from_db');
+      rethrow;
     }
     _isLoaded = true;
   }
@@ -464,11 +464,22 @@ class ProfileNotifier extends StateNotifier<ProfileState> {
   /// Returns the in-flight or completed profile load. This lets async
   /// consumers wait for persisted state without polling timers.
   Future<void> ensureLoaded() {
-    return _loadFuture ??= loadFromDb();
+    if (_isLoaded) return Future<void>.value();
+    return _loadFuture ??= loadFromDb().catchError((
+      Object error,
+      StackTrace stack,
+    ) {
+      // Retry uses this same owner; never cache an unsuccessful load forever.
+      _loadFuture = null;
+      Error.throwWithStackTrace(error, stack);
+    });
   }
 
   /// Persist current state to DB.
   Future<void> saveToDb() async {
+    if (!_isLoaded && (_db != null || _initializationError != null)) {
+      throw StateError('Profile must be loaded successfully before saving');
+    }
     if (_db == null) return;
     final previousRow = await _db.getProfile();
     final previous = previousRow == null
@@ -513,26 +524,26 @@ final profileProvider = StateNotifierProvider<ProfileNotifier, ProfileState>((
   ref,
 ) {
   UserDatabase? db;
+  Object? initializationError;
   try {
     db = ref.watch(userDatabaseProvider);
-  } on Object catch (e, st) {
-    // userDatabaseProvider not overridden (e.g. in tests) — no persistence.
-    // Catches Error (UnimplementedError from the default provider stub)
-    // AND Exception — both map to "no DB available" here. fatal=true: in
-    // production the provider is always overridden in main.dart, so hitting
-    // this path means a real bootstrap failure that silently degrades the
-    // profile for every downstream screen.
+  } on Object catch (error, stack) {
+    initializationError = error;
     CrashReportingService().recordError(
-      e,
-      st,
+      error,
+      stack,
       fatal: true,
       hint: 'profile:provider_init',
     );
   }
+  // Keep synchronous readers renderable, but the async readiness owner and
+  // save guard must receive initialization failure instead of a loaded empty
+  // profile. Explicit no-DB notifiers remain useful for isolated previews.
   final history = db == null ? null : ref.watch(healthEventRepositoryProvider);
-  final notifier = ProfileNotifier(db, history);
-  // Kick off load — consumers can check notifier.isLoaded if needed.
-  notifier.ensureLoaded();
+  final notifier = ProfileNotifier(db, history, initializationError);
+  // Start loading for existing synchronous readers. The awaited load provider
+  // still receives errors; ignore only this fire-and-forget observer.
+  notifier.ensureLoaded().ignore();
   return notifier;
 });
 
@@ -568,10 +579,15 @@ List<String> _changedProfileFields(
 
 /// Resolves when the profile has been loaded from DB.
 /// Use `ref.watch(profileLoadedProvider)` to gate UI on profile readiness.
-final profileLoadedProvider = FutureProvider<void>((ref) async {
-  final notifier = ref.watch(profileProvider.notifier);
-  await notifier.ensureLoaded();
-});
+final profileLoadedProvider = FutureProvider<void>(
+  (ref) async {
+    final notifier = ref.watch(profileProvider.notifier);
+    await notifier.ensureLoaded();
+  },
+  // Expose the failure immediately to safety consumers and the editor's Retry
+  // action rather than hiding unread profile data behind automatic retries.
+  retry: (_, __) => null,
+);
 
 /// Resolves to the persisted profile state after the async DB load completes.
 ///
@@ -582,7 +598,7 @@ final profileLoadedProvider = FutureProvider<void>((ref) async {
 final loadedProfileProvider = FutureProvider<ProfileState>((ref) async {
   await ref.watch(profileLoadedProvider.future);
   return ref.watch(profileProvider);
-});
+}, retry: (_, __) => null);
 
 /// Profile flags consumed by every clinical `profile_gate` evaluator.
 ///
@@ -597,4 +613,4 @@ final evaluatorProfileFlagsProvider = FutureProvider<Set<String>>((ref) async {
     conditions: profile.conditionsForEvaluator,
     explicitFlags: profile.profileFlags,
   );
-});
+}, retry: (_, __) => null);
