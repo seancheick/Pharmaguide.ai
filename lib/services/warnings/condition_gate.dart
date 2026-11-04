@@ -17,6 +17,7 @@ import 'package:pharmaguide/services/ingredients/elemental_form_dedupe.dart';
 import 'package:pharmaguide/services/ingredients/ingredient_canonicalizer.dart';
 import 'package:pharmaguide/services/ingredients/ingredient_row_fields.dart';
 import 'package:pharmaguide/services/warnings/interaction_warning.dart';
+import 'package:pharmaguide/services/warnings/profile_gate_evaluator.dart';
 
 /// Single ingredient's dose entry as extracted from the detail blob.
 typedef IngredientDose = ({double value, String unit});
@@ -38,6 +39,54 @@ List<InteractionWarning> applyConsumerDispositionGate(
             ConsumerDisposition.suppress;
       })
       .toList(growable: false);
+}
+
+/// Whether a dose rule that applies to this person went unread: the pipeline
+/// suppressed it because it could not read the product's amount or form.
+///
+/// The disposition stands, so nothing is shown and no hazard is invented, but a
+/// threshold nobody could read is not an all-clear. Callers report an incomplete
+/// check. Who a rule applies to comes from its gate with the dose taken out,
+/// since the dose is the part that could not be read, so a rule with no target
+/// applies to every viewer.
+///
+/// [cardsShown] is for a surface that shows the product's own cards, where a
+/// rule the pipeline kept as a review is already on screen. Stack Health shows
+/// none, so there any disposition counts.
+bool hasUnreadDoseRule(
+  Iterable<InteractionWarning> warnings, {
+  required Set<String> userConditions,
+  required Set<String> userDrugClasses,
+  Set<String> userProfileFlags = const <String>{},
+  bool cardsShown = true,
+}) {
+  final profile = UserProfile(
+    conditions: userConditions,
+    drugClasses: userDrugClasses,
+    profileFlags: userProfileFlags,
+  );
+  return warnings.any((warning) {
+    final decision = warning.doseDecision;
+    if (decision == null ||
+        !decision.amountUnread ||
+        warning.unreadBetaCaroteneAddsNothing ||
+        warning.direction == 'beneficial' ||
+        (cardsShown &&
+            consumerDispositionFromWire(decision.consumerDisposition) !=
+                ConsumerDisposition.suppress)) {
+      return false;
+    }
+    final gate = warning.profileGate;
+    if (gate == null) {
+      return warning.conditionIds.any(userConditions.contains) ||
+          warning.drugClassIds.any(userDrugClasses.contains);
+    }
+    return evaluateProfileGate(
+      {...gate, 'dose': null},
+      profile,
+      const ProductContext(),
+    ).fires;
+  });
 }
 
 /// Shared dose-suppression guardrail (G3) for BOTH dose gates — the
@@ -153,8 +202,8 @@ List<InteractionWarning> applyEmittedBeneficialGate(
 /// `rda_ul_data.analyzed_ingredients` rows when present because they
 /// carry the same evaluated ingredient identity used by stack/UL
 /// logic. Skips entries missing name / dose / unit, entries with
-/// non-numeric dose values, and rows the pipeline marked unsafe for
-/// evaluation (`skip_ul_check == true`).
+/// non-numeric dose values, and rows whose `skip_ul_check` leaves the amount
+/// unreadable ([pipelineBlocksDoseRead]).
 ///
 /// Pipeline blob shape (from live data — verified 2026-04-30):
 /// ```
@@ -202,7 +251,7 @@ List<InteractionWarning> applyEmittedBeneficialGate(
 /// replaces its `ingredients` mirror. When [isUsableDoseRow] then drops it, the
 /// dose is gone under every name: no `ingredients` row carries `dose_role`, so
 /// the mirror can't be left to count it. The mirror stays only if the analyzed
-/// row has no dose to read, or carries a skip. A row nested
+/// row has no dose to read, or carries a skip that blocks it. A row nested
 /// above or below an analyzed row is the same dose seen as a form or a source
 /// mass, so it no longer adds to the keys that analyzed row reports (328600:
 /// 2000 mg Magtein under 144 mg Magnesium); it still counts toward its own
@@ -218,7 +267,7 @@ Map<String, IngredientDose> extractIngredientDoses(
   // Pass 1 — parse rows, dropping unusable ones and mirrored duplicates.
   final parsed = <_ParsedDoseRow>[];
   final seenSignatures = <String, bool>{};
-  for (final (row: entry, :keys, :names) in _doseRows(detailBlob)) {
+  for (final (row: entry, :keys, :names, :blocked) in _doseRows(detailBlob)) {
     // Honor the SAME usability filter the stack summers enforce
     // ([isUsableDoseRow]): drop proprietary-blend containers, parent-total
     // roll-ups, inactive rows, and label-descriptor fragments. Previously
@@ -231,7 +280,7 @@ Map<String, IngredientDose> extractIngredientDoses(
 
     final primaryName = _primaryDoseName(entry);
 
-    if (entry['skip_ul_check'] == true) {
+    if (blocked) {
       parsed.add(
         _ParsedDoseRow(
           keys: keys,
@@ -371,11 +420,13 @@ typedef _DoseRow = ({
   Map<String, dynamic> row,
   Set<String> keys,
   Set<String> names,
+  bool blocked,
 });
 
 _DoseRow _doseRow(
   Map<String, dynamic> row,
   Set<String> keys, {
+  required bool blocked,
   Map<String, dynamic>? mirror,
 }) => (
   row: row,
@@ -384,6 +435,7 @@ _DoseRow _doseRow(
     ?_primaryDoseName(row),
     if (mirror != null) ?_primaryDoseName(mirror),
   },
+  blocked: blocked,
 );
 
 /// The blob's dose rows, each with the name keys it may add to.
@@ -409,15 +461,17 @@ List<_DoseRow> _doseRows(Map<String, dynamic> detailBlob) {
   final rows = <_DoseRow>[];
   final mirrors = <String, Map<String, dynamic>>{};
   for (final row in _rowMaps(detailBlob['ingredients'])) {
-    // The pipeline's skip blocks every name it covers, on whichever copy.
-    if (row['skip_ul_check'] == true) {
-      rows.add(_doseRow(row, readDoseNameKeys(row)));
+    // A skip that blocks the read covers every name, on whichever copy.
+    if (pipelineBlocksDoseRead(row)) {
+      rows.add(_doseRow(row, readDoseNameKeys(row), blocked: true));
       continue;
     }
     final path = _labelRowPath(row);
     final twin = analyzedByPath[path];
     if (twin == null || _lostItsDose(twin)) {
-      rows.add(_doseRow(row, _keysNotOwnedOnBranch(row, owners)));
+      rows.add(
+        _doseRow(row, _keysNotOwnedOnBranch(row, owners), blocked: false),
+      );
     } else if (isUsableDoseRow(twin)) {
       mirrors[path!] = row;
     }
@@ -426,10 +480,15 @@ List<_DoseRow> _doseRows(Map<String, dynamic> detailBlob) {
   for (final row in analyzed) {
     final mirror = mirrors[_labelRowPath(row)];
     rows.add(
-      _doseRow(row, {
-        ...readDoseNameKeys(row),
-        if (mirror != null) ...readDoseNameKeys(mirror),
-      }, mirror: mirror),
+      _doseRow(
+        row,
+        {
+          ...readDoseNameKeys(row),
+          if (mirror != null) ...readDoseNameKeys(mirror),
+        },
+        mirror: mirror,
+        blocked: pipelineBlocksDoseReadOnLabel(row, analyzed),
+      ),
     );
   }
 
@@ -437,11 +496,11 @@ List<_DoseRow> _doseRows(Map<String, dynamic> detailBlob) {
 }
 
 /// A usable analyzed row with no amount or unit to read, and no pipeline reason
-/// for it: a skip reads no amount by design, and an unresolved unit is the
-/// pipeline saying the printed quantity can't be read.
+/// for it: a blocking skip reads no amount by design, and an unresolved unit is
+/// the pipeline saying the printed quantity can't be read.
 bool _lostItsDose(Map<String, dynamic> row) =>
     isUsableDoseRow(row) &&
-    row['skip_ul_check'] != true &&
+    !pipelineBlocksDoseRead(row) &&
     !hasUnresolvedDoseUnit(row) &&
     (readDoseAmount(row) == null || readDoseUnit(row).isEmpty);
 
@@ -453,7 +512,7 @@ Set<String> _keysNotOwnedOnBranch(
   final path = _labelRowPath(row);
   if (path == null) return keys;
   for (final owner in owners) {
-    if (path.startsWith('${owner.path}.') || owner.path.startsWith('$path.')) {
+    if (onSameLabelBranch(path, owner.path)) {
       keys.removeAll(owner.keys);
     }
   }

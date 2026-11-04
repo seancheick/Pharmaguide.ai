@@ -131,6 +131,69 @@ void main() {
           as Map,
     );
   });
+  group('a dose rule this product has no number for', () {
+    Map<String, dynamic> blobWith(String status, String disposition) {
+      final rule = Map<String, dynamic>.from(
+        (sjw['warnings'] as List).cast<Map<String, dynamic>>().firstWhere(
+          (w) => (w['condition_ids'] as List?)?.contains('pregnancy') ?? false,
+        ),
+      );
+      return {
+        ...sjw,
+        'warnings': [
+          {
+            ...rule,
+            'title': 'Probe rule',
+            'ingredient_canonical_id': 'beta_carotene',
+            'severity': 'caution',
+            'display_mode_default': disposition == 'suppress'
+                ? 'suppress'
+                : 'informational',
+            'dose_decision': {
+              'clinical_severity': 'caution',
+              'consumer_disposition': disposition,
+              'evaluation_status': status,
+              'decision_rule': {
+                'basis': 'per_day',
+                'comparator': '>=',
+                'threshold': 7500.0,
+                'threshold_unit': 'mcg RAE',
+                'consumer_disposition_if_met': 'review',
+                'consumer_disposition_if_not_met': 'suppress',
+              },
+            },
+          },
+        ],
+        'warnings_profile_gated': const <Map<String, dynamic>>[],
+      };
+    }
+
+    for (final (status, disposition, unread) in const [
+      ('excluded_form', 'suppress', false),
+      ('amount_unknown', 'suppress', false),
+      ('form_unknown', 'suppress', true),
+      ('amount_unknown', 'review', true),
+      ('form_unknown', 'review', true),
+    ]) {
+      test('$status $disposition is no Stack finding', () async {
+        await reportFor(
+          blobWith(status, disposition),
+          inspect: (container, report) async {
+            expect(
+              report.stackInteractions.where(
+                (w) => w.agent2Name == 'Probe rule',
+              ),
+              isEmpty,
+            );
+            expect(
+              await container.read(stackDoseRulesUnreadProvider.future),
+              unread,
+            );
+          },
+        );
+      });
+    }
+  });
   test('frozen SJW pregnancy warning reaches combined Stack', () async {
     final report = await reportFor(sjw);
     final warnings = report.stackInteractions.where(

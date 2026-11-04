@@ -286,7 +286,13 @@ ProfileRelevanceSummary _buildProfileRelevanceSummary({
   // claiming a profile all-clear from an invalid record. A check that failed
   // earns no all-clear either: finding nothing is not the same as checking.
   // Concerns the other checks did find have already returned above.
-  if (checksFailed || isLowCoverage(fitResult?.mappedCoverage)) {
+  // A limit that applies here and couldn't be compared is the same state.
+  if (checksFailed ||
+      isLowCoverage(fitResult?.mappedCoverage) ||
+      fitResult?.nutrientStatuses.any(
+            (status) => status.ulAssessmentIndeterminate,
+          ) ==
+          true) {
     return const ProfileRelevanceSummary(
       status: ProfileRelevanceStatus.coverageLimited,
       tone: PGReviewTone.info,

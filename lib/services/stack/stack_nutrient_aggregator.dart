@@ -192,10 +192,26 @@ class StackNutrientAggregator {
           final ulAmount = readUlDoseAmount(row);
           final ulUnit = readUlDoseUnit(row);
           if (ulAmount != null && ulAmount >= 0 && ulUnit.isNotEmpty) {
-            total.addUlComparableAmount(ulAmount, ulUnit);
+            total.addUlComparableAmount(
+              ulAmount,
+              ulUnit,
+              range: readUlDoseRange(row),
+            );
           } else {
             total.hasUnresolvedUlContribution = true;
           }
+        } else if (canContributeToUl &&
+            _isWithinLimitBound(row) &&
+            !sharesDoseBranch(row, item.ingredients)) {
+          // The pipeline cleared this worst-case figure against the adult limit
+          // only. It is an upper bound with no floor: another limit can find
+          // a possible excess in it, never a confirmed one.
+          total.addUlComparableAmount(
+            readUlDoseAmount(row)!,
+            readUlDoseUnit(row),
+            range:
+                readUlDoseRange(row) ?? (low: 0, high: readUlDoseAmount(row)!),
+          );
         } else if (canContributeToUl && _isUnresolvedUlContribution(row)) {
           total.hasUnresolvedUlContribution = true;
         }
@@ -286,6 +302,8 @@ class StackNutrientAggregator {
           excludedContributions: List.unmodifiable(value.excludedContributions),
           ulComparableTotalAmount: value.ulComparableTotalAmount,
           ulComparableUnit: value.ulComparableUnit,
+          ulComparableLowAmount: value.hasUlRange ? value.ulLowAmount : null,
+          ulComparableHighAmount: value.hasUlRange ? value.ulHighAmount : null,
           hasUlExposureContract: value.hasUlExposureContract,
           hasUnresolvedUlContribution:
               value.hasUnresolvedUlContribution &&
@@ -301,6 +319,14 @@ class StackNutrientAggregator {
       row.containsKey('ul_gate_eligible') ||
       row.containsKey('ul_assessment_status') ||
       row['dose_role'] == 'ul_scoped_component';
+
+  static bool _isWithinLimitBound(Map<String, dynamic> row) =>
+      row['skip_ul_check'] == true &&
+      row['ul_gate_eligible'] != false &&
+      row['ul_assessment_status'] == 'assessed_within_limit' &&
+      row.containsKey('safety_exposure') &&
+      readUlDoseUnit(row).isNotEmpty &&
+      (readUlDoseAmount(row) ?? -1) >= 0;
 
   static bool _isUnresolvedUlContribution(Map<String, dynamic> row) {
     if (isUlEvaluationEligible(row)) return false;
@@ -628,13 +654,20 @@ class _MutableTotal {
   double minimumTotalAmount = 0.0;
   double? ulComparableTotalAmount;
   String? ulComparableUnit;
+  double ulLowAmount = 0;
+  double ulHighAmount = 0;
+  bool hasUlRange = false;
   bool hasUlExposureContract = false;
   bool hasUnresolvedUlContribution = false;
   bool hasUnitConflict = false;
   final List<NutrientContribution> contributions = [];
   final List<ExcludedNutrientContribution> excludedContributions = [];
 
-  void addUlComparableAmount(double amount, String unit) {
+  void addUlComparableAmount(
+    double amount,
+    String unit, {
+    ({double low, double high})? range,
+  }) {
     if (unit.isEmpty) {
       hasUnresolvedUlContribution = true;
       return;
@@ -643,6 +676,9 @@ class _MutableTotal {
     if (targetUnit == null || targetUnit.isEmpty) {
       ulComparableUnit = unit;
       ulComparableTotalAmount = amount;
+      ulLowAmount = range?.low ?? amount;
+      ulHighAmount = range?.high ?? amount;
+      hasUlRange = hasUlRange || range != null;
       return;
     }
     final converted = amountInMass(amount, from: unit, to: targetUnit);
@@ -651,6 +687,13 @@ class _MutableTotal {
       return;
     }
     ulComparableTotalAmount = (ulComparableTotalAmount ?? 0) + converted;
+    ulLowAmount += range == null
+        ? converted
+        : amountInMass(range.low, from: unit, to: targetUnit) ?? converted;
+    ulHighAmount += range == null
+        ? converted
+        : amountInMass(range.high, from: unit, to: targetUnit) ?? converted;
+    hasUlRange = hasUlRange || range != null;
   }
 
   bool get hasCompleteUlCoverage {

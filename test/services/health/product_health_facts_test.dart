@@ -720,4 +720,54 @@ void main() {
       expect(facts.productClusters, ['blood_sugar_support']);
     });
   });
+
+  group('doseRowsForThresholds fallback', () {
+    Map<String, dynamic> blob(String status) => {
+      'ingredients': [
+        {
+          'name': 'Vitamin A',
+          'standard_name': 'Vitamin A',
+          'canonical_id': 'vitamin_a',
+          'raw_source_path': 'ingredientRows[6]',
+          'dose_role': 'declared_total',
+          'per_day_min': 20.0,
+          'per_day_max': 20.0,
+          'converted_unit': 'mg',
+          'quantity': 10.0,
+          'unit': 'mg',
+        },
+      ],
+      'rda_ul_data': {
+        'analyzed_ingredients': [
+          {
+            'standard_name': 'Vitamin A',
+            'canonical_id': 'vitamin_a',
+            'raw_source_path': 'ingredientRows[6]',
+            'dose_role': 'declared_total',
+            'skip_ul_check': true,
+            'ul_assessment_status': status,
+            'per_day_min': 20.0,
+            'per_day_max': 20.0,
+            'converted_unit': 'mg',
+            'quantity': 10.0,
+            'unit': 'mg',
+          },
+        ],
+      },
+    };
+
+    test('the raw row cannot bypass an indeterminate block', () {
+      final facts = ProductHealthFacts.fromDetailBlob(blob('indeterminate'));
+
+      expect(facts.ingredientDoses, isEmpty);
+      expect(facts.doseRowsForThresholds, isEmpty);
+    });
+
+    test('a readable row reaches the summer once', () {
+      final facts = ProductHealthFacts.fromDetailBlob(blob('not_applicable'));
+
+      expect(facts.ingredientDoses['vitamin_a']?.value, 20);
+      expect(facts.doseRowsForThresholds, hasLength(1));
+    });
+  });
 }

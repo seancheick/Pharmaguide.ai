@@ -110,7 +110,30 @@ double? readUlDoseAmount(Map<String, dynamic> row) {
   if (!row.containsKey('safety_exposure')) return readDoseAmount(row);
   final exposure = row['safety_exposure'];
   if (exposure is! Map || readUlDoseUnit(row).isEmpty) return null;
+  if (hasUlDoseRange(row) && readUlDoseRange(row) == null) return null;
   return asFiniteDouble(exposure['per_day']);
+}
+
+/// Whether [row]'s `safety_exposure` is a form range rather than one figure.
+bool hasUlDoseRange(Map<String, dynamic> row) {
+  final exposure = row['safety_exposure'];
+  return exposure is Map &&
+      (exposure.containsKey('low_per_day') ||
+          exposure.containsKey('high_per_day'));
+}
+
+/// The bounds of a form-range row, at maximum servings in the row's UL unit, or
+/// null when it has no range or a malformed one. A low above a limit establishes
+/// an excess, a high at or below it rules one out, and anything between is
+/// unresolved. `per_day` is not a stand-in: 64845 reads 60.3 mg beside 80-176.3.
+({double low, double high})? readUlDoseRange(Map<String, dynamic> row) {
+  if (!hasUlDoseRange(row) || hasUnresolvedDoseUnit(row)) return null;
+  final exposure = row['safety_exposure'] as Map;
+  final low = asFiniteDouble(exposure['low_per_day']);
+  final high = asFiniteDouble(exposure['high_per_day']);
+  if (low == null || high == null || low < 0 || high < low) return null;
+  if (readUlDoseUnit(row).isEmpty) return null;
+  return (low: low, high: high);
 }
 
 String readUlDoseUnit(Map<String, dynamic> row) {
@@ -240,6 +263,66 @@ bool isUsableDoseRow(Map<String, dynamic> row) {
 
   return true;
 }
+
+/// True when the pipeline's `skip_ul_check` leaves this row's amount unreadable.
+///
+/// The skip belongs to the UL verdict. A row with no applicable UL, or already
+/// assessed within it, still states a daily exposure the pipeline stands behind
+/// when it is a declared total with all three daily figures. Anything else
+/// stays blocked: an `indeterminate` row, a component, a row with no status or
+/// figures, and a compound duplicate, whose amount is already another row's
+/// (253515: 493.6 mg choline bitartrate beside 480 mg choline).
+bool pipelineBlocksDoseRead(Map<String, dynamic> row) {
+  if (row['skip_ul_check'] != true) return false;
+  final status = row['ul_assessment_status'];
+  final unit = row['converted_unit'];
+  final readable =
+      (status == 'not_applicable' || status == 'assessed_within_limit') &&
+      row['skip_ul_reason'] != 'compound_duplicate_row' &&
+      row['dose_role'] == 'declared_total' &&
+      asFiniteDouble(row['per_day_min']) != null &&
+      asFiniteDouble(row['per_day_max']) != null &&
+      unit is String &&
+      unit.trim().isNotEmpty;
+  return !readable;
+}
+
+/// [pipelineBlocksDoseRead] for a row read among the rest of its label.
+bool pipelineBlocksDoseReadOnLabel(
+  Map<String, dynamic> row,
+  Iterable<Map<String, dynamic>> labelRows,
+) => pipelineBlocksDoseRead(row) || sharesDoseBranch(row, labelRows);
+
+/// True when a skipped row has a counted row of the same ingredient nested above
+/// or below it. Both state the one material, as a form or a source mass, so
+/// adding them counts it twice, and nothing in the row says which figure stands
+/// for the whole (307725: 90 mg trans-resveratrol under 100 mg resveratrol;
+/// 293421: 3200 mg of herb under a 50 mg extract). The skipped row stays unread.
+/// Rows on separate branches are separate sources and still add (312701: caffeine
+/// from three plants).
+bool sharesDoseBranch(
+  Map<String, dynamic> row,
+  Iterable<Map<String, dynamic>> labelRows,
+) {
+  if (row['skip_ul_check'] != true) return false;
+  final path = row['raw_source_path'];
+  if (path is! String || path.isEmpty) return false;
+  final keys = readDoseNameKeys(row);
+  for (final other in labelRows) {
+    final otherPath = other['raw_source_path'];
+    if (otherPath is! String || !onSameLabelBranch(path, otherPath)) continue;
+    if (isUsableDoseRow(other) &&
+        (readDoseAmount(other) ?? 0) > 0 &&
+        readDoseNameKeys(other).any(keys.contains)) {
+      return true;
+    }
+  }
+  return false;
+}
+
+/// True when one label path sits inside the other.
+bool onSameLabelBranch(String a, String b) =>
+    a.startsWith('$b.') || b.startsWith('$a.');
 
 /// Only canonical form keys emitted by the pipeline, including every component.
 /// Raw label words are never sufficient to suppress a pairwise clinical rule.
