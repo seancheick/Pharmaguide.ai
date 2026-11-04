@@ -2,8 +2,8 @@
  "211459": {
   "severity": "monitor",
   "title": "Vitamin E / pregnancy",
-  "alert_headline": "Keep vitamin E within prenatal range",
-  "alert_body": "Vitamin E is dose-sensitive in pregnancy; high intakes can raise adverse-effect risk over time. If you are pregnant or breastfeeding, monitor total intake and talk to your clinician.",
+  "alert_headline": "Limit depends on age",
+  "alert_body": "This amount could be above the upper limit for ages 14–18 but is below the limit for adults. Add your age range to your profile for an answer that fits you.",
   "action": "Keep total daily vitamin E intake within guideline ranges and avoid megadosing.",
   "condition_ids": [
    "pregnancy"
@@ -130,8 +130,8 @@
  "4340": {
   "severity": "caution",
   "title": "Vitamin A / pregnancy",
-  "alert_headline": "Keep preformed vitamin A within prenatal range",
-  "alert_body": "Preformed vitamin A (retinol) is dose-sensitive in pregnancy; beta-carotene is not. If you are pregnant or nursing, monitor total preformed retinol intake from all sources and talk to your clinician.",
+  "alert_headline": "Limit depends on age",
+  "alert_body": "This amount is above the upper limit for ages 14–18 but not for adults. Add your age range to your profile for an answer that fits you.",
   "action": "Avoid high-dose preformed vitamin A in pregnancy unless clinician-directed.",
   "condition_ids": [
    "pregnancy"

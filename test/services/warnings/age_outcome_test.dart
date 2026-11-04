@@ -33,6 +33,15 @@ List<InteractionWarning> _page(String id, String? ageBracket) =>
       ageBracket: ageBracket,
     );
 
+const _ageHeadline = 'Limit depends on age';
+const _isAbove =
+    'This amount is above the upper limit for ages 14\u201318 but not for '
+    'adults. Add your age range to your profile for an answer that fits you.';
+const _couldBe =
+    'This amount could be above the upper limit for ages 14\u201318 but is below '
+    'the limit for adults. Add your age range to your profile for an answer '
+    'that fits you.';
+
 void main() {
   group('resolvedForAge', () {
     test('14-18 reads the teen outcome, severity and card', () {
@@ -59,6 +68,38 @@ void main() {
         expect(review.doseDecision?.evaluationStatus, 'age_dependent');
         expect(review.doseDecision?.consumerDisposition, 'review');
         expect(review.severity, Severity.caution);
+      }
+    });
+
+    test('no stated age reads the age card, never an adult answer', () {
+      for (final bracket in const [null, '', 'teen', 'adult', '19+']) {
+        final review = _warning('4340').resolvedForAge(bracket);
+        expect(review.alertHeadline, _ageHeadline, reason: '$bracket');
+        expect(review.alertBody, _isAbove, reason: '$bracket');
+        expect(review.doseDecision?.evaluationStatus, 'age_dependent');
+        final adult = _warning('4340').resolvedForAge('31-50');
+        expect(adult.alertBody, isNot(review.alertBody));
+        expect(adult.doseDecision?.evaluationStatus, 'below_threshold');
+      }
+    });
+
+    test('a measured amount says is above, a bound says could be', () {
+      expect(_warning('4340').alertBody, _isAbove);
+      expect(_warning('211459').alertBody, _couldBe);
+      expect(_warning('211459').alertHeadline, _ageHeadline);
+    });
+
+    test('a stated age never keeps the age card', () {
+      for (final id in const ['4340', '211459']) {
+        for (final bracket in const ['14-18', '19-30', '71+']) {
+          final card = _warning(id).resolvedForAge(bracket);
+          expect(
+            card.alertHeadline,
+            isNot(_ageHeadline),
+            reason: '$id $bracket',
+          );
+          expect(card.alertBody, isNot(contains('Add your age range')));
+        }
       }
     });
 
@@ -127,6 +168,14 @@ void main() {
       final [card] = _page('4340', null);
       expect(card.severity, Severity.caution);
       expect(card.doseDecision?.consumerDisposition, 'review');
+    });
+
+    test('unknown age shows the approved words on the page', () {
+      for (final bracket in const [null, 'teen']) {
+        final [card] = _page('211459', bracket);
+        expect(card.displayHeadline, _ageHeadline);
+        expect(card.displayBody, _couldBe);
+      }
     });
 
     test('E2: 900 mg is a teen review and no adult exceedance', () {
