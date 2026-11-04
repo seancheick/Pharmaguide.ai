@@ -459,6 +459,25 @@ void main() {
       });
     });
 
+    test('a dose threshold alert is not counted as an interaction', () {
+      final intelligence = engine.diagnose(
+        stackSize: 2,
+        safetyReport: const StackSafetyReport(),
+        recalledReport: emptyRecall,
+        synergyReport: emptySynergy,
+        qualityScore: 90,
+        doseThresholdAlerts: [_doseAlert()],
+      );
+
+      expect(intelligence.tier, StackTier.decent);
+      expect(intelligence.interactionCount, 0);
+      expect(intelligence.nutrientWarningCount, 1);
+      expect(
+        describeStackSummary(intelligence),
+        '1 nutrient warning worth reviewing.',
+      );
+    });
+
     test('single banned ingredient + clean stack → unsafe', () {
       final recall = RecalledIngredientsReport(
         violations: [

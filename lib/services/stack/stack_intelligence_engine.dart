@@ -207,11 +207,12 @@ class StackIntelligenceEngine {
     final nonInteractionAlertCount = regulatorySafetyAlerts
         .where((match) => match.alert.interaction == null)
         .length;
+    // A dose threshold is counted as a nutrient warning below, not here.
     final interactionCount =
-        contraindicatedCount +
-        avoidCount +
-        cautionCount +
-        monitorCount -
+        countBy(Severity.contraindicated) +
+        countBy(Severity.avoid) +
+        countBy(Severity.caution) +
+        countBy(Severity.monitor) -
         nonInteractionAlertCount;
 
     final nutrientWarningCount =
