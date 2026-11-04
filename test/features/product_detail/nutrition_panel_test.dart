@@ -38,6 +38,10 @@ void main() {
       await _expandNutrition(tester);
       expect(find.text('<5 mg'), findsOneWidget);
       expect(find.text('0 mg'), findsOneWidget);
+      expect(
+        tester.getTopLeft(find.text('Added Sugars')).dx,
+        greaterThan(tester.getTopLeft(find.text('Total Sugars')).dx),
+      );
       final facts = tester
           .widget<PGNutritionPanel>(find.byType(PGNutritionPanel))
           .facts;

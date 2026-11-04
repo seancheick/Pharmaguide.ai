@@ -18,9 +18,7 @@ class PGNutritionFact {
   /// production renders with bold weight + heavier divider.
   final bool isHeadline;
 
-  /// Source-label nesting depth for subordinate facts such as saturated or
-  /// polyunsaturated fat. The panel uses one modest indent as the hierarchy
-  /// cue without changing the label text.
+  /// Nesting depth for subordinate facts. Each level adds one indent.
   final int indentLevel;
 
   const PGNutritionFact({
@@ -202,7 +200,7 @@ class _NutritionRow extends StatelessWidget {
             Expanded(
               child: Padding(
                 padding: EdgeInsets.only(
-                  left: fact.indentLevel > 0 ? V2Spacing.space12 : 0,
+                  left: V2Spacing.space12 * fact.indentLevel,
                 ),
                 child: Text(fact.label, style: labelStyle),
               ),
