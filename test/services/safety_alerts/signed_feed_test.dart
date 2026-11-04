@@ -308,6 +308,31 @@ void main() {
       expect(server.downloads.join(), isNot(contains('forged')));
     });
 
+    test('the unsigned row can not redirect the base feed either', () async {
+      final forged = utf8.encode('{"alerts":[]}');
+      final server =
+          _Server(
+              signed: await signedFeedBlock(
+                path: _basePath,
+                checksum: _checksum(_baseBytes),
+              ),
+            )
+            ..row = {
+              'feed_path': 'safety/forged.json',
+              'checksum': _checksum(forged),
+              'manifest': {'extended_feed': null},
+            }
+            ..files = {'safety/forged.json': forged, _basePath: _baseBytes};
+
+      final release = await _repository(
+        server,
+        _MemoryPreferences(),
+      ).loadCurrent();
+
+      expect(_ids(release), _banAndRecall);
+      expect(server.downloads.join(), isNot(contains('forged')));
+    });
+
     test('bytes that do not match the signed checksum are refused', () async {
       final server = await _signedServer()
         ..files = {
