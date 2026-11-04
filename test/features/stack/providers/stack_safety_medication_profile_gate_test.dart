@@ -1,3 +1,6 @@
+import 'package:pharmaguide/features/stack/providers/synergy_report_provider.dart';
+import 'package:pharmaguide/services/stack/recalled_ingredient_result.dart';
+import 'package:pharmaguide/services/stack/synergy_result.dart';
 import 'package:drift/drift.dart' show Value;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -25,7 +28,7 @@ class _ThrowingMedicationRulesRepository extends ReferenceDataRepository {
 
 UserStacksLocalData _medication({
   required String name,
-  required String rxcui,
+  required String? rxcui,
   String? drugClasses,
   String? medicationContext,
 }) {
@@ -99,6 +102,7 @@ Future<ProviderContainer> _containerWithSupplementAndMedication({
   required ProfileState profile,
   required UserStacksLocalData medication,
   required UserStacksLocalData supplement,
+  bool profileFails = false,
 }) async {
   final coreDb = CoreDatabase.memory();
   final interactionDb = InteractionDatabase.memory();
@@ -160,7 +164,31 @@ Future<ProviderContainer> _containerWithSupplementAndMedication({
       coreDatabaseProvider.overrideWithValue(coreDb),
       interactionDatabaseProvider.overrideWithValue(interactionDb),
       activeStackProvider.overrideWith((ref) async => [medication, supplement]),
-      loadedProfileProvider.overrideWith((ref) async => profile),
+      loadedProfileProvider.overrideWith((ref) async {
+        if (profileFails) throw StateError('profile unreadable');
+        return profile;
+      }),
+      if (profileFails) ...[
+        stackDoseThresholdAlertsProvider.overrideWith(
+          (ref) async => throw StateError('profile unreadable'),
+        ),
+        synergyReportProvider.overrideWith(
+          (ref) async => SynergyReport.empty(),
+        ),
+        recalledIngredientsReportProvider.overrideWith(
+          (ref) async => RecalledIngredientsReport(
+            violations: [
+              RecalledIngredientViolation(
+                productDsldId: supplement.dsldId!,
+                productName: supplement.name,
+                brandName: '',
+                recalledIngredients: [],
+                pipelineRecalledProduct: true,
+              ),
+            ],
+          ),
+        ),
+      ],
       stackNutrientStatusesProvider.overrideWith(
         (ref) async => const StackNutrientStatuses.empty(),
       ),
@@ -171,6 +199,71 @@ Future<ProviderContainer> _containerWithSupplementAndMedication({
 }
 
 void main() {
+  test(
+    'profile failure retains known interaction and recall in shared snapshot',
+    () async {
+      final container = await _containerWithSupplementAndMedication(
+        profile: const ProfileState(conditions: ['pregnancy']),
+        profileFails: true,
+        medication: _medication(name: 'Motrin', rxcui: '5640'),
+        supplement: _supplement(id: 'TURMERIC_1', name: 'Turmeric Complex'),
+      );
+      final report = await container.read(stackSafetyReportProvider.future);
+      expect(
+        report.medicationInteractions.map((w) => w.id),
+        contains('DSI_NSAID_TURMERIC'),
+      );
+      expect(report.checksIncomplete, isTrue);
+      expect(report.medicationProfileWarnings, isEmpty);
+      final snapshot = await container.read(stackHealthSnapshotProvider.future);
+      expect(snapshot.intelligence.hasRecalledIngredient, isTrue);
+      expect(snapshot.intelligence.analysisIncomplete, isTrue);
+      expect(
+        snapshot.reviewSignals.any(
+          (s) => s.sourceRuleId == 'DSI_NSAID_TURMERIC',
+        ),
+        isTrue,
+      );
+    },
+  );
+
+  for (final entry in {
+    'pregnancy': 'MCR_PREGNANCY_NSAIDS',
+    'kidney_disease': 'MCR_KIDNEY_DISEASE_NSAIDS',
+    '': null,
+  }.entries) {
+    test(
+      'saved class-only NSAID entry respects profile ${entry.key}',
+      () async {
+        final container = await _container(
+          profile: ProfileState(
+            conditions: [if (entry.key.isNotEmpty) entry.key],
+          ),
+          medication: _medication(
+            name: 'NSAIDs',
+            rxcui: null,
+            drugClasses: '["class:nsaids"]',
+          ),
+        );
+        final report = await container.read(stackSafetyReportProvider.future);
+        if (entry.value == null) {
+          expect(report.medicationProfileWarnings, isEmpty);
+        } else {
+          expect(
+            report.medicationProfileWarnings.map((w) => w.ruleId),
+            contains(entry.value),
+          );
+          expect(
+            orderedSignalsFrom(
+              report,
+            ).where((s) => s.family == SignalFamily.medicationProfile),
+            isNotEmpty,
+          );
+        }
+      },
+    );
+  }
+
   test(
     'actual stack consumer uses confirmed context and unknown legacy aspirin warns',
     () async {

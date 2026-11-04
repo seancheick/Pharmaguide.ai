@@ -36,7 +36,12 @@ Map<String, String> get kReleaseVerificationKeys => {
 /// With no key here every feed is unverified, so this build shows no alert from the
 /// feed and no all-clear. scripts/require_alert_feed_key.sh keeps that out of store
 /// builds; steps are in the pipeline's docs/RELEASE_SIGNING_RUNBOOK.md.
-const Map<String, String> _kProductionAlertFeedKeys = {};
+const Map<String, String> _kProductionAlertFeedKeys = {
+  'alert-feed-2026-11':
+      '86931cbd3b7ccff1fdd2564a582964d96fe1ce7417f9dd57fea4e5af6cad46fa',
+  'alert-feed-standby':
+      'd0184fbe88be20df2753fb6acaffa0b41f18722dd5e97d1053645b8e26e9bb9e',
+};
 
 /// Test builds add the same dart-define key, which release mode ignores.
 Map<String, String> get kAlertFeedVerificationKeys => {

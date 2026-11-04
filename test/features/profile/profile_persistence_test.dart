@@ -1,9 +1,32 @@
 import 'package:flutter_test/flutter_test.dart';
+import 'package:drift/drift.dart' show Value;
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:pharmaguide/data/providers/database_providers.dart';
+import 'package:pharmaguide/features/safety_alerts/providers/safety_alert_providers.dart';
+import 'package:pharmaguide/features/stack/providers/medication_identity_providers.dart';
 import 'package:pharmaguide/data/database/user_database.dart';
 import 'package:pharmaguide/data/repositories/health_event_repository.dart';
 import 'package:pharmaguide/features/profile/profile_provider.dart';
 
+class _FailingReadDb extends UserDatabase {
+  _FailingReadDb() : super.memory();
+  bool failReads = true;
+  int saves = 0;
+  @override
+  Future<UserProfile?> getProfile() {
+    if (failReads) throw Exception('synthetic profile read failure');
+    return super.getProfile();
+  }
+
+  @override
+  Future<int> saveProfile(UserProfilesCompanion profile) async {
+    saves++;
+    return super.saveProfile(profile);
+  }
+}
+
 void main() {
+  TestWidgetsFlutterBinding.ensureInitialized();
   late UserDatabase db;
 
   setUp(() {
@@ -13,6 +36,119 @@ void main() {
   tearDown(() async {
     await db.close();
   });
+
+  test(
+    'failed stored profile load stays unavailable and cannot overwrite saved conditions',
+    () async {
+      final failingDb = _FailingReadDb();
+      addTearDown(failingDb.close);
+      await failingDb.saveProfile(
+        const ProfileState(
+          conditions: ['pregnancy', 'kidney_disease'],
+        ).toCompanion(),
+      );
+      final notifier = ProfileNotifier(failingDb);
+      addTearDown(notifier.dispose);
+      await expectLater(notifier.ensureLoaded(), throwsException);
+      expect(notifier.isLoaded, isFalse);
+      notifier.setNickname('Draft after failed read');
+      failingDb.failReads = false;
+      await expectLater(notifier.saveToDb(), throwsStateError);
+      expect(failingDb.saves, 1);
+      expect(
+        ProfileState.fromDbRow((await failingDb.getProfile())!).conditions,
+        ['pregnancy', 'kidney_disease'],
+      );
+      await notifier.ensureLoaded();
+      expect(notifier.isLoaded, isTrue);
+      expect(notifier.state.conditions, ['pregnancy', 'kidney_disease']);
+      notifier.setNickname('Valid edit');
+      await notifier.saveToDb();
+      final restored = ProfileState.fromDbRow((await failingDb.getProfile())!);
+      expect(restored.conditions, ['pregnancy', 'kidney_disease']);
+      expect(restored.nickname, 'Valid edit');
+    },
+  );
+
+  test(
+    'saving before the initial load cannot overwrite existing health data',
+    () async {
+      await db.saveProfile(
+        const ProfileState(conditions: ['pregnancy']).toCompanion(),
+      );
+      final notifier = ProfileNotifier(db);
+      addTearDown(notifier.dispose);
+      notifier.setNickname('Unready draft');
+      await expectLater(notifier.saveToDb(), throwsStateError);
+      expect(ProfileState.fromDbRow((await db.getProfile())!).conditions, [
+        'pregnancy',
+      ]);
+    },
+  );
+
+  test(
+    'real profile read failure marks device safety incomplete and retry restores flags',
+    () async {
+      final failingDb = _FailingReadDb();
+      addTearDown(failingDb.close);
+      await failingDb.saveProfile(
+        const ProfileState(conditions: ['pregnancy']).toCompanion(),
+      );
+      final container = ProviderContainer(
+        overrides: [
+          userDatabaseProvider.overrideWithValue(failingDb),
+          localMedicationIdentityProvider.overrideWith(
+            (ref) async => (ids: const <String>{}, isComplete: true),
+          ),
+        ],
+      );
+      addTearDown(container.dispose);
+      final held = await container.read(deviceSafetyProfileProvider.future);
+      expect(held.isComplete, isFalse);
+      expect(container.read(loadedProfileProvider).hasError, isTrue);
+      failingDb.failReads = false;
+      container.invalidate(profileLoadedProvider);
+      final restored = await container.read(loadedProfileProvider.future);
+      expect(restored.conditions, ['pregnancy']);
+      final checked = await container.read(deviceSafetyProfileProvider.future);
+      expect(checked.isComplete, isTrue);
+      expect(checked.profileFlags, contains('pregnant'));
+    },
+  );
+
+  for (final malformed in ['not-json', '{"pregnancy":true}']) {
+    test('malformed stored conditions remain unreadable: $malformed', () async {
+      await db.saveProfile(UserProfilesCompanion(conditions: Value(malformed)));
+      final notifier = ProfileNotifier(db);
+      addTearDown(notifier.dispose);
+      await expectLater(notifier.ensureLoaded(), throwsFormatException);
+      expect(notifier.isLoaded, isFalse);
+      notifier.setNickname('Attempted edit');
+      await expectLater(notifier.saveToDb(), throwsStateError);
+      expect((await db.getProfile())!.conditions, malformed);
+    });
+  }
+
+  test(
+    'database initialization failure is not an empty loaded profile',
+    () async {
+      final container = ProviderContainer(
+        overrides: [
+          userDatabaseProvider.overrideWith(
+            (ref) => throw StateError('unavailable database'),
+          ),
+        ],
+      );
+      addTearDown(container.dispose);
+      await expectLater(
+        container.read(loadedProfileProvider.future),
+        throwsA(anything),
+      );
+      final notifier = container.read(profileProvider.notifier);
+      expect(notifier.isLoaded, isFalse);
+      await expectLater(notifier.saveToDb(), throwsStateError);
+    },
+  );
 
   group('ProfileState DB serialization', () {
     test('toCompanion encodes lists as JSON', () {
@@ -129,6 +265,7 @@ void main() {
 
     test('saveToDb persists current state', () async {
       final notifier = ProfileNotifier(db);
+      await notifier.ensureLoaded();
       notifier.setNickname('Persisted');
       notifier.setAgeBracket('51-70');
       notifier.toggleGoal('GOAL_IMMUNE_SUPPORT');
@@ -152,6 +289,7 @@ void main() {
     test('profile persistence and history event commit together', () async {
       final history = HealthEventRepository(db);
       final notifier = ProfileNotifier(db, history);
+      await notifier.ensureLoaded();
       notifier.setConditions(const ['diabetes']);
       notifier.setAllergens(const ['ALLERGEN_MILK']);
 
@@ -197,6 +335,7 @@ void main() {
         // users still report lost nicknames after relaunch, the bug is at
         // a call site that's not awaiting saveToDb.
         final notifierA = ProfileNotifier(db);
+        await notifierA.ensureLoaded();
         notifierA.setNickname('ColdRelaunch');
         notifierA.setAgeBracket('19-30');
         notifierA.toggleGoal('GOAL_SLEEP_QUALITY');
