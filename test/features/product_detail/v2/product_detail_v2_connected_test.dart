@@ -198,13 +198,14 @@ Future<void> _pumpConnectedScreen(
   Set<String> stackMedicationClassIds = const {},
   _Rules rules = _Rules.available,
   bool realWarnings = false,
+  UserDatabase? profileDatabase,
   List<SafetyAlert> liveAlerts = const [],
   bool qualityWithheld = false,
   SafetyAlertRepository Function()? buildAlertFeed,
   Stream<ConnectionStatus>? connection,
 }) async {
   final coreDb = CoreDatabase.memory(qualityWithheld: qualityWithheld);
-  final userDb = UserDatabase.memory();
+  final userDb = profileDatabase ?? UserDatabase.memory();
   final interactionDb = InteractionDatabase.memory();
   await _seedConnectedProduct(
     coreDb,
@@ -300,6 +301,16 @@ Future<void> _pumpConnectedScreen(
     for (var i = 0; i < 5; i++) {
       await tester.pump(const Duration(milliseconds: 100));
     }
+  }
+}
+
+class _RetryProfileDatabase extends UserDatabase {
+  _RetryProfileDatabase() : super.memory();
+  bool failReads = true;
+  @override
+  Future<UserProfile?> getProfile() {
+    if (failReads) throw StateError('profile unavailable');
+    return super.getProfile();
   }
 }
 
@@ -1476,6 +1487,38 @@ void main() {
       expect(find.text('No comparable alternatives found'), findsNothing);
       expect(find.text('See higher-quality options'), findsNothing);
     });
+
+    testWidgets(
+      'Retry recovers the saved profile after a database read failure',
+      (tester) async {
+        final db = _RetryProfileDatabase();
+        await db.saveProfile(
+          const ProfileState(
+            nickname: 'Saved',
+            conditions: ['pregnancy'],
+          ).toCompanion(),
+        );
+        await _pumpConnectedScreen(
+          tester,
+          profileDatabase: db,
+          initialSection: null,
+          detailBlob: {'ingredients': const <Map<String, dynamic>>[]},
+        );
+        final container = ProviderScope.containerOf(
+          tester.element(find.byType(ProductDetailV2ConnectedScreen)),
+        );
+        expect(container.read(profileLoadedProvider).hasError, isTrue);
+        expect(find.text('Personalized checks are incomplete'), findsOneWidget);
+        db.failReads = false;
+        await tester.ensureVisible(find.text('Retry'));
+        await tester.tap(find.text('Retry'));
+        await tester.pumpAndSettle();
+        expect(container.read(profileLoadedProvider).hasError, isFalse);
+        expect(container.read(profileProvider).conditions, ['pregnancy']);
+        expect(container.read(profileProvider).nickname, 'Saved');
+        expect(find.text('Personalized checks are incomplete'), findsNothing);
+      },
+    );
 
     testWidgets('failed checks offer a Retry that runs them again', (
       tester,

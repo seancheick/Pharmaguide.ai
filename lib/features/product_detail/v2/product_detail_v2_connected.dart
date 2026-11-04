@@ -86,6 +86,7 @@ import 'package:pharmaguide/features/product_detail/v2/warnings_pipeline.dart';
 import 'package:pharmaguide/features/product_detail/widgets/pg_favorite_button.dart';
 import 'package:pharmaguide/features/product_detail/widgets/pg_stack_action_buttons.dart';
 import 'package:pharmaguide/features/profile/profile_provider.dart';
+import 'package:pharmaguide/features/profile/widgets/profile_load_gate.dart';
 import 'package:pharmaguide/features/safety_alerts/providers/safety_alert_providers.dart';
 import 'package:pharmaguide/features/stack/providers/active_stack_provider.dart';
 import 'package:pharmaguide/features/stack/providers/medication_identity_providers.dart';
@@ -373,6 +374,7 @@ class _ProductDetailV2ConnectedState
 
   /// Re-runs every personalized check the "incomplete" banner covers.
   void _retryPersonalizedChecks() {
+    retryProfileLoad(ref);
     ref
       ..invalidate(personalizedInteractionWarningsProvider(widget.dsldId))
       ..invalidate(profileWarningRuleWarningsProvider(widget.dsldId))
