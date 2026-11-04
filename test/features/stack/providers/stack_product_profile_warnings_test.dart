@@ -3,6 +3,7 @@ import 'dart:io';
 import 'package:pharmaguide/core/constants/consumer_disposition.dart';
 import 'package:pharmaguide/features/product_detail/providers/profile_warning_rule_provider.dart';
 import 'package:pharmaguide/services/warnings/interaction_warning.dart';
+import 'package:pharmaguide/services/stack/stack_dose_summer.dart';
 import 'package:pharmaguide/services/stack/stack_intelligence_engine.dart';
 import 'package:pharmaguide/services/stack/recalled_ingredient_result.dart';
 import 'package:pharmaguide/services/stack/synergy_result.dart';
@@ -27,6 +28,7 @@ Future<StackSafetyReport> reportFor(
   Map<String, dynamic>? blob, {
   ProfileState profile = const ProfileState(conditions: ['pregnancy']),
   bool secondBlobFails = false,
+  String safetyAssessmentStatus = 'complete',
   List<InteractionWarning>? resolvedRules,
   bool resolutionFails = false,
   bool flagsFail = false,
@@ -58,6 +60,8 @@ Future<StackSafetyReport> reportFor(
             exportedAt: '2026-11-03',
             mappedCoverage: const Value(1),
             productStatus: const Value('active'),
+            productSafetyStatus: const Value('no_known_catalog_concern'),
+            safetyAssessmentStatus: Value(safetyAssessmentStatus),
             keyIngredientTags: const Value('["st_johns_wort"]'),
           ),
         );
@@ -130,6 +134,15 @@ void main() {
           )['blob']
           as Map,
     );
+  });
+  test('catalog safety incompleteness carries into Stack', () async {
+    final report = await reportFor(
+      sjw,
+      resolvedRules: const [],
+      safetyAssessmentStatus: 'incomplete',
+    );
+    expect(report.checksIncomplete, isTrue);
+    expect(report.stackInteractions, isNotEmpty);
   });
   group('a dose rule this product has no number for', () {
     Map<String, dynamic> blobWith(String status, String disposition) {
@@ -215,6 +228,33 @@ void main() {
       expect(card, hasLength(1));
       expect(card.single.severity, Severity.avoid);
       expect(card.single.evidenceLevel, EvidenceLevel.established);
+      const aggregate = StackDoseThresholdAlert(
+        conditionId: 'pregnancy',
+        canonicalId: 'caffeine',
+        displayName: 'Caffeine',
+        totalValue: 230,
+        unit: 'mg',
+        thresholdValue: 200,
+        thresholdUnit: 'mg',
+        contributions: [],
+        isIncomplete: true,
+        clinicalSeverity: Severity.avoid,
+      );
+      final signals = allClinicalSignalsFrom(
+        report: pregnant,
+        doseThresholdAlerts: [aggregate],
+      );
+      expect(signals, hasLength(1));
+      expect(signals.single.clinicalSeverity, Severity.avoid);
+      expect(signals.single.body, body);
+      expect(
+        allClinicalSignalsFrom(
+          report: const StackSafetyReport(),
+          doseThresholdAlerts: [aggregate],
+        ),
+        hasLength(1),
+      );
+
       final nursing = await reportFor(
         blob(),
         profile: const ProfileState(conditions: ['lactation']),

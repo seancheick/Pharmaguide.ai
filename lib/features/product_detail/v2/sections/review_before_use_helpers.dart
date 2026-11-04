@@ -453,7 +453,7 @@ bool isProductContextNote(InteractionWarning warning) =>
 bool isSourcedWatchlistSafetyNote(InteractionWarning warning) =>
     warning.warningType == 'watchlist_substance' &&
     warning.displayModeDefault == 'informational' &&
-    !warning.severity.isHard &&
+    warning.severity.isActionable &&
     warning.conditionIds.isEmpty &&
     warning.drugClassIds.isEmpty &&
     warning.profileGate == null &&

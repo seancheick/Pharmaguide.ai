@@ -47,6 +47,22 @@ const _couldBe =
     'that fits you.';
 
 void main() {
+  test('malformed age outcome preserves the base block', () {
+    for (final outcome in <Map<String, dynamic>>[
+      {},
+      {'consumer_disposition': 'unknown'},
+    ]) {
+      final warning = InteractionWarning.fromJson({
+        'severity': 'avoid',
+        'dose_decision': {
+          'consumer_disposition': 'block',
+          'age_outcomes': {'19+': outcome},
+        },
+      });
+      expect(warning.resolvedForAge('31-50'), same(warning));
+    }
+  });
+
   test('Fit Score applies the same age outcome as the warning card', () {
     final service = FitScoreService(
       e1: E1DosageCalculator(const {}),

@@ -1282,6 +1282,34 @@ void main() {
       expect(opened, isTrue);
     });
   }
+  test('material safety notes qualify an otherwise clear profile', () {
+    final summary = buildProfileRelevanceSummary(
+      fitResult: _fit(),
+      topGoalLabel: null,
+      warnings: const [],
+      interactionHint: '',
+      matchedAllergens: const [],
+      freeFromConflicts: const [],
+      hasInteractionProfile: true,
+      hasMaterialSafetyNotes: true,
+    );
+    expect(summary.headline, kNothingSpecificHeadline);
+    expect(summary.tone, PGReviewTone.info);
+  });
+
+  test('neutral sourced watchlist notes are not material cautions', () {
+    for (final severity in ['informational', 'safe']) {
+      final warning = InteractionWarning.fromJson({
+        'type': 'watchlist_substance',
+        'severity': severity,
+        'display_mode_default': 'informational',
+        'safety_warning': 'Context from the source.',
+        'sources': ['https://example.com/study'],
+      });
+      expect(isMaterialSafetyNote(warning), isFalse);
+    }
+  });
+
   testWidgets('a sourced watchlist note belongs in Product Safety', (
     tester,
   ) async {

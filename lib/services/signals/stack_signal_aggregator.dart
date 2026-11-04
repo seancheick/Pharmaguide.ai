@@ -144,8 +144,10 @@ List<ClinicalSignal> allClinicalSignalsFrom({
   }
 
   for (var i = 0; i < doseThresholdAlerts.length; i++) {
+    final alert = doseThresholdAlerts[i];
+    if (!report.showsDoseThresholdAlert(alert)) continue;
     entries.add((
-      signal: ClinicalSignal.fromDoseThreshold(doseThresholdAlerts[i]),
+      signal: ClinicalSignal.fromDoseThreshold(alert),
       bucket: 6,
       ordinal: i,
     ));

@@ -152,10 +152,12 @@ class AgeOutcome {
     if (raw is! Map) return const {};
     return {
       for (final entry in raw.entries)
-        if (entry.value is Map)
-          entry.key.toString(): _parse(
-            Map<String, dynamic>.from(entry.value as Map),
-          ),
+        if (entry.value case final Map<dynamic, dynamic> value
+            when ConsumerDisposition.values.any(
+              (disposition) =>
+                  disposition.wireValue == value['consumer_disposition'],
+            ))
+          entry.key.toString(): _parse(Map<String, dynamic>.from(value)),
     };
   }
 

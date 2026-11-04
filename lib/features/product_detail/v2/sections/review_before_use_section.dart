@@ -160,7 +160,7 @@ ProfileRelevanceSummary buildProfileRelevanceSummary({
     onTapCitations: onTapCitations,
   );
   final isClean = summary.headline == kNoProfileConcernsHeadline;
-  final shown = isClean && hasCatalogCaution
+  final shown = isClean && (hasCatalogCaution || hasMaterialSafetyNotes)
       ? summary.withGeneralSafetyNotes(
           onProductSafetyCard: hasMaterialSafetyNotes,
         )
