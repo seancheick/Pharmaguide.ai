@@ -1,8 +1,21 @@
-# Product Submission Pipeline — Implemented Design and Release Runbook
+# Product Submission Pipeline — Historical Design
 
 **Date:** 2026-07-30
 
-**Status:** Code complete; not yet deployed to Supabase or released to users
+**Status:** Historical design snapshot. For the current identity and privacy
+contract, see [ADR-011](../../../knowledge/architecture-decisions.md#adr-011-private-observed-identifiers-and-complete-no-gtin-submissions) and the
+[pipeline reviewer runbook](https://github.com/seancheick/PharmaGuide_Pipeline/blob/main/scripts/submission_review/README.md).
+The current app accepts validated GTINs, alternate printed identifiers and
+submissions without a GTIN. A reviewer verifies the identity and evidence
+before approval. Approval waits for a matching catalog release before promotion.
+
+The October 26 backend deployment and its verification are recorded in
+[the handoff history](https://github.com/seancheick/Pharmaguide.ai/commit/8fd0f3c40ad1a3844db145a40b643d35daead824).
+That record covers a specific deployed revision. The canaries below describe
+what to verify for later revisions.
+
+Pending photo drafts are account-scoped files in app-private storage. They are
+outside the account database encryption boundary.
 
 **Decision:** One private submission system serves both catalog-label
 corrections and missing products. AI may create an attributable draft, but

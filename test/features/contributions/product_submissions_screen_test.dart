@@ -1062,7 +1062,7 @@ void main() {
     );
   });
 
-  testWidgets('deep link renders only when the product exists locally', (
+  testWidgets('deep link requires promotion and an installed product', (
     tester,
   ) async {
     final db = CoreDatabase.memory();
@@ -1098,6 +1098,10 @@ void main() {
           ),
           'resolved_dsld_id': 'PG_SUB_NOT_INSTALLED',
         },
+        {
+          ..._row(id: 'approved-before-release', reviewStatus: 'approved'),
+          'resolved_dsld_id': 'PG_SUB_AAAA',
+        },
       ], db: db),
     );
     await tester.pumpAndSettle();
@@ -1112,7 +1116,9 @@ void main() {
       findsNothing,
     );
     expect(
-      find.text('Available after your next catalog update.'),
+      find.text(
+        'Available when a catalog update containing this product reaches your device.',
+      ),
       findsOneWidget,
     );
   });

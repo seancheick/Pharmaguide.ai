@@ -482,8 +482,8 @@ class _ProductSubmissionsScreenState
                   index: 3,
                   title: 'Released to everyone',
                   body:
-                      'Approved products ship in the next catalog update, '
-                      'on every device.',
+                      'After approval, products wait for a catalog release. '
+                      'They appear once your device gets that update.',
                 ),
                 const SizedBox(height: V2Spacing.space16),
                 Container(
@@ -1018,7 +1018,10 @@ class _SubmissionCard extends ConsumerWidget {
                       style: V2Typography.caption(color: context.v2.fgMuted),
                     ),
                   ],
-                  if (status.resolvedDsldId case final resolvedId?)
+                  if (status.resolvedDsldId case final resolvedId?
+                      when status.reviewStatus !=
+                              ProductSubmissionReviewStatus.approved ||
+                          status.isComplete)
                     _GatedProductLink(resolvedDsldId: resolvedId),
                   if (status.reviewStatus ==
                           ProductSubmissionReviewStatus.rejected &&
@@ -1283,7 +1286,7 @@ class _GatedProductLink extends ConsumerWidget {
           return Padding(
             padding: const EdgeInsets.only(top: V2Spacing.space4),
             child: Text(
-              'Available after your next catalog update.',
+              'Available when a catalog update containing this product reaches your device.',
               style: V2Typography.caption(color: context.v2.fgMuted),
             ),
           );
