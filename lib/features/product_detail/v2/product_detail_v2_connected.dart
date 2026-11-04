@@ -891,13 +891,23 @@ class _ProductDetailV2ConnectedState
                       // Nothing else explains the missing all-clear, whatever
                       // the quality state (ADR-016).
                       if (catalogProductSafetyChecksIncomplete(_product)) ...[
-                        const PGSeverityBanner(
-                          key: Key('safety-checks-incomplete-banner'),
+                        PGSeverityBanner(
+                          key: const Key('safety-checks-incomplete-banner'),
                           tone: PGBannerTone.info,
                           title: 'Safety checks incomplete',
                           body:
-                              'We haven\'t finished this product\'s safety '
-                              'checks yet.',
+                              catalogProductSafetyGapIsUndisclosedUpperLimit(
+                                _product,
+                              )
+                              ? 'Dose safety could not be fully assessed. This '
+                                    'product contains a nutrient with an '
+                                    'established upper intake limit, but the '
+                                    'label does not disclose enough information '
+                                    'to evaluate the amount. This does not '
+                                    'establish that the product exceeds the '
+                                    'limit.'
+                              : 'We haven\'t finished this product\'s safety '
+                                    'checks yet.',
                         ),
                         const SizedBox(height: V2Spacing.space12),
                       ],

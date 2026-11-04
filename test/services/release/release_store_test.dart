@@ -297,6 +297,9 @@ void main() {
       catalog.execute(
         'ALTER TABLE products_core DROP COLUMN safety_assessment_status',
       );
+      catalog.execute(
+        'ALTER TABLE products_core DROP COLUMN safety_assessment_reason',
+      );
       catalog.close();
       final pointerFile = File(
         p.join(documents.path, 'releases', 'active.json'),
@@ -360,6 +363,7 @@ void main() {
       expect(kept.record.preparation, kReleasePreparation - 1);
       final product = (await kept.core.findById(kFixtureProduct))!;
       expect(product.safetyAssessmentStatus, isNull);
+      expect(product.safetyAssessmentReason, isNull);
       expect(await kept.core.countProducts(), greaterThan(0));
       expect(
         sha256
@@ -2419,4 +2423,4 @@ void main() {
 }
 
 const _preparationFingerprint =
-    '64c5c6065b17f2373da0d54f5fdf311613c9eaaa84bcf7786904199794dc0a96';
+    '2447eb8c853e4909bdbe34f1af4513fb6c857bbd2c638a49ec058bd5bab47428';

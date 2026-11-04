@@ -54,6 +54,11 @@ const _qualityBody =
     "We haven't finished assessing this product's quality yet.";
 const _safetyTitle = 'Safety checks incomplete';
 const _safetyBody = "We haven't finished this product's safety checks yet.";
+const _upperLimitBody =
+    'Dose safety could not be fully assessed. This product contains a '
+    'nutrient with an established upper intake limit, but the label does not '
+    'disclose enough information to evaluate the amount. This does not '
+    'establish that the product exceeds the limit.';
 const _noScore = 'Product quality score unavailable.';
 const _warfarinWarning = 'Do not combine with warfarin';
 
@@ -174,6 +179,7 @@ Future<CoreDatabase> _catalog({
   String? scoreStatus = 'scored',
   String? assessment = 'complete',
   String? safetyAssessment,
+  String? safetyReason,
   String? safety = 'no_known_catalog_concern',
   String? verdict = 'SAFE',
   double coverage = 1,
@@ -193,6 +199,7 @@ Future<CoreDatabase> _catalog({
           qualityScoreStatus: Value(scoreStatus),
           qualityAssessmentStatus: Value(assessment),
           safetyAssessmentStatus: Value(safetyAssessment),
+          safetyAssessmentReason: Value(safetyReason),
           productSafetyStatus: Value(safety),
           verdict: Value(verdict),
           mappedCoverage: Value(coverage),
@@ -911,6 +918,160 @@ void main() {
         findsWidgets,
       );
       expect(find.text(_allClear), findsNothing);
+    });
+  });
+
+  group('the catalog can name why safety checks are unfinished (ADR-016)', () {
+    const reason = 'upper_limit_amount_undisclosed';
+
+    for (final (name, safetyChecks, safetyReason, body, clear)
+        in <(String, String?, String?, String?, bool)>[
+          ('reason set', 'incomplete', reason, _upperLimitBody, false),
+          ('incomplete, no reason', 'incomplete', null, _safetyBody, false),
+          ('complete, no reason', 'complete', null, null, true),
+          (
+            'a value this build has never seen',
+            'incomplete',
+            'new_reason',
+            _safetyBody,
+            false,
+          ),
+          ('an empty value', 'incomplete', '', _safetyBody, false),
+          (
+            'the reason beside a finished status',
+            'complete',
+            reason,
+            null,
+            true,
+          ),
+          (
+            'the reason beside an unknown status',
+            'new_status',
+            reason,
+            _safetyBody,
+            false,
+          ),
+        ]) {
+      testWidgets(name, (tester) async {
+        await pumpPage(
+          tester,
+          catalog: await _catalog(
+            safetyAssessment: safetyChecks,
+            safetyReason: safetyReason,
+          ),
+          phone: await _phone(
+            profile: _noMatch,
+            cachedBlob: _stJohnsWortBlob(),
+          ),
+        );
+
+        expect(
+          find.text(_safetyBody),
+          body == _safetyBody ? findsOneWidget : findsNothing,
+        );
+        expect(
+          find.text(_upperLimitBody),
+          body == _upperLimitBody ? findsOneWidget : findsNothing,
+        );
+        expect(
+          find.text(_safetyTitle),
+          body == null ? findsNothing : findsOneWidget,
+        );
+        expect(find.text(_allClear), clear ? findsOneWidget : findsNothing);
+        // It never touches quality.
+        expect(find.text(_qualityTitle), findsNothing);
+        expect(find.textContaining('95/100', findRichText: true), findsWidgets);
+      });
+    }
+
+    testWidgets('an older catalog with no status keeps the generic text', (
+      tester,
+    ) async {
+      await pumpPage(
+        tester,
+        catalog: await _catalog(
+          score: 60,
+          assessment: 'partial',
+          safetyReason: reason,
+        ),
+        phone: await _phone(profile: _noMatch, cachedBlob: _stJohnsWortBlob()),
+      );
+
+      expect(find.text(_safetyBody), findsOneWidget);
+      expect(find.text(_upperLimitBody), findsNothing);
+    });
+
+    testWidgets('a quality gap keeps its own message beside the reason', (
+      tester,
+    ) async {
+      await pumpPage(
+        tester,
+        catalog: await _catalog(
+          score: 60,
+          assessment: 'partial',
+          safetyAssessment: 'incomplete',
+          safetyReason: reason,
+        ),
+        phone: await _phone(profile: _noMatch, cachedBlob: _stJohnsWortBlob()),
+      );
+
+      expect(find.text(_qualityTitle), findsOneWidget);
+      expect(find.text(_upperLimitBody), findsOneWidget);
+    });
+
+    testWidgets('a real concern stays beside the reason', (tester) async {
+      await pumpPage(
+        tester,
+        catalog: await _catalog(
+          safetyAssessment: 'incomplete',
+          safetyReason: reason,
+        ),
+        phone: await _phone(
+          profile: _onWarfarin,
+          cachedBlob: _stJohnsWortBlob(),
+        ),
+      );
+
+      expect(find.text(_notRecommended), findsOneWidget);
+      expect(find.text(_upperLimitBody), findsOneWidget);
+    });
+
+    testWidgets('a catalog caution stays beside the reason', (tester) async {
+      await pumpPage(
+        tester,
+        catalog: await _catalog(
+          safety: 'caution',
+          verdict: 'CAUTION',
+          safetyAssessment: 'incomplete',
+          safetyReason: reason,
+        ),
+        phone: await _phone(profile: _noMatch, cachedBlob: _stJohnsWortBlob()),
+      );
+
+      expect(find.text(_upperLimitBody), findsOneWidget);
+      expect(find.text(_allClear), findsNothing);
+    });
+
+    testWidgets('a block is its own answer', (tester) async {
+      await pumpPage(
+        tester,
+        catalog: await _catalog(
+          score: null,
+          scoreStatus: 'suppressed_safety',
+          safety: 'blocked',
+          verdict: 'BLOCKED',
+          safetyAssessment: 'incomplete',
+          safetyReason: reason,
+        ),
+        phone: await _phone(profile: _noMatch, cachedBlob: _stJohnsWortBlob()),
+      );
+
+      expect(
+        find.text('PharmaGuide does not recommend this product'),
+        findsWidgets,
+      );
+      expect(find.text(_upperLimitBody), findsNothing);
+      expect(find.text(_safetyTitle), findsNothing);
     });
   });
 

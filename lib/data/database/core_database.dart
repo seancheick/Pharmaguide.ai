@@ -240,6 +240,7 @@ class CoreDatabase extends _$CoreDatabase {
     // Older catalogs lack this; NULL means a finished public assessment
     // decides the all-clear (ADR-016).
     'safety_assessment_status TEXT',
+    'safety_assessment_reason TEXT',
     'quality_tier TEXT',
     'quality_score_suppressed_reason TEXT',
     'v4_module TEXT',

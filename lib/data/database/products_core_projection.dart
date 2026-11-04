@@ -4,7 +4,7 @@
 
 const String appCoreProjectionModelVersion = '1.2.0';
 const String appCoreProjectionModelSha256 =
-    'sha256:048a0e90f793d537080064a569d664cf563f6e88cd954a056141e9cb457ca2a8';
+    'sha256:b09df3dbed7fed7da4fdba7f1de10e0b0d2671c8afdf2274bef81ec287632e63';
 const Set<String> appCoreProjectionColumns = <String>{
   'dsld_id',
   'product_name',
@@ -29,6 +29,7 @@ const Set<String> appCoreProjectionColumns = <String>{
   'product_safety_status',
   'quality_assessment_status',
   'safety_assessment_status',
+  'safety_assessment_reason',
   'quality_tier',
   'quality_score_suppressed_reason',
   'v4_module',

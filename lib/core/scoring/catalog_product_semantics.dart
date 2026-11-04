@@ -199,6 +199,19 @@ bool catalogProductSafetyChecksIncomplete(ProductsCoreData? product) {
       !_hasFinishedScoreNumber(product);
 }
 
+/// Whether the unfinished safety checks come from a nutrient with an upper
+/// intake limit whose amount the label doesn't disclose (ADR-016).
+///
+/// Only an `incomplete` status can carry this reason, and any other value
+/// counts as none, so the page keeps its generic text.
+bool catalogProductSafetyGapIsUndisclosedUpperLimit(
+  ProductsCoreData? product,
+) =>
+    product != null &&
+    !catalogProductIsBlocked(product) &&
+    product.safetyAssessmentStatus == 'incomplete' &&
+    product.safetyAssessmentReason == 'upper_limit_amount_undisclosed';
+
 /// Whether the catalog has no usable quality number for this product.
 ///
 /// Narrow by design. A `partial` assessment is deliberately NOT not-scored:

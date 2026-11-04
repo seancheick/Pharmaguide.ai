@@ -17,6 +17,7 @@ ProductsCoreData _p({
   double? qualityScoreV4100,
   String? productSafetyStatus = 'no_known_catalog_concern',
   String? safetyAssessmentStatus,
+  String? safetyAssessmentReason,
 }) => ProductsCoreData(
   dsldId: 'TEST-1',
   productName: 'Test Supplement',
@@ -24,6 +25,7 @@ ProductsCoreData _p({
   qualityScoreV4100: qualityScoreV4100,
   productSafetyStatus: productSafetyStatus,
   safetyAssessmentStatus: safetyAssessmentStatus,
+  safetyAssessmentReason: safetyAssessmentReason,
   qualityScoreStatus: qualityScoreStatus,
   qualityAssessmentStatus: qualityAssessmentStatus,
   exportVersion: 'test',
@@ -154,6 +156,45 @@ void main() {
       );
       expect(catalogProductCanReportNoConcerns(p), isTrue);
       expect(catalogProductSafetyChecksIncomplete(p), isFalse);
+    });
+  });
+
+  group('the undisclosed upper-limit reason (ADR-016)', () {
+    const reason = 'upper_limit_amount_undisclosed';
+
+    for (final (name, status, value, expected)
+        in <(String, String?, String?, bool)>[
+          ('named beside incomplete', 'incomplete', reason, true),
+          ('no reason', 'incomplete', null, false),
+          (
+            'an unknown reason counts as none',
+            'incomplete',
+            'new_reason',
+            false,
+          ),
+          ('finished checks', 'complete', reason, false),
+          ('an older catalog', null, reason, false),
+        ]) {
+      test(name, () {
+        final p = _p(
+          safetyAssessmentStatus: status,
+          safetyAssessmentReason: value,
+        );
+        expect(catalogProductSafetyGapIsUndisclosedUpperLimit(p), expected);
+      });
+    }
+
+    test('a missing product', () {
+      expect(catalogProductSafetyGapIsUndisclosedUpperLimit(null), isFalse);
+    });
+
+    test('a block', () {
+      final p = _p(
+        productSafetyStatus: 'blocked',
+        safetyAssessmentStatus: 'incomplete',
+        safetyAssessmentReason: reason,
+      );
+      expect(catalogProductSafetyGapIsUndisclosedUpperLimit(p), isFalse);
     });
   });
 

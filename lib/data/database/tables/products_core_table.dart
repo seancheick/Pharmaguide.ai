@@ -84,6 +84,8 @@ class ProductsCore extends Table {
       text().named('quality_assessment_status').nullable()();
   TextColumn get safetyAssessmentStatus =>
       text().named('safety_assessment_status').nullable()();
+  TextColumn get safetyAssessmentReason =>
+      text().named('safety_assessment_reason').nullable()();
   TextColumn get qualityTier => text().named('quality_tier').nullable()();
   TextColumn get qualityScoreSuppressedReason =>
       text().named('quality_score_suppressed_reason').nullable()();
