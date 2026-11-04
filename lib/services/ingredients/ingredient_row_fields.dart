@@ -241,6 +241,29 @@ bool isUsableDoseRow(Map<String, dynamic> row) {
   return true;
 }
 
+/// True when the pipeline's `skip_ul_check` leaves this row's amount unreadable.
+///
+/// The skip belongs to the UL verdict. A row with no applicable UL, or already
+/// assessed within it, still states a daily exposure the pipeline stands behind
+/// when it is a declared total with all three daily figures. Anything else
+/// stays blocked: an `indeterminate` row, a component, a row with no status or
+/// figures, and a compound duplicate, whose amount is already another row's
+/// (253515: 493.6 mg choline bitartrate beside 480 mg choline).
+bool pipelineBlocksDoseRead(Map<String, dynamic> row) {
+  if (row['skip_ul_check'] != true) return false;
+  final status = row['ul_assessment_status'];
+  final unit = row['converted_unit'];
+  final readable =
+      (status == 'not_applicable' || status == 'assessed_within_limit') &&
+      row['skip_ul_reason'] != 'compound_duplicate_row' &&
+      row['dose_role'] == 'declared_total' &&
+      asFiniteDouble(row['per_day_min']) != null &&
+      asFiniteDouble(row['per_day_max']) != null &&
+      unit is String &&
+      unit.trim().isNotEmpty;
+  return !readable;
+}
+
 /// Only canonical form keys emitted by the pipeline, including every component.
 /// Raw label words are never sufficient to suppress a pairwise clinical rule.
 Set<String>? readMatchedForms(Map<String, dynamic> row) {

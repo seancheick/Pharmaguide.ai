@@ -823,7 +823,7 @@ class StackDoseSummer {
     Map<String, dynamic> row,
     String unit,
   ) {
-    if (row['skip_ul_check'] == true) {
+    if (pipelineBlocksDoseRead(row)) {
       return StackDoseExclusionReason.skippedByPipeline;
     }
     if (unit.isEmpty) return StackDoseExclusionReason.missingUnit;

@@ -649,6 +649,52 @@ void main() {
       expect(totals['caffeine']?.excludedContributions, hasLength(3));
     });
 
+    test('a skipped row the pipeline can read joins the total', () {
+      final totals = const StackDoseSummer().sum([
+        const StackItemNutrients(
+          stackEntryId: 'a',
+          productName: 'Readable',
+          ingredients: [
+            {
+              'standard_name': 'Caffeine',
+              'dose_role': 'declared_total',
+              'skip_ul_check': true,
+              'ul_assessment_status': 'not_applicable',
+              'per_day_min': 300.0,
+              'per_day_max': 300.0,
+              'converted_unit': 'mg',
+            },
+          ],
+        ),
+      ]);
+
+      expect(totals['caffeine']?.totalValue, 300);
+      expect(totals['caffeine']?.excludedContributions, isEmpty);
+    });
+
+    test('an indeterminate row stays out and marks the total', () {
+      final totals = const StackDoseSummer().sum([
+        const StackItemNutrients(
+          stackEntryId: 'a',
+          productName: 'Unresolved',
+          ingredients: [
+            {
+              'standard_name': 'Caffeine',
+              'dose_role': 'declared_total',
+              'skip_ul_check': true,
+              'ul_assessment_status': 'indeterminate',
+              'per_day_min': 300.0,
+              'per_day_max': 300.0,
+              'converted_unit': 'mg',
+            },
+          ],
+        ),
+      ]);
+
+      expect(totals['caffeine']?.totalValue, 0);
+      expect(totals['caffeine']?.excludedContributions, hasLength(1));
+    });
+
     test('flags cumulative condition thresholds across products', () {
       const summer = StackDoseSummer();
       final totals = summer.sum([

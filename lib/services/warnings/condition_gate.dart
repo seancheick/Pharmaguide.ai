@@ -153,8 +153,8 @@ List<InteractionWarning> applyEmittedBeneficialGate(
 /// `rda_ul_data.analyzed_ingredients` rows when present because they
 /// carry the same evaluated ingredient identity used by stack/UL
 /// logic. Skips entries missing name / dose / unit, entries with
-/// non-numeric dose values, and rows the pipeline marked unsafe for
-/// evaluation (`skip_ul_check == true`).
+/// non-numeric dose values, and rows whose `skip_ul_check` leaves the amount
+/// unreadable ([pipelineBlocksDoseRead]).
 ///
 /// Pipeline blob shape (from live data — verified 2026-04-30):
 /// ```
@@ -202,7 +202,7 @@ List<InteractionWarning> applyEmittedBeneficialGate(
 /// replaces its `ingredients` mirror. When [isUsableDoseRow] then drops it, the
 /// dose is gone under every name: no `ingredients` row carries `dose_role`, so
 /// the mirror can't be left to count it. The mirror stays only if the analyzed
-/// row has no dose to read, or carries a skip. A row nested
+/// row has no dose to read, or carries a skip that blocks it. A row nested
 /// above or below an analyzed row is the same dose seen as a form or a source
 /// mass, so it no longer adds to the keys that analyzed row reports (328600:
 /// 2000 mg Magtein under 144 mg Magnesium); it still counts toward its own
@@ -231,7 +231,7 @@ Map<String, IngredientDose> extractIngredientDoses(
 
     final primaryName = _primaryDoseName(entry);
 
-    if (entry['skip_ul_check'] == true) {
+    if (pipelineBlocksDoseRead(entry)) {
       parsed.add(
         _ParsedDoseRow(
           keys: keys,
@@ -409,8 +409,8 @@ List<_DoseRow> _doseRows(Map<String, dynamic> detailBlob) {
   final rows = <_DoseRow>[];
   final mirrors = <String, Map<String, dynamic>>{};
   for (final row in _rowMaps(detailBlob['ingredients'])) {
-    // The pipeline's skip blocks every name it covers, on whichever copy.
-    if (row['skip_ul_check'] == true) {
+    // A skip that blocks the read covers every name, on whichever copy.
+    if (pipelineBlocksDoseRead(row)) {
       rows.add(_doseRow(row, readDoseNameKeys(row)));
       continue;
     }
@@ -437,11 +437,11 @@ List<_DoseRow> _doseRows(Map<String, dynamic> detailBlob) {
 }
 
 /// A usable analyzed row with no amount or unit to read, and no pipeline reason
-/// for it: a skip reads no amount by design, and an unresolved unit is the
-/// pipeline saying the printed quantity can't be read.
+/// for it: a blocking skip reads no amount by design, and an unresolved unit is
+/// the pipeline saying the printed quantity can't be read.
 bool _lostItsDose(Map<String, dynamic> row) =>
     isUsableDoseRow(row) &&
-    row['skip_ul_check'] != true &&
+    !pipelineBlocksDoseRead(row) &&
     !hasUnresolvedDoseUnit(row) &&
     (readDoseAmount(row) == null || readDoseUnit(row).isEmpty);
 

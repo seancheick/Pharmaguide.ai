@@ -1489,4 +1489,147 @@ void main() {
 
     expect(result, isEmpty);
   });
+
+  group('a skipped row the pipeline can still read', () {
+    Map<String, dynamic> analyzed({
+      String name = 'Caffeine',
+      String path = 'ingredientRows[1]',
+      String status = 'not_applicable',
+      double perDay = 300,
+    }) => {
+      'standard_name': name,
+      'canonical_id': name.toLowerCase(),
+      'raw_source_path': path,
+      'dose_role': 'declared_total',
+      'skip_ul_check': true,
+      'skip_ul_reason': 'not_ul_applicable',
+      'ul_assessment_status': status,
+      'per_day_min': perDay,
+      'per_day_max': perDay,
+      'converted_unit': 'mg',
+      'quantity': perDay / 2,
+      'unit': 'mg',
+    };
+
+    Map<String, dynamic> raw({
+      String name = 'Caffeine',
+      String path = 'ingredientRows[1]',
+      double perDay = 300,
+    }) => {
+      'name': name,
+      'standard_name': name,
+      'canonical_id': name.toLowerCase(),
+      'raw_source_path': path,
+      'dose_role': 'declared_total',
+      'per_day_min': perDay,
+      'per_day_max': perDay,
+      'converted_unit': 'mg',
+      'quantity': perDay / 2,
+      'unit': 'mg',
+    };
+
+    Map<String, dynamic> blob(
+      List<Map<String, dynamic>> analyzedRows,
+      List<Map<String, dynamic>> rawRows,
+    ) => {
+      'ingredients': rawRows,
+      'rda_ul_data': {'analyzed_ingredients': analyzedRows},
+    };
+
+    test('no applicable UL no longer erases the daily exposure', () {
+      final result = extractIngredientDoses(blob([analyzed()], [raw()]));
+
+      expect(result['caffeine']?.value, 300);
+      expect(result['caffeine']?.unit, 'mg');
+    });
+
+    test('a total assessed within its limit keeps its exposure', () {
+      final result = extractIngredientDoses(
+        blob([analyzed(status: 'assessed_within_limit')], [raw()]),
+      );
+
+      expect(result['caffeine']?.value, 300);
+    });
+
+    test('readable rows sum and the mirror does not count again', () {
+      final result = extractIngredientDoses(
+        blob(
+          [
+            analyzed(path: 'ingredientRows[1]', perDay: 80),
+            analyzed(path: 'ingredientRows[2]', perDay: 300),
+          ],
+          [
+            raw(path: 'ingredientRows[1]', perDay: 80),
+            raw(path: 'ingredientRows[2]', perDay: 300),
+          ],
+        ),
+      );
+
+      expect(result['caffeine']?.value, 380);
+    });
+
+    test('indeterminate still blocks every name it covers', () {
+      final result = extractIngredientDoses(
+        blob(
+          [
+            analyzed(status: 'indeterminate'),
+            analyzed(path: 'ingredientRows[2]'),
+          ],
+          [raw(), raw(path: 'ingredientRows[2]')],
+        ),
+      );
+
+      expect(result, isEmpty);
+    });
+
+    test('a compound duplicate does not add to the row it repeats', () {
+      final result = extractIngredientDoses(
+        blob(
+          [
+            {
+              ...analyzed(
+                name: 'Choline',
+                path: 'ingredientRows[0]',
+                perDay: 493.6,
+              ),
+              'skip_ul_reason': 'compound_duplicate_row',
+            },
+            {
+              ...analyzed(
+                name: 'Choline',
+                path: 'ingredientRows[1]',
+                perDay: 480,
+              ),
+              'skip_ul_check': false,
+              'ul_assessment_status': 'evaluated',
+            },
+          ],
+          [
+            raw(name: 'Choline', path: 'ingredientRows[0]', perDay: 493.6),
+            raw(name: 'Choline', path: 'ingredientRows[1]', perDay: 480),
+          ],
+        ),
+      );
+
+      expect(result['choline'], isNull);
+    });
+
+    test('a dose-only row with no twin reads its daily figures', () {
+      final result = extractIngredientDoses({
+        'ingredients': [
+          {
+            'name': 'Caffeine',
+            'canonical_id': 'caffeine',
+            'raw_source_path': 'ingredientRows[14].nestedRows[1]',
+            'dose_role': 'declared_total',
+            'per_day_min': 200.0,
+            'per_day_max': 200.0,
+            'converted_unit': 'mg',
+          },
+        ],
+      });
+
+      expect(result['caffeine']?.value, 200);
+    });
+  });
 }

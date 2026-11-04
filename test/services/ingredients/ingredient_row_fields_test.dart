@@ -186,4 +186,98 @@ void main() {
       expect(readCanonicalId({'canonical_id': 'folic_acid'}), 'folate');
     });
   });
+
+  group('pipelineBlocksDoseRead', () {
+    const readable = <String, dynamic>{
+      'skip_ul_check': true,
+      'ul_assessment_status': 'not_applicable',
+      'dose_role': 'declared_total',
+      'per_day_min': 400.0,
+      'per_day_max': 400.0,
+      'converted_unit': 'mg',
+    };
+
+    test('a declared total with no applicable UL can be read', () {
+      expect(pipelineBlocksDoseRead(readable), isFalse);
+      expect(readDoseAmount(readable), 400);
+      expect(readDoseUnit(readable), 'mg');
+    });
+
+    test('a total assessed within its limit can be read', () {
+      expect(
+        pipelineBlocksDoseRead({
+          ...readable,
+          'ul_assessment_status': 'assessed_within_limit',
+        }),
+        isFalse,
+      );
+    });
+
+    test('a row with no skip is never blocked here', () {
+      expect(
+        pipelineBlocksDoseRead(const {'quantity': 5, 'unit': 'mg'}),
+        isFalse,
+      );
+    });
+
+    test('indeterminate, missing and unknown statuses stay blocked', () {
+      for (final status in ['indeterminate', 'evaluated', 'future_status']) {
+        expect(
+          pipelineBlocksDoseRead({...readable, 'ul_assessment_status': status}),
+          isTrue,
+          reason: status,
+        );
+      }
+      expect(
+        pipelineBlocksDoseRead({...readable}..remove('ul_assessment_status')),
+        isTrue,
+      );
+    });
+
+    test('a component or an unroled row stays blocked', () {
+      for (final role in ['form_component', 'ul_scoped_component', null]) {
+        expect(
+          pipelineBlocksDoseRead({...readable, 'dose_role': role}),
+          isTrue,
+          reason: '$role',
+        );
+      }
+    });
+
+    test('a compound duplicate stays blocked', () {
+      expect(
+        pipelineBlocksDoseRead({
+          ...readable,
+          'skip_ul_reason': 'compound_duplicate_row',
+        }),
+        isTrue,
+      );
+    });
+
+    test('a missing daily figure stays blocked', () {
+      for (final field in ['per_day_min', 'per_day_max', 'converted_unit']) {
+        expect(
+          pipelineBlocksDoseRead({...readable}..remove(field)),
+          isTrue,
+          reason: field,
+        );
+      }
+      expect(
+        pipelineBlocksDoseRead({...readable, 'converted_unit': ' '}),
+        isTrue,
+      );
+    });
+
+    test('an older catalog row with a skip stays blocked', () {
+      expect(
+        pipelineBlocksDoseRead(const {
+          'standard_name': 'Vitamin A',
+          'quantity': 2000,
+          'daily_amount_unit': 'IU',
+          'skip_ul_check': true,
+        }),
+        isTrue,
+      );
+    });
+  });
 }
