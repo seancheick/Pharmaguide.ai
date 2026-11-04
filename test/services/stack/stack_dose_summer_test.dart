@@ -176,6 +176,67 @@ void main() {
       expect(alerts.single.contributions, hasLength(2));
     });
 
+    group('beta-carotene read against two lines', () {
+      StackDoseThresholdRule row(
+        String id,
+        double threshold,
+        double amount, {
+        String canonicalId = 'beta_carotene',
+      }) => StackDoseThresholdRule(
+        conditionId: 'current_smoker',
+        canonicalId: canonicalId,
+        thresholdValue: threshold,
+        thresholdUnit: 'mcg rae',
+        normalizedDailyAmount: amount,
+        normalizedDailyUnit: 'mcg rae',
+        sourceStackEntryId: id,
+        sourceProductName: id,
+      );
+
+      List<StackDoseThresholdAlert> read(List<StackDoseThresholdRule> rules) =>
+          const StackDoseSummer().thresholdAlertsFromNormalizedRules(
+            userConditions: const ['current_smoker'],
+            thresholdRules: rules,
+          );
+
+      test('every alert states the whole stack', () {
+        final alerts = read([
+          row('a', 7500, 7500),
+          row('a', 10000, 7500),
+          row('b', 10000, 14280),
+        ]);
+
+        expect(alerts, hasLength(2));
+        for (final alert in alerts) {
+          expect(alert.totalValue, 21780, reason: '${alert.thresholdValue}');
+          expect(alert.contributions.map((c) => c.stackEntryId).toSet(), {
+            'a',
+            'b',
+          });
+        }
+      });
+
+      test('a line that was not crossed stays silent', () {
+        final alerts = read([
+          row('a', 7500, 5000),
+          row('a', 10000, 5000),
+          row('b', 10000, 14280),
+        ]);
+
+        expect(alerts.map((a) => a.thresholdValue), [10000]);
+        expect(alerts.single.totalValue, 19280);
+      });
+
+      test('another nutrient keeps each line to its own rows', () {
+        final alerts = read([
+          row('a', 7500, 7500, canonicalId: 'vitamin_b3_niacin'),
+          row('b', 10000, 14280, canonicalId: 'vitamin_b3_niacin'),
+        ]);
+
+        expect(alerts.map((a) => a.totalValue), [7500, 14280]);
+      });
+    });
+
     test('mixed catalog policies still aggregate one rule conservatively', () {
       const rules = [
         StackDoseThresholdRule(

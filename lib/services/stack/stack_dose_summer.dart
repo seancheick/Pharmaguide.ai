@@ -344,6 +344,40 @@ class StackDoseSummer {
           !consumerDisposition.isVisible) {
         continue;
       }
+      // A label above the higher line ships its row at that line only, but the
+      // alert states what the whole stack supplies.
+      if (representative.canonicalId == 'beta_carotene') {
+        final byEntry = <String, StackDoseContribution>{};
+        for (final rule in thresholdRules) {
+          final amount = rule.normalizedDailyAmount;
+          if (rule.canonicalId != representative.canonicalId ||
+              rule.targetType != representative.targetType ||
+              rule.conditionId.trim().toLowerCase() !=
+                  representative.conditionId.trim().toLowerCase() ||
+              amount == null ||
+              amount <= 0 ||
+              normalizeDoseUnit(rule.normalizedDailyUnit ?? '') !=
+                  thresholdUnit) {
+            continue;
+          }
+          final held = byEntry[rule.sourceStackEntryId];
+          if (held == null || amount > held.amount) {
+            byEntry[rule.sourceStackEntryId] = StackDoseContribution(
+              stackEntryId: rule.sourceStackEntryId,
+              productName: rule.sourceProductName,
+              amount: amount,
+              unit: thresholdUnit,
+            );
+          }
+        }
+        final whole = byEntry.values.fold(0.0, (sum, c) => sum + c.amount);
+        if (whole > total) {
+          total = whole;
+          contributions
+            ..clear()
+            ..addAll(byEntry.values);
+        }
+      }
       alerts.add(
         StackDoseThresholdAlert(
           conditionId: representative.conditionId,
