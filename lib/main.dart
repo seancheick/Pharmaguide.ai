@@ -311,14 +311,7 @@ class _PharmaGuideBootstrapState extends State<PharmaGuideBootstrap> {
   Future<void> _startOver() async {
     await widget.accountGuard.startOver();
     if (widget.accountGuard.database == null) return;
-    // The app's own tree mounts on the next frame, and holds the messenger.
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      PGToast.showWith(
-        scaffoldMessengerKey.currentState,
-        startedOverMessage,
-        duration: const Duration(seconds: 8),
-      );
-    });
+    unawaited(showStartedOverMessage(scaffoldMessengerKey));
   }
 
   void _onAccountChanged() {

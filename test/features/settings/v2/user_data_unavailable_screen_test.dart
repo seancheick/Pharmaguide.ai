@@ -1,6 +1,8 @@
 // The lost-key screen and its confirmation. The wording is Sean's approved text
 // (2026-11-03), and a tap in the wrong place must never erase anything.
 
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:pharmaguide/core/theme/v2/v2_theme.dart';
@@ -263,6 +265,30 @@ void main() {
       "You're starting fresh on this device. Add your medications and profile "
       'again so PharmaGuide can check products against them.',
     );
+  });
+
+  testWidgets('the message waits for the first page of the reopened app', (
+    tester,
+  ) async {
+    final messenger = GlobalKey<ScaffoldMessengerState>();
+    Widget app(Widget home) => MaterialApp(
+      theme: V2Theme.light,
+      scaffoldMessengerKey: messenger,
+      home: home,
+    );
+    // The app's tree is up, and its router hasn't built a page yet.
+    await tester.pumpWidget(app(const SizedBox()));
+
+    unawaited(showStartedOverMessage(messenger));
+    await tester.pump();
+    await tester.pumpWidget(app(const Scaffold()));
+    await tester.pump(const Duration(seconds: 1));
+    await tester.pump(const Duration(milliseconds: 300));
+
+    expect(tester.takeException(), isNull);
+    expect(find.text(startedOverMessage), findsOneWidget);
+    await tester.pump(const Duration(seconds: 9));
+    await tester.pumpAndSettle();
   });
 
   testWidgets('a failed erase says so and lets the person try again', (

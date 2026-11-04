@@ -2,6 +2,7 @@ import 'dart:async';
 
 import 'package:flutter/material.dart';
 import 'package:pharmaguide/core/components/pg_empty_state.dart';
+import 'package:pharmaguide/core/components/pg_toast.dart';
 import 'package:pharmaguide/core/widgets/pg_modal.dart';
 import 'package:pharmaguide/core/theme/v2/v2_palette.dart';
 import 'package:pharmaguide/core/theme/v2/v2_spacing.dart';
@@ -12,6 +13,19 @@ import 'package:pharmaguide/core/theme/v2/v2_typography.dart';
 const startedOverMessage =
     "You're starting fresh on this device. Add your medications and profile "
     'again so PharmaGuide can check products against them.';
+
+/// A messenger with no Scaffold under it refuses a toast, and the reopened app's
+/// router builds its first page only after its tree mounts.
+Future<void> showStartedOverMessage(
+  GlobalKey<ScaffoldMessengerState> messenger,
+) async {
+  await Future<void>.delayed(const Duration(seconds: 1));
+  PGToast.showWith(
+    messenger.currentState,
+    startedOverMessage,
+    duration: const Duration(seconds: 8),
+  );
+}
 
 /// Shown when the account's database can't open. Nothing else can be: without
 /// it the app would read as having no medications.
