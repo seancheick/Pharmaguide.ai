@@ -360,21 +360,17 @@ class StackActions {
     // preserved here. Supplements have no user-authored schedule: clinical
     // timing remains owned by the reviewed Daily Plan.
     final nextFrequency = isMedication ? entry.frequency : null;
-    // A free-text edit does not confirm a new normalized daily amount. Revoke
-    // the previous amount so dose-qualified exceptions cannot outlive the dose
-    // they were confirmed for; route and use context remain independent facts.
+    // Match medication entry's dose/schedule invalidation: a free-text edit
+    // confirms neither a daily amount nor compliance with label directions.
+    // Revoke both confirmations so their exceptions cannot outlive the dose
+    // they were confirmed for. The separately selected route remains valid.
     var medicationContext = const Value<String?>.absent();
     if (isMedication && entry.dosage != nextDosage) {
       final previousContext = MedicationUseContext.fromStored(
         entry.medicationContextCol,
       );
       medicationContext = Value(
-        jsonEncode(
-          MedicationUseContext(
-            route: previousContext.route,
-            useContext: previousContext.useContext,
-          ).toJson(),
-        ),
+        jsonEncode(MedicationUseContext(route: previousContext.route).toJson()),
       );
     }
     final nextStartedAt = startedAt.present ? startedAt.value : entry.startedAt;

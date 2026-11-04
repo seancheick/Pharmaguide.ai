@@ -107,8 +107,93 @@ void main() {
           reason: 'Free text must not reuse a previously confirmed daily dose.',
         );
         expect(context.route, 'oral');
-        expect(context.useContext, 'cardiovascular_protection');
+        expect(
+          context.useContext,
+          isNull,
+          reason:
+              'Dose edits invalidate use confirmations just as medication entry does.',
+        );
         expect(findings(context), contains('MCR_KIDNEY_DISEASE_NSAIDS'));
+      },
+    );
+  }
+
+  for (final nextDose in ['4 g', null]) {
+    test(
+      'editing topical diclofenac dose to $nextDose revokes label-use confirmation',
+      () async {
+        final db = UserDatabase.memory();
+        addTearDown(db.close);
+        const oldContext = MedicationUseContext(
+          route: 'topical',
+          useContext: 'within_product_label_directions',
+        );
+        await db.addToStack(
+          UserStacksLocalCompanion.insert(
+            id: 'diclofenac',
+            name: 'Diclofenac',
+            type: const Value('medication'),
+            dosage: const Value('2 g'),
+            medicationContextCol: Value(jsonEncode(oldContext.toJson())),
+          ),
+        );
+        final container = ProviderContainer(
+          overrides: [userDatabaseProvider.overrideWithValue(db)],
+        );
+        addTearDown(container.dispose);
+        final rules = MedicationProfileGateRule.listFromJson(
+          jsonDecode(
+                File(
+                  'assets/reference_data/medication_profile_gate_rules.json',
+                ).readAsStringSync(),
+              )
+              as Map<String, dynamic>,
+        );
+        List<String> findings(MedicationUseContext context) =>
+            const MedicationProfileGateEvaluator()
+                .evaluate(
+                  rules: rules,
+                  medicationName: 'Diclofenac',
+                  medicationIngredientRxcuis: {'3355'},
+                  medicationContext: context,
+                  medicationProfileGateClassIds: {'nsaids'},
+                  userProfileFlags: {},
+                  userConditions: {'kidney_disease'},
+                )
+                .map((warning) => warning.ruleId)
+                .toList();
+        expect(
+          findings(oldContext),
+          isNot(contains('MCR_KIDNEY_DISEASE_NSAIDS')),
+        );
+        await container
+            .read(stackActionsProvider)
+            .updateTracking(
+              entryId: 'diclofenac',
+              reminderMinutes: const Value(9 * 60),
+            );
+        final reminderContext = MedicationUseContext.fromStored(
+          (await db.getActiveStack()).single.medicationContextCol,
+        );
+        expect(reminderContext.toJson(), oldContext.toJson());
+        expect(
+          findings(reminderContext),
+          isNot(contains('MCR_KIDNEY_DISEASE_NSAIDS')),
+        );
+        await container
+            .read(stackActionsProvider)
+            .updateTracking(entryId: 'diclofenac', dosage: Value(nextDose));
+        final context = MedicationUseContext.fromStored(
+          (await db.getActiveStack()).single.medicationContextCol,
+        );
+        expect(
+          findings(context),
+          contains('MCR_KIDNEY_DISEASE_NSAIDS'),
+          reason:
+              'The old label-directions confirmation cannot qualify a changed or cleared dose.',
+        );
+        expect(context.useContext, isNull);
+        expect(context.route, 'topical');
       },
     );
   }
@@ -143,6 +228,7 @@ void main() {
             entryId: 'aspirin',
             dosage: const Value(' 81 mg '),
             startedAt: Value(DateTime.utc(2026, 1, 1)),
+            reminderMinutes: const Value(9 * 60),
           );
       expect((await db.getActiveStack()).single.medicationContextCol, stored);
     },
