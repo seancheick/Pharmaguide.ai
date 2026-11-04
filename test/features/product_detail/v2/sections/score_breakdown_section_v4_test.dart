@@ -65,6 +65,15 @@ void main() {
     expect(find.byType(PGScoreBreakdownCard), findsNothing);
   });
 
+  testWidgets('a fractional maximum cannot masquerade as the canonical cap', (
+    tester,
+  ) async {
+    final pillars = _v4Pillars();
+    pillars['formulation']['max'] = 20.9;
+    await tester.pumpWidget(_wrap(_v4Section(pillars: pillars)));
+    expect(find.byType(PGScoreBreakdownCard), findsNothing);
+  });
+
   testWidgets(
     'Formulation shows the pipeline reason alone, without an app scope paragraph',
     (tester) async {

@@ -235,8 +235,13 @@ List<V4PillarValue> parseV4Pillars(Map<String, dynamic>? pillarsBlob) {
       if (raw is! Map) continue;
       final m = Map<String, dynamic>.from(raw);
       final score = asFiniteDouble(m['score']);
-      final rawMax = asFiniteDouble(m['max'])?.toInt();
-      final max = (rawMax == null || rawMax <= 0) ? fallbackMax : rawMax;
+      final rawMax = asFiniteDouble(m['max']);
+      if (rawMax != null && rawMax > 0 && rawMax != rawMax.truncate()) {
+        continue;
+      }
+      final max = (rawMax == null || rawMax <= 0)
+          ? fallbackMax
+          : rawMax.toInt();
       final reason = m['reason'] is String
           ? (m['reason'] as String).trim()
           : null;

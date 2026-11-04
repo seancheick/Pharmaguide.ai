@@ -460,13 +460,13 @@ void main() {
       product: _product(
         dsldId: 'prod-a',
         name: 'Alpha',
-        score: 40,
+        score: 81, // Older catalog row still contains a score.
         verdict: 'BLOCKED',
       ),
       blob: _pillarsBlob(),
     );
     await seed(
-      product: _product(dsldId: 'prod-b', name: 'Beta', score: 88),
+      product: _product(dsldId: 'prod-b', name: 'Beta', score: 81),
       blob: _pillarsBlob(),
     );
 

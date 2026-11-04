@@ -119,6 +119,7 @@ final detailBlobForRowProvider = FutureProvider.family
     .autoDispose<Map<String, dynamic>?, ({String dsldId, String? expectedSha})>(
       (ref, key) async {
         final (:dsldId, :expectedSha) = key;
+        final coreDb = ref.watch(coreDatabaseProvider);
         final userDb = ref.watch(userDatabaseProvider);
         final service = ref.watch(detailBlobServiceProvider);
         if (expectedSha == null || expectedSha.isEmpty) return null;
@@ -143,10 +144,18 @@ final detailBlobForRowProvider = FutureProvider.family
             'detail service returned no payload for a declared blob',
           );
         }
-        // Persist the sha alongside the blob: the fetch path verified
-        // sha256(bytes) == expectedSha, so the cached row stays
-        // re-checkable against products_core on every later read.
-        await userDb.cacheDetail(dsldId, jsonEncode(blob), expectedSha);
+        // A pinned read can finish after the catalog or account changes.
+        // Return its verified bytes, but only the current row owns the
+        // single durable cache entry. Serialize the check with cache writes.
+        if (ref.mounted) {
+          await userDb.transaction(() async {
+            if (!ref.mounted) return;
+            final current = await coreDb.findById(dsldId);
+            if (!ref.mounted || current?.detailBlobSha256 != expectedSha)
+              return;
+            await userDb.cacheDetail(dsldId, jsonEncode(blob), expectedSha);
+          });
+        }
         return blob;
       },
       // Surface an unavailable blob immediately. An explicit refresh or

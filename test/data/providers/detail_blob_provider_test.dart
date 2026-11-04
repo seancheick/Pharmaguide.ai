@@ -164,6 +164,12 @@ void main() {
         });
         expect(await oldBlob, {'v': 'old'});
         expect(newSub.read().requireValue, {'v': 'new'});
+        expect((await userDb.getCachedDetail('p1'))?.sha256, 'new-sha');
+
+        final offlineService = _FakeBlobService(null);
+        final reopened = buildContainer(offlineService);
+        expect(await reopened.read(newProvider.future), {'v': 'new'});
+        expect(offlineService.requestedHashes, isEmpty);
       },
     );
 
