@@ -1,6 +1,8 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:pharmaguide/core/constants/consumer_disposition.dart';
 import 'package:pharmaguide/core/constants/severity.dart';
+import 'package:pharmaguide/services/signals/clinical_signal_envelope.dart'
+    show ClinicalSignal;
 import 'package:pharmaguide/services/stack/stack_dose_summer.dart';
 import 'package:pharmaguide/services/stack/stack_nutrient_models.dart';
 import 'package:pharmaguide/services/warnings/interaction_warning.dart';
@@ -796,6 +798,219 @@ void main() {
       expect(alerts.single.canonicalId, 'omega_3');
       expect(alerts.single.totalValue, 3200);
       expect(alerts.single.contributions, hasLength(1));
+    });
+  });
+
+  group('betaCaroteneStackCardAlert', () {
+    const summer = StackDoseSummer();
+    const riskFactors = [
+      'asbestos_exposure',
+      'current_smoker',
+      'former_smoker',
+    ];
+
+    InteractionWarning doseCard({
+      num? amount,
+      String canonicalId = 'beta_carotene',
+      num threshold = 10000,
+      String comparator = '>=',
+      List<String> conditionIds = riskFactors,
+      List<String> requiredConditions = const [],
+      String dispositionIfMet = 'review',
+    }) => InteractionWarning.fromJson({
+      'type': 'interaction',
+      'severity': 'informational',
+      'title': 'Vitamin A / dose',
+      'ingredient_name': 'Vitamin A',
+      'ingredient_canonical_id': canonicalId,
+      'condition_ids': conditionIds,
+      'profile_gate': {
+        'gate_type': 'dose',
+        'requires': {'conditions_any': requiredConditions},
+        'dose': {'severity_if_met': 'caution'},
+      },
+      'dose_decision': {
+        'clinical_severity': 'informational',
+        'evaluation_status': amount == null
+            ? 'amount_unknown'
+            : 'below_threshold',
+        'consumer_disposition': 'suppress',
+        'evaluated_daily_amount': amount,
+        'evaluated_unit': amount == null ? null : 'mcg rae',
+        'threshold': threshold,
+        'threshold_unit': 'mcg rae',
+        'comparator': comparator,
+        'decision_rule': {
+          'threshold': threshold,
+          'threshold_unit': 'mcg rae',
+          'comparator': comparator,
+          'consumer_disposition_if_met': dispositionIfMet,
+          'consumer_disposition_if_not_met': 'suppress',
+        },
+      },
+    });
+
+    ({
+      String stackEntryId,
+      String productName,
+      Iterable<InteractionWarning> warnings,
+    })
+    product(String id, List<InteractionWarning> warnings) =>
+        (stackEntryId: id, productName: id, warnings: warnings);
+
+    test('two products crossing 20 mg show the approved wording verbatim', () {
+      final alert = summer.betaCaroteneStackCardAlert(
+        userConditions: const [],
+        products: [
+          product('a', [doseCard(amount: 7500)]),
+          product('b', [doseCard(amount: 7500)]),
+        ],
+      );
+
+      expect(alert, isNotNull);
+      expect(alert!.totalValue, 15000);
+      expect(alert.clinicalSeverity, Severity.caution);
+      expect(alert.consumerDisposition, ConsumerDisposition.review);
+      expect(alert.isIncomplete, isFalse);
+      expect(alert.contributions, hasLength(2));
+      expect(
+        ClinicalSignal.fromDoseThreshold(alert).body,
+        'Your stack supplies 20 mg or more of beta-carotene a day. At similar '
+        'doses it raised lung cancer risk in smokers, former smokers and '
+        'asbestos-exposed workers. Ask your doctor if any apply to you.',
+      );
+    });
+
+    test('exactly 20 mg shows the card and just under it does not', () {
+      expect(
+        summer.betaCaroteneStackCardAlert(
+          userConditions: const [],
+          products: [
+            product('a', [doseCard(amount: 6000)]),
+            product('b', [doseCard(amount: 4000)]),
+          ],
+        ),
+        isNotNull,
+      );
+      expect(
+        summer.betaCaroteneStackCardAlert(
+          userConditions: const [],
+          products: [
+            product('a', [doseCard(amount: 6000)]),
+            product('b', [doseCard(amount: 3999)]),
+          ],
+        ),
+        isNull,
+      );
+    });
+
+    test(
+      'any risk-factor id on the card withholds it; other conditions do not',
+      () {
+        final products = [
+          product('a', [doseCard(amount: 15000)]),
+        ];
+        for (final riskFactor in riskFactors) {
+          expect(
+            summer.betaCaroteneStackCardAlert(
+              userConditions: [riskFactor],
+              products: products,
+            ),
+            isNull,
+            reason: riskFactor,
+          );
+        }
+        expect(
+          summer.betaCaroteneStackCardAlert(
+            userConditions: const ['pregnancy'],
+            products: products,
+          ),
+          isNotNull,
+        );
+      },
+    );
+
+    test('one product counts one amount when both rules land on it', () {
+      final alert = summer.betaCaroteneStackCardAlert(
+        userConditions: const [],
+        products: [
+          product('a', [doseCard(amount: 4500), doseCard(amount: 1000)]),
+          product('b', [doseCard(amount: 5000)]),
+        ],
+      );
+
+      expect(alert, isNull);
+    });
+
+    test('an unread card keeps the known amount and the unresolved mark', () {
+      for (final cards in [
+        [doseCard(amount: 4500), doseCard()],
+        [doseCard(), doseCard(amount: 4500)],
+      ]) {
+        final alert = summer.betaCaroteneStackCardAlert(
+          userConditions: const [],
+          products: [
+            product('a', cards),
+            product('b', [doseCard(amount: 7500)]),
+          ],
+        );
+
+        expect(alert, isNotNull);
+        expect(alert!.totalValue, 12000);
+        expect(alert.isIncomplete, isTrue);
+        expect(
+          ClinicalSignal.fromDoseThreshold(alert).body,
+          kBetaCaroteneStackCardBody,
+        );
+      }
+    });
+
+    test('only unread amounts make no claim of 20 mg', () {
+      expect(
+        summer.betaCaroteneStackCardAlert(
+          userConditions: const [],
+          products: [
+            product('a', [doseCard()]),
+          ],
+        ),
+        isNull,
+      );
+    });
+
+    test(
+      'cards other than the every-viewer 20 mg beta-carotene tier are out',
+      () {
+        for (final card in [
+          doseCard(amount: 15000, canonicalId: 'vitamin_a'),
+          doseCard(amount: 15000, conditionIds: const []),
+          doseCard(amount: 15000, threshold: 7500),
+          doseCard(amount: 15000, requiredConditions: const ['current_smoker']),
+          doseCard(amount: 15000, dispositionIfMet: 'suppress'),
+        ]) {
+          expect(
+            summer.betaCaroteneStackCardAlert(
+              userConditions: const [],
+              products: [
+                product('a', [card]),
+              ],
+            ),
+            isNull,
+          );
+        }
+      },
+    );
+
+    test('an unknown comparator hedges instead of claiming 20 mg', () {
+      final alert = summer.betaCaroteneStackCardAlert(
+        userConditions: const [],
+        products: [
+          product('a', [doseCard(amount: 15000, comparator: '~')]),
+        ],
+      );
+
+      expect(alert, isNotNull);
+      expect(alert!.isIncomplete, isTrue);
+      expect(alert.consumerBody, isNull);
     });
   });
 }

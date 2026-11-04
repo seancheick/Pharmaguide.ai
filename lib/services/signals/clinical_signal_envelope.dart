@@ -354,15 +354,17 @@ class ClinicalSignal {
       thresholdValue: alert.thresholdValue,
       thresholdUnit: normalizedThresholdUnit,
     );
-    final body = alert.isIncomplete
-        ? 'Cumulative ${alert.displayName} could not be fully evaluated; '
-              'known subtotal is ${_formatDose(alert.totalValue)} '
-              '${alert.unit} across your stack (threshold '
-              '${_formatDose(alert.thresholdValue)} ${alert.thresholdUnit}).'
-        : 'Cumulative ${alert.displayName} is '
-              '${_formatDose(alert.totalValue)} ${alert.unit} across your '
-              'stack (threshold ${_formatDose(alert.thresholdValue)} '
-              '${alert.thresholdUnit}).';
+    final body =
+        alert.consumerBody ??
+        (alert.isIncomplete
+            ? 'Cumulative ${alert.displayName} could not be fully evaluated; '
+                  'known subtotal is ${_formatDose(alert.totalValue)} '
+                  '${alert.unit} across your stack (threshold '
+                  '${_formatDose(alert.thresholdValue)} ${alert.thresholdUnit}).'
+            : 'Cumulative ${alert.displayName} is '
+                  '${_formatDose(alert.totalValue)} ${alert.unit} across your '
+                  'stack (threshold ${_formatDose(alert.thresholdValue)} '
+                  '${alert.thresholdUnit}).');
     return ClinicalSignal(
       signalId: deriveSignalId(
         family: SignalFamily.doseThreshold,

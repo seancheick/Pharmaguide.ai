@@ -13,6 +13,9 @@ import 'package:pharmaguide/core/models/stack_intelligence.dart';
 import 'package:pharmaguide/features/profile/profile_provider.dart';
 import 'package:pharmaguide/features/stack/providers/stack_nutrient_providers.dart';
 import 'package:pharmaguide/services/stack/recalled_ingredient_result.dart';
+import 'package:pharmaguide/services/signals/clinical_signal_envelope.dart'
+    show ClinicalSignal;
+import 'package:pharmaguide/services/stack/stack_dose_summer.dart';
 import 'package:pharmaguide/services/stack/stack_intelligence_engine.dart';
 import 'package:pharmaguide/services/stack/stack_safety_report.dart';
 import 'package:pharmaguide/services/stack/synergy_result.dart';
@@ -471,8 +474,127 @@ void main() {
         expect(alerts.single.totalValue, 1100);
       },
     );
+
+    group('beta-carotene at 20 mg across a stack', () {
+      Future<List<StackDoseThresholdAlert>> alertsFor(
+        List<String> conditions,
+      ) async {
+        final coreDb = CoreDatabase.memory();
+        final userDb = UserDatabase.memory();
+        addTearDown(() async {
+          await coreDb.close();
+          await userDb.close();
+        });
+        await userDb.saveProfile(
+          ProfileState(
+            ageBracket: '19-30',
+            sex: 'Female',
+            conditions: conditions,
+          ).toCompanion(),
+        );
+        for (final dsldId in const ['CAROTENE_A', 'CAROTENE_B']) {
+          await _seedProduct(coreDb, dsldId: dsldId, name: dsldId);
+          await _seedStack(userDb, dsldId: dsldId, name: dsldId);
+          await userDb.cacheDetail(
+            dsldId,
+            jsonEncode({
+              'warnings': [_betaCaroteneDoseCard(7500)],
+            }),
+            _blobSha,
+          );
+        }
+        final container = ProviderContainer(
+          overrides: [
+            coreDatabaseProvider.overrideWithValue(coreDb),
+            userDatabaseProvider.overrideWithValue(userDb),
+          ],
+        );
+        addTearDown(container.dispose);
+        return container.read(stackDoseThresholdAlertsProvider.future);
+      }
+
+      test('a profile with no conditions at all gets the card', () async {
+        final alerts = await alertsFor(const []);
+
+        expect(alerts, hasLength(1));
+        expect(alerts.single.targetType, 'risk_status');
+        expect(alerts.single.totalValue, 15000);
+        expect(
+          ClinicalSignal.fromDoseThreshold(alerts.single).body,
+          kBetaCaroteneStackCardBody,
+        );
+
+        final intelligence = const StackIntelligenceEngine().diagnose(
+          stackSize: 2,
+          safetyReport: const StackSafetyReport(),
+          recalledReport: RecalledIngredientsReport.empty(),
+          synergyReport: SynergyReport.empty(),
+          qualityScore: 95,
+          doseThresholdAlerts: alerts,
+        );
+        expect(intelligence.tier, StackTier.decent);
+        expect(intelligence.issues.single.headline, kBetaCaroteneStackCardBody);
+      });
+
+      test(
+        'a condition that is not a risk factor still gets the card',
+        () async {
+          final alerts = await alertsFor(const ['pregnancy']);
+
+          expect(alerts.single.targetType, 'risk_status');
+        },
+      );
+
+      test('a risk factor gets its condition alert and no card', () async {
+        final alerts = await alertsFor(const ['current_smoker']);
+
+        expect(alerts, hasLength(1));
+        expect(alerts.single.targetType, 'condition');
+        expect(alerts.single.conditionId, 'current_smoker');
+        expect(alerts.single.thresholdValue, 10000);
+        expect(alerts.single.totalValue, 15000);
+        expect(alerts.single.consumerBody, isNull);
+      });
+    });
   });
 }
+
+/// A `/ dose` card as the pipeline ships it: for every viewer, naming the risk
+/// factors that share its tier.
+Map<String, Object?> _betaCaroteneDoseCard(double amount) => {
+  ..._compactThresholdWarning(
+    targetId: 'current_smoker',
+    ingredientName: 'Vitamin A',
+    ingredientCanonicalId: 'beta_carotene',
+    evaluatedAmount: amount,
+    threshold: 10000,
+    unit: 'mcg rae',
+    comparator: '>=',
+    severity: 'informational',
+  ),
+  'title': 'Vitamin A / dose',
+  'condition_ids': const [
+    'asbestos_exposure',
+    'current_smoker',
+    'former_smoker',
+  ],
+  'profile_gate': const {
+    'gate_type': 'dose',
+    'requires': {
+      'conditions_any': <String>[],
+      'drug_classes_any': <String>[],
+      'profile_flags_any': <String>[],
+    },
+    'dose': {
+      'basis': 'per_day',
+      'comparator': '>=',
+      'value': 10000,
+      'unit': 'mcg RAE',
+      'severity_if_met': 'caution',
+      'severity_if_not_met': 'informational',
+    },
+  },
+};
 
 Map<String, Object?> _compactThresholdWarning({
   required String targetId,

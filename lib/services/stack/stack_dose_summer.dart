@@ -7,6 +7,7 @@ import 'package:pharmaguide/services/ingredients/ingredient_canonicalizer.dart';
 import 'package:pharmaguide/services/ingredients/ingredient_row_fields.dart';
 import 'package:pharmaguide/services/stack/stack_nutrient_models.dart';
 import 'package:pharmaguide/services/warnings/interaction_warning.dart';
+import 'package:pharmaguide/services/warnings/profile_gate_evaluator.dart';
 
 List<StackDoseThresholdRule> stackDoseThresholdRulesFromWarnings(
   Iterable<InteractionWarning> warnings, {
@@ -120,6 +121,15 @@ List<StackDoseThresholdRule> stackDoseThresholdRulesFromWarnings(
 
   return rules;
 }
+
+/// Approved wording, shown verbatim. Its "20 mg" is true only of the
+/// 10,000 mcg RAE tier, so the card reads that tier and no other.
+const String kBetaCaroteneStackCardBody =
+    'Your stack supplies 20 mg or more of beta-carotene a day. At similar '
+    'doses it raised lung cancer risk in smokers, former smokers and '
+    'asbestos-exposed workers. Ask your doctor if any apply to you.';
+const double _betaCaroteneCardThresholdMcgRae = 10000;
+const String _betaCaroteneCardUnit = 'mcg rae';
 
 /// Conservative stack-level ingredient dose summer.
 ///
@@ -342,6 +352,123 @@ class StackDoseSummer {
       );
     }
     return alerts;
+  }
+
+  /// The 20 mg beta-carotene card for a stack with no risk-factor id present.
+  ///
+  /// The tier is the every-viewer `/ dose` card the pipeline ships, and a
+  /// person with one of its risk factors gets that tier as a condition alert
+  /// instead. Each product counts once: its two lung-cancer rules describe one
+  /// exposure, so their cards are not added together.
+  StackDoseThresholdAlert? betaCaroteneStackCardAlert({
+    required Iterable<String> userConditions,
+    required Iterable<
+      ({
+        String stackEntryId,
+        String productName,
+        Iterable<InteractionWarning> warnings,
+      })
+    >
+    products,
+  }) {
+    final activeConditions = userConditions
+        .map((value) => value.trim().toLowerCase())
+        .toSet();
+    final contributions = <StackDoseContribution>[];
+    var total = 0.0;
+    var hasUnread = false;
+    var severity = Severity.safe;
+    var disposition = ConsumerDisposition.suppress;
+    String? comparator;
+
+    for (final product in products) {
+      double? productAmount;
+      for (final warning in product.warnings) {
+        final decision = warning.doseDecision;
+        final rule = decision?.decisionRule;
+        final threshold = rule?.threshold ?? decision?.threshold;
+        final unit = rule?.thresholdUnit ?? decision?.thresholdUnit;
+        if (decision == null ||
+            warning.ingredientCanonicalId?.trim() != 'beta_carotene' ||
+            // A card naming no risk factors can't tell who has one.
+            warning.conditionIds.isEmpty ||
+            warning.profileGate?['gate_type'] != 'dose' ||
+            profileGateRequiresProfile(warning.profileGate) ||
+            threshold != _betaCaroteneCardThresholdMcgRae ||
+            unit == null ||
+            normalizeDoseUnit(unit) != _betaCaroteneCardUnit) {
+          continue;
+        }
+        if (warning.conditionIds.any(
+          (id) => activeConditions.contains(id.trim().toLowerCase()),
+        )) {
+          return null;
+        }
+
+        comparator ??= (rule?.comparator ?? decision.comparator)?.trim();
+        final gateDose = warning.profileGate?['dose'];
+        final severityIfMet = Severity.fromString(
+          (gateDose is Map ? gateDose['severity_if_met']?.toString() : null) ??
+              '',
+        );
+        if (severityIfMet.weight > severity.weight) severity = severityIfMet;
+        final dispositionIfMet = consumerDispositionFromWire(
+          rule?.consumerDispositionIfMet,
+        );
+        if (dispositionIfMet.rank > disposition.rank) {
+          disposition = dispositionIfMet;
+        }
+
+        final amount = decision.evaluatedDailyAmount;
+        final amountUnit = normalizeDoseUnit(decision.evaluatedUnit ?? '');
+        if (amount == null ||
+            amount <= 0 ||
+            amountUnit != _betaCaroteneCardUnit) {
+          hasUnread = true;
+        } else if (productAmount == null || amount > productAmount) {
+          productAmount = amount;
+        }
+      }
+      if (productAmount == null) continue;
+      total += productAmount;
+      contributions.add(
+        StackDoseContribution(
+          stackEntryId: product.stackEntryId,
+          productName: product.productName,
+          amount: productAmount,
+          unit: _betaCaroteneCardUnit,
+        ),
+      );
+    }
+
+    final readComparator = comparator ?? '';
+    final comparatorKnown = _isKnownComparator(readComparator);
+    if (contributions.isEmpty ||
+        !disposition.isVisible ||
+        (comparatorKnown &&
+            !_compareDose(
+              total,
+              readComparator,
+              _betaCaroteneCardThresholdMcgRae,
+            ))) {
+      return null;
+    }
+    return StackDoseThresholdAlert(
+      conditionId: 'unknown',
+      targetType: 'risk_status',
+      canonicalId: 'beta_carotene',
+      displayName: 'Beta-carotene',
+      totalValue: total,
+      unit: _betaCaroteneCardUnit,
+      thresholdValue: _betaCaroteneCardThresholdMcgRae,
+      thresholdUnit: _betaCaroteneCardUnit,
+      comparator: readComparator,
+      contributions: List.unmodifiable(contributions),
+      isIncomplete: hasUnread || !comparatorKnown,
+      clinicalSeverity: severity,
+      consumerDisposition: disposition,
+      consumerBody: comparatorKnown ? kBetaCaroteneStackCardBody : null,
+    );
   }
 
   bool _compareDose(double amount, String comparator, double threshold) {
@@ -881,6 +1008,7 @@ class StackDoseThresholdAlert {
     this.isIncomplete = false,
     this.clinicalSeverity = Severity.caution,
     this.consumerDisposition = ConsumerDisposition.review,
+    this.consumerBody,
   });
 
   final String conditionId;
@@ -901,6 +1029,9 @@ class StackDoseThresholdAlert {
   final bool isIncomplete;
   final Severity clinicalSeverity;
   final ConsumerDisposition consumerDisposition;
+
+  /// Approved wording shown as written, in place of the generic threshold text.
+  final String? consumerBody;
 }
 
 enum StackDoseThresholdComparison { below, atOrAbove, unavailable }

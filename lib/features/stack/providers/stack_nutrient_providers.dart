@@ -28,6 +28,7 @@ import 'package:pharmaguide/features/product_detail/providers/profile_warning_ru
 import 'package:pharmaguide/services/medications/medication_class_bridge.dart';
 import 'package:pharmaguide/services/health/product_health_facts.dart';
 import 'package:pharmaguide/services/stack/stack_dose_summer.dart';
+import 'package:pharmaguide/services/warnings/interaction_warning.dart';
 import 'package:pharmaguide/services/stack/stack_nutrient_aggregator.dart';
 import 'package:pharmaguide/services/stack/stack_nutrient_models.dart';
 import 'package:pharmaguide/services/stack/stack_ul_checker.dart';
@@ -202,12 +203,17 @@ final stackDoseThresholdAlertsProvider =
       activeDrugClasses.addAll(
         MedicationClassBridge.profileGateIdsForClasses(bridgeClassIds),
       );
-      if (profile.conditions.isEmpty && activeDrugClasses.isEmpty) {
-        return const <StackDoseThresholdAlert>[];
-      }
 
       final items = <StackItemNutrients>[];
       final thresholdRules = <StackDoseThresholdRule>[];
+      final productWarnings =
+          <
+            ({
+              String stackEntryId,
+              String productName,
+              Iterable<InteractionWarning> warnings,
+            })
+          >[];
       for (final entry in stackEntries) {
         final dsldId = entry.dsldId;
         if (dsldId == null || dsldId.isEmpty) continue;
@@ -235,6 +241,11 @@ final stackDoseThresholdAlertsProvider =
           blob,
           resolvedRuleWarnings: resolvedRuleWarnings,
         );
+        productWarnings.add((
+          stackEntryId: entry.id,
+          productName: entry.name,
+          warnings: facts.warnings,
+        ));
         thresholdRules.addAll(
           stackDoseThresholdRulesFromWarnings(
             facts.warnings,
@@ -254,9 +265,11 @@ final stackDoseThresholdAlertsProvider =
         );
       }
 
-      if (thresholdRules.isEmpty) return const <StackDoseThresholdAlert>[];
-
       const summer = StackDoseSummer();
+      final betaCaroteneCard = summer.betaCaroteneStackCardAlert(
+        userConditions: profile.conditions,
+        products: productWarnings,
+      );
       final normalizedRules = thresholdRules
           .where(
             (rule) =>
@@ -285,6 +298,7 @@ final stackDoseThresholdAlertsProvider =
             userDrugClasses: activeDrugClasses,
             thresholdRules: legacyRules,
           ),
+        ?betaCaroteneCard,
       ];
       if (alerts.length < 2) return alerts;
 
@@ -327,6 +341,7 @@ final stackDoseThresholdAlertsProvider =
           isIncomplete: existing.isIncomplete || alert.isIncomplete,
           clinicalSeverity: clinicalSeverity,
           consumerDisposition: consumerDisposition,
+          consumerBody: basis.consumerBody,
         );
       }
       return byIdentity.values.toList(growable: false);
