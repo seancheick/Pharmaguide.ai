@@ -16,6 +16,7 @@ List<StackDoseThresholdRule> stackDoseThresholdRulesFromWarnings(
 }) {
   final rules = <StackDoseThresholdRule>[];
   final seen = <String>{};
+  final decisionRuleAt = <String, int>{};
 
   for (final warning in warnings) {
     final ingredientName = warning.ingredientName?.trim();
@@ -52,28 +53,32 @@ List<StackDoseThresholdRule> stackDoseThresholdRulesFromWarnings(
         final marker =
             '${target.type}|$targetId|$canonicalId|$decisionThreshold|'
             '${decisionUnit.toLowerCase()}|$decisionComparator';
-        if (!seen.add(marker)) continue;
-        rules.add(
-          StackDoseThresholdRule(
-            conditionId: targetId,
-            targetType: target.type,
-            canonicalId: canonicalId,
-            displayName: ingredientName,
-            thresholdValue: decisionThreshold,
-            thresholdUnit: decisionUnit,
-            comparator: decisionComparator,
-            clinicalSeverity: Severity.fromString(
-              decision.clinicalSeverity ?? warning.severity.name,
-            ),
-            consumerDispositionIfMet: consumerDispositionFromWire(
-              decisionRule?.consumerDispositionIfMet,
-            ),
-            normalizedDailyAmount: decision.evaluatedDailyAmount,
-            normalizedDailyUnit: decision.evaluatedUnit,
-            sourceStackEntryId: stackEntryId,
-            sourceProductName: productName,
+        final rule = StackDoseThresholdRule(
+          conditionId: targetId,
+          targetType: target.type,
+          canonicalId: canonicalId,
+          displayName: ingredientName,
+          thresholdValue: decisionThreshold,
+          thresholdUnit: decisionUnit,
+          comparator: decisionComparator,
+          clinicalSeverity: Severity.fromString(
+            decision.clinicalSeverity ?? warning.severity.name,
           ),
+          consumerDispositionIfMet: consumerDispositionFromWire(
+            decisionRule?.consumerDispositionIfMet,
+          ),
+          normalizedDailyAmount: decision.evaluatedDailyAmount,
+          normalizedDailyUnit: decision.evaluatedUnit,
+          sourceStackEntryId: stackEntryId,
+          sourceProductName: productName,
         );
+        final at = decisionRuleAt[marker];
+        if (at == null) {
+          decisionRuleAt[marker] = rules.length;
+          rules.add(rule);
+        } else {
+          rules[at] = rules[at]._mergedWith(rule);
+        }
       }
       continue;
     }
@@ -345,7 +350,8 @@ class StackDoseSummer {
           thresholdUnit: thresholdUnit,
           comparator: representative.comparator,
           contributions: List.unmodifiable(contributions),
-          isIncomplete: !comparatorKnown,
+          isIncomplete:
+              !comparatorKnown || rules.any((rule) => rule.amountUnresolved),
           clinicalSeverity: clinicalSeverity,
           consumerDisposition: consumerDisposition,
         ),
@@ -912,6 +918,7 @@ class StackDoseThresholdRule {
     this.normalizedDailyUnit,
     this.sourceStackEntryId = '',
     this.sourceProductName = '',
+    this.amountUnresolved = false,
   });
 
   final String conditionId;
@@ -930,6 +937,54 @@ class StackDoseThresholdRule {
   final String? normalizedDailyUnit;
   final String sourceStackEntryId;
   final String sourceProductName;
+
+  /// Another card for this rule on this product had no amount to read, so
+  /// [normalizedDailyAmount] may not be the product's whole exposure.
+  final bool amountUnresolved;
+
+  bool get _hasAmount =>
+      (normalizedDailyAmount ?? 0) > 0 &&
+      normalizedDailyUnit?.trim().isNotEmpty == true;
+
+  /// One product's two cards for one rule describe one exposure: the larger
+  /// amount stands, in place of adding them or keeping whichever came first.
+  StackDoseThresholdRule _mergedWith(StackDoseThresholdRule other) {
+    final sameUnit =
+        normalizeDoseUnit(normalizedDailyUnit ?? '') ==
+        normalizeDoseUnit(other.normalizedDailyUnit ?? '');
+    final amountFrom = !_hasAmount
+        ? other
+        : other._hasAmount &&
+              sameUnit &&
+              other.normalizedDailyAmount! > normalizedDailyAmount!
+        ? other
+        : this;
+    return StackDoseThresholdRule(
+      conditionId: conditionId,
+      targetType: targetType,
+      canonicalId: canonicalId,
+      displayName: displayName,
+      thresholdValue: thresholdValue,
+      thresholdUnit: thresholdUnit,
+      comparator: comparator,
+      clinicalSeverity: other.clinicalSeverity.weight > clinicalSeverity.weight
+          ? other.clinicalSeverity
+          : clinicalSeverity,
+      consumerDispositionIfMet:
+          other.consumerDispositionIfMet.rank > consumerDispositionIfMet.rank
+          ? other.consumerDispositionIfMet
+          : consumerDispositionIfMet,
+      normalizedDailyAmount: amountFrom.normalizedDailyAmount,
+      normalizedDailyUnit: amountFrom.normalizedDailyUnit,
+      sourceStackEntryId: sourceStackEntryId,
+      sourceProductName: sourceProductName,
+      amountUnresolved:
+          amountUnresolved ||
+          other.amountUnresolved ||
+          !_hasAmount ||
+          !other._hasAmount,
+    );
+  }
 }
 
 @immutable

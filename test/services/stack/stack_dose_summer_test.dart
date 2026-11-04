@@ -881,6 +881,112 @@ void main() {
     });
   });
 
+  group('cards for one rule on one product', () {
+    const summer = StackDoseSummer();
+
+    InteractionWarning card(num? amount) => InteractionWarning.fromJson({
+      'type': 'interaction',
+      'severity': 'caution',
+      'title': 'Vitamin A / smokers',
+      'ingredient_name': 'Vitamin A',
+      'ingredient_canonical_id': 'beta_carotene',
+      'condition_ids': ['current_smoker'],
+      'dose_decision': {
+        'clinical_severity': 'caution',
+        'evaluation_status': amount == null
+            ? 'amount_unknown'
+            : 'below_threshold',
+        'consumer_disposition': 'suppress',
+        'evaluated_daily_amount': amount,
+        'evaluated_unit': amount == null ? null : 'mcg rae',
+        'decision_rule': {
+          'threshold': 10000,
+          'threshold_unit': 'mcg rae',
+          'comparator': '>=',
+          'consumer_disposition_if_met': 'review',
+          'consumer_disposition_if_not_met': 'suppress',
+        },
+      },
+    });
+
+    List<StackDoseThresholdRule> rules(List<InteractionWarning> cards) =>
+        stackDoseThresholdRulesFromWarnings(
+          cards,
+          stackEntryId: 'a',
+          productName: 'A',
+        );
+
+    test('the card with an amount wins whichever comes first', () {
+      for (final cards in [
+        [card(null), card(4500)],
+        [card(4500), card(null)],
+      ]) {
+        final result = rules(cards);
+
+        expect(result, hasLength(1));
+        expect(result.single.normalizedDailyAmount, 4500);
+        expect(result.single.normalizedDailyUnit, 'mcg rae');
+        expect(result.single.amountUnresolved, isTrue);
+      }
+    });
+
+    test('of two amounts the larger stands, and nothing is unresolved', () {
+      final result = rules([card(86), card(4500)]);
+
+      expect(result.single.normalizedDailyAmount, 4500);
+      expect(result.single.amountUnresolved, isFalse);
+    });
+
+    test('a card with no amount alone stays for the row total', () {
+      final result = rules([card(null), card(null)]);
+
+      expect(result.single.normalizedDailyAmount, isNull);
+    });
+
+    test('220806 + 178431 stays 12,000 and keeps the unresolved mark', () {
+      final alerts = summer.thresholdAlertsFromNormalizedRules(
+        userConditions: const ['current_smoker'],
+        thresholdRules: [
+          ...stackDoseThresholdRulesFromWarnings(
+            [card(null), card(4500)],
+            stackEntryId: '220806',
+            productName: 'A',
+          ),
+          ...stackDoseThresholdRulesFromWarnings(
+            [card(7500)],
+            stackEntryId: '178431',
+            productName: 'B',
+          ),
+        ],
+      );
+
+      expect(alerts.single.totalValue, 12000);
+      expect(alerts.single.contributions, hasLength(2));
+      expect(alerts.single.isIncomplete, isTrue);
+    });
+
+    test('with every amount read the alert is complete', () {
+      final alerts = summer.thresholdAlertsFromNormalizedRules(
+        userConditions: const ['current_smoker'],
+        thresholdRules: [
+          ...stackDoseThresholdRulesFromWarnings(
+            [card(4500)],
+            stackEntryId: 'a',
+            productName: 'A',
+          ),
+          ...stackDoseThresholdRulesFromWarnings(
+            [card(7500)],
+            stackEntryId: 'b',
+            productName: 'B',
+          ),
+        ],
+      );
+
+      expect(alerts.single.totalValue, 12000);
+      expect(alerts.single.isIncomplete, isFalse);
+    });
+  });
+
   group('betaCaroteneStackCardAlert', () {
     const summer = StackDoseSummer();
     const riskFactors = [
