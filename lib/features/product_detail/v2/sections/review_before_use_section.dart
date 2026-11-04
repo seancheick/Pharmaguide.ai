@@ -96,7 +96,7 @@ class ProfileRelevanceSummary {
     headline: kNothingSpecificHeadline,
     body: onProductSafetyCard
         ? '$kGeneralSafetyNotesBody See Product Safety below.'
-        : kGeneralSafetyNotesBody,
+        : 'The catalog flags this product for caution.',
     rows: rows,
     whyThisFitsReasons: whyThisFitsReasons,
     profileIncomplete: profileIncomplete,

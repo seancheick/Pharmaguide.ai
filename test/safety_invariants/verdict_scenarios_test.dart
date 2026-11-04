@@ -1242,7 +1242,7 @@ void main() {
       expect(find.text(_allClear), findsNothing);
       expect(find.text(_qualifiedClear), findsOneWidget);
       expect(
-        find.text('This product has general safety notes.'),
+        find.text('The catalog flags this product for caution.'),
         findsOneWidget,
       );
       expect(find.text('PRODUCT SAFETY'), findsNothing);
