@@ -51,7 +51,7 @@ class SafetyAlertRepository {
   final SupabaseClient? _givenClient;
   final SharedPreferencesAsync _preferences;
   final Map<String, String> _keys;
-  Future<void> _cacheWrite = Future<void>.value();
+  Future<void>? _cacheWrite;
 
   /// Read inside the fetch: Supabase failing to start is a failed fetch, and a
   /// saved copy still counts.
@@ -94,7 +94,7 @@ class SafetyAlertRepository {
     final previous = _cacheWrite;
     final finished = Completer<void>();
     _cacheWrite = finished.future;
-    await previous;
+    if (previous != null) await previous;
     try {
       final cached = await _loadCached();
       final held = cached?.signed?.sequence;
@@ -112,6 +112,7 @@ class SafetyAlertRepository {
       );
       return await _withWatermark(release, isComplete: !release.hasUnsupported);
     } finally {
+      if (identical(_cacheWrite, finished.future)) _cacheWrite = null;
       finished.complete();
     }
   }

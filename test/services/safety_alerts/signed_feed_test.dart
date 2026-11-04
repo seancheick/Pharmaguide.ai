@@ -408,6 +408,27 @@ void main() {
     });
   });
 
+  testWidgets('repository created before runAsync can commit its first feed', (
+    tester,
+  ) async {
+    final server = await _signedServer();
+    final client = await tester.runAsync(() async => server.client());
+    final repository = SafetyAlertRepository(
+      client: client,
+      preferences: _MemoryPreferences(),
+      verificationKeys: testAlertFeedKeys,
+    );
+    final release = await tester.runAsync(
+      () => repository.loadCurrent().timeout(const Duration(seconds: 2)),
+    );
+    expect(_ids(release!), _allAlerts);
+    expect(release.isComplete, isTrue);
+    final retry = await tester.runAsync(
+      () => repository.loadCurrent().timeout(const Duration(seconds: 2)),
+    );
+    expect(retry!.isComplete, isTrue);
+  });
+
   group('an older signed release', () {
     Future<Map<String, Object?>> signedAt(int sequence) => signedFeedBlock(
       path: _basePath,
