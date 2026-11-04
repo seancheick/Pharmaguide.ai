@@ -301,6 +301,30 @@ void main() {
       expect(find.text(_allClear), findsNothing);
     });
 
+    // No chip on the profile: the class comes only from the stack row.
+    testWidgets('warfarin added to the stack leads the same way', (
+      tester,
+    ) async {
+      final phone = await _phone(
+        profile: _noMatch,
+        cachedBlob: _stJohnsWortBlob(),
+      );
+      await phone.addToStack(
+        const UserStacksLocalCompanion(
+          id: Value('warfarin'),
+          name: Value('Warfarin'),
+          type: Value('medication'),
+          drugClassesCol: Value('["class:anticoagulants"]'),
+        ),
+      );
+
+      await pumpPage(tester, catalog: await _catalog(), phone: phone);
+
+      expect(find.text('95/100'), findsOneWidget);
+      expect(find.text(_warfarinWarning), findsWidgets);
+      expect(find.text(_allClear), findsNothing);
+    });
+
     testWidgets('control: the same label for a user it does not touch', (
       tester,
     ) async {
@@ -1595,7 +1619,7 @@ void main() {
       expect(resultsForA, isEmpty, reason: 'A left before the result arrived');
 
       final forB = await fitNow();
-      expect(forB!.nutrientStatuses.single.tier, isNot(NutrientTier.exceedsUl));
+      expect(forB!.nutrientStatuses.single.tier, NutrientTier.approachingUl);
 
       await switchTo(accountA);
       final forA = await fitNow();
