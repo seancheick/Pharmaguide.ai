@@ -18,7 +18,8 @@ class MedicationClassResolution {
   final List<String> runtimeClassIds;
 
   /// PharmaGuide-curated interaction ids (`class:nsaids`) resolved from
-  /// bundled `drug_class_map` membership first, then the narrow fallback map.
+  /// bundled `drug_class_map` membership or verified class-only selections,
+  /// then the narrow fallback map.
   final List<String> curatedInteractionClassIds;
 
   /// The list safe to persist back into `user_stacks_local.drug_classes`.
@@ -106,6 +107,21 @@ class MedicationClassBridge {
       final classes = await _db.drugClassesForRxcui(rxcui);
       for (final classId in _normalizeClassIds(classes)) {
         if (seenCurated.add(classId)) curated.add(classId);
+      }
+    }
+
+    // The offline picker supplies an explicit reviewed class rather than an
+    // RxCUI. Recognize only ids in the current bundled map, and never use this
+    // path to overrule membership/exclusions for an identity-bearing medicine.
+    if (rxcuis.isEmpty && runtime.isNotEmpty) {
+      final knownClasses = await (_db.select(
+        _db.drugClassMap,
+      )..where((row) => row.classId.isIn(runtime))).get();
+      final knownIds = knownClasses.map((row) => row.classId).toSet();
+      for (final classId in runtime) {
+        if (knownIds.contains(classId) && seenCurated.add(classId)) {
+          curated.add(classId);
+        }
       }
     }
 

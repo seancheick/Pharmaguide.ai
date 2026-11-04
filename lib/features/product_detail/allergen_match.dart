@@ -12,6 +12,8 @@
 /// Within each presence tier, severity (high → moderate → low) breaks ties.
 library;
 
+import 'package:pharmaguide/core/constants/severity.dart';
+
 class MatchedAllergen {
   /// Canonical allergen ID (e.g. `ALLERGEN_SOY`). Stable across pipeline
   /// versions; the user profile stores the same string.
@@ -125,3 +127,21 @@ int _severityPriority(String severity) {
       return 99;
   }
 }
+
+/// Existing Product Detail presence meaning, shared with Stack projections.
+/// Label presence determines the review level; the registry severity is only
+/// a tie-breaker and must not turn a facility note into an actionable warning.
+Severity allergenPresenceSeverity(String presenceType) =>
+    switch (presenceType) {
+      'contains' => Severity.avoid,
+      'may_contain' => Severity.caution,
+      'manufactured_in_facility' => Severity.informational,
+      _ => Severity.caution,
+    };
+
+String allergenPresenceLabel(String presenceType) => switch (presenceType) {
+  'contains' => 'Contains',
+  'may_contain' => 'May contain',
+  'manufactured_in_facility' => 'Facility',
+  _ => 'Allergen',
+};
