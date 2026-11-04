@@ -151,8 +151,9 @@ final detailBlobForRowProvider = FutureProvider.family
           await userDb.transaction(() async {
             if (!ref.mounted) return;
             final current = await coreDb.findById(dsldId);
-            if (!ref.mounted || current?.detailBlobSha256 != expectedSha)
+            if (!ref.mounted || current?.detailBlobSha256 != expectedSha) {
               return;
+            }
             await userDb.cacheDetail(dsldId, jsonEncode(blob), expectedSha);
           });
         }
