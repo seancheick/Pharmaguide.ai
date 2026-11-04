@@ -1519,7 +1519,10 @@ class _MedicationProfileReviewCard extends StatelessWidget {
     if (!resolving && !unavailable && warnings.isEmpty) {
       return const SizedBox.shrink();
     }
-    final warning = warnings.isNotEmpty ? warnings.first : null;
+    final List<MedicationProfileWarning?> visibleWarnings =
+        !resolving && !unavailable && warnings.isNotEmpty
+        ? warnings
+        : const [null];
     final reviewStyle = context.v2.tintedLabel(
       context.v2.caution,
       borderAlpha: 0.32,
@@ -1556,33 +1559,36 @@ class _MedicationProfileReviewCard extends StatelessWidget {
               children: [
                 PGEyebrow('Profile review', color: reviewStyle.foreground),
                 const SizedBox(height: V2Spacing.space8),
-                Text(
-                  resolving
-                      ? 'Checking your profile'
-                      : unavailable
-                      ? 'Profile review unavailable'
-                      : warning?.headline ?? 'Review for your profile',
-                  style: V2Typography.titleSm(color: context.v2.fg),
-                ),
-                const SizedBox(height: V2Spacing.space8),
-                Text(
-                  resolving
-                      ? 'Looking for medication guidance tied to your profile.'
-                      : unavailable
-                      ? 'We couldn\'t complete this profile check. This is not '
-                            'an all-clear; try again before relying on it.'
-                      : warning?.body ?? '',
-                  style: V2Typography.bodySm(color: context.v2.fgMuted),
-                ),
-                if (!resolving &&
-                    !unavailable &&
-                    warning != null &&
-                    warning.management.trim().isNotEmpty) ...[
+                for (final (index, warning) in visibleWarnings.indexed) ...[
+                  if (index > 0) const SizedBox(height: V2Spacing.space16),
+                  Text(
+                    resolving
+                        ? 'Checking your profile'
+                        : unavailable
+                        ? 'Profile review unavailable'
+                        : warning?.headline ?? 'Review for your profile',
+                    style: V2Typography.titleSm(color: context.v2.fg),
+                  ),
                   const SizedBox(height: V2Spacing.space8),
                   Text(
-                    warning.management,
-                    style: V2Typography.caption(color: context.v2.fgMuted),
+                    resolving
+                        ? 'Looking for medication guidance tied to your profile.'
+                        : unavailable
+                        ? 'We couldn\'t complete this profile check. This is not '
+                              'an all-clear; try again before relying on it.'
+                        : warning?.body ?? '',
+                    style: V2Typography.bodySm(color: context.v2.fgMuted),
                   ),
+                  if (!resolving &&
+                      !unavailable &&
+                      warning != null &&
+                      warning.management.trim().isNotEmpty) ...[
+                    const SizedBox(height: V2Spacing.space8),
+                    Text(
+                      warning.management,
+                      style: V2Typography.caption(color: context.v2.fgMuted),
+                    ),
+                  ],
                 ],
               ],
             ),
