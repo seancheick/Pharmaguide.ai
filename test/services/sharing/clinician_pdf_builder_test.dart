@@ -302,6 +302,52 @@ void main() {
     },
   );
 
+  test(
+    'renders a label statement with its grade and no empty management',
+    () async {
+      final bytes = await const ClinicianPdfBuilder(compress: false).build(
+        profile: null,
+        stack: const [],
+        intelligence: const StackIntelligence(
+          tier: StackTier.concerning,
+          stackSize: 1,
+          issues: [],
+          interactionCount: 1,
+          nutrientWarningCount: 0,
+          hasRecalledIngredient: false,
+          hasContraindicatedInteraction: false,
+          hasBannedIngredient: false,
+        ),
+        safetyReport: const StackSafetyReport(
+          stackInteractions: [
+            InteractionResult(
+              id: 'LABEL_1_x',
+              type: InteractionType.conditionSupplement,
+              severity: Severity.avoid,
+              evidenceLevel: EvidenceLevel.ungraded,
+              agent1Name: 'Moringa',
+              agent2Name: 'Label warning',
+              mechanism: 'Do not use Moringa if you are pregnant or nursing.',
+              management: '',
+              doseDependant: false,
+              doseThreshold: null,
+              sourceUrls: [],
+              source: InteractionSource.pipeline,
+            ),
+          ],
+        ),
+        depletions: const [],
+        generatedAt: DateTime.utc(2026, 11, 3),
+      );
+
+      final body = latin1.decode(bytes, allowInvalid: true);
+      expect(body, contains('Moringa'));
+      expect(body, contains('nursing'));
+      expect(body, contains('Evidence:'));
+      expect(body, isNot(contains('Management:')));
+    },
+  );
+
   test('renders clinician context for curated interaction warnings', () async {
     final bytes = await const ClinicianPdfBuilder(compress: false).build(
       profile: null,

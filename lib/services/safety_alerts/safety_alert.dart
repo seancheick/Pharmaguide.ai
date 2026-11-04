@@ -1,3 +1,4 @@
+import 'package:pharmaguide/core/constants/schema_ids.dart';
 import 'package:pharmaguide/core/constants/severity.dart';
 import 'package:pharmaguide/services/warnings/profile_gate_evaluator.dart';
 
@@ -29,7 +30,9 @@ final class DeviceSafetyProfile {
   final bool isComplete;
 
   bool get isEmpty =>
-      medicationIds.isEmpty && conditions.isEmpty && profileFlags.isEmpty;
+      medicationIds.isEmpty &&
+      conditions.isEmpty &&
+      profileFlags.difference(SchemaIds.sexDerivedFlags).isEmpty;
 }
 
 /// What an `interaction_rule` alert adds: who it is for and how serious it is.

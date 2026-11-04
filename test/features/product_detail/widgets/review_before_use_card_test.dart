@@ -1291,7 +1291,7 @@ void main() {
       'display_mode_default': 'informational',
       'title': 'Watchlist ingredient: Frangula bark',
       'safety_warning': 'Stimulant laxative for short-term use.',
-      'sources': [],
+      'sources': <String>[],
       'source_urls': [
         {'url': 'https://doi.org/10.2903/j.efsa.2024.8766'},
       ],
