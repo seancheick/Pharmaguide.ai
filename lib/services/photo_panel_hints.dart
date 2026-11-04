@@ -61,7 +61,8 @@ final _factsTable = RegExp(
 );
 final _directions = RegExp(
   r'\b(?:directions(?:\s+for\s+use)?|suggested\s+use|recommended\s+use)\s*[:.\n]?\s*'
-  r'(?:(?:for\s+adults?|as\s+a\s+dietary\s+supplement)\s*[:,]?\s*)*'
+  r'(?:(?:for\s+adults?|as\s+a\s+dietary\s+supplement)\s*[:,]?\s*|'
+  r'shake\s+well(?:\s+before\s+(?:use|using))?\s*[.;,\n]\s*)*'
   r'(?:take|mix|add|use|consume|chew|dissolve|drink|adults?|[0-9])\b',
 );
 final _directionsOrWarnings = RegExp(

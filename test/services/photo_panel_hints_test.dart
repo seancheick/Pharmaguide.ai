@@ -5,6 +5,31 @@ import 'package:pharmaguide/services/photo_panel_hints.dart';
 final _submission = GtinIdentity.parse('050428381397');
 
 void main() {
+  test('directions recognize a shake instruction before the dose', () {
+    for (final text in [
+      'Directions: Shake well before use. Take 1 teaspoon daily.',
+      'Suggested Use: Shake well. For adults, take 2 mL daily.',
+      'Recommended Use: Shake well before using. Mix one scoop with water.',
+    ]) {
+      expect(
+        readPanelHints(text, submission: _submission).showsDirections,
+        isTrue,
+        reason: text,
+      );
+    }
+    for (final text in [
+      'Storage: Shake well before use. Refrigerate after opening.',
+      'Directions: Shake well before use.',
+      'Directions: Shake well. Consult your doctor before use.',
+    ]) {
+      expect(
+        readPanelHints(text, submission: _submission).showsDirections,
+        isFalse,
+        reason: text,
+      );
+    }
+  });
+
   test('directions accept common introductory phrases before the dose', () {
     for (final text in [
       'Suggested Use: For adults, take one capsule daily.',
