@@ -773,6 +773,12 @@ void main() {
 
           expect(find.text(_allClear), findsNothing);
           expect(find.text(_qualifiedClear), findsNothing);
+          // Only the catalog saying `not_assessed` is a claim the note can
+          // repeat. Anything else unknown withholds without one (decision 6).
+          expect(
+            find.text(_safetyTitle),
+            safety == 'not_assessed' ? findsOneWidget : findsNothing,
+          );
         });
       }
     }

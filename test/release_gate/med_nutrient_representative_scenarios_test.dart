@@ -393,6 +393,10 @@ void main() {
         expect(match.recommendation, source['recommendation']);
         expect(match.severity, source['severity']);
         expect(match.evidenceLevel, source['evidence_level']);
+        expect(
+          match.sources.map((s) => s.url).toList(),
+          (source['sources'] as List).map((s) => (s as Map)['url']).toList(),
+        );
       },
     );
   }

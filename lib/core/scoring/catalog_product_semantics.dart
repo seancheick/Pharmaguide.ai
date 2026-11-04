@@ -178,12 +178,12 @@ bool catalogProductCanReportNoConcerns(ProductsCoreData? product) {
 /// Whether the page should say this product's safety checks are unfinished.
 ///
 /// True whenever the catalog says so, whatever the quality state. A null status
-/// says nothing either way, so it withholds the all-clear without this claim. A
-/// block is its own answer and keeps the page to itself.
+/// or an unknown catalog safety status says nothing either way, so it withholds
+/// the all-clear without this claim. A block is its own answer and keeps the
+/// page to itself.
 bool catalogProductSafetyChecksIncomplete(ProductsCoreData? product) {
   if (product == null || catalogProductIsBlocked(product)) return false;
-  if (catalogProductSafetyStatus(product) ==
-      CatalogProductSafetyStatus.notAssessed) {
+  if (product.productSafetyStatus?.trim().toLowerCase() == 'not_assessed') {
     return true;
   }
   final safetyChecks = product.safetyAssessmentStatus;

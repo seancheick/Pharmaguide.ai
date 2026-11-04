@@ -418,8 +418,9 @@ Each shows only when that assessment is incomplete, so a finished quality score 
 
 - `catalogProductCanReportNoConcerns` reads a known catalog safety status and `safety_assessment_status`, not quality completion. Only `complete` allows the all-clear; any other value withholds it.
 - A null value means a catalog older than the column: the app backfills it as null and accepts that catalog, so those rows keep the stricter rule of a finished public assessment. A release build cannot write null (`--strict`, pipeline PR #338).
-- `catalogProductSafetyChecksIncomplete` decides the safety note, whatever the quality state. It is true for a `not_assessed` catalog safety status and for any declared status other than `complete`.
-- A null status gets no safety note, because nothing says the checks are unfinished. It withholds the all-clear without making that claim.
+- `catalogProductSafetyChecksIncomplete` decides the safety note, whatever the quality state. It is true for a `not_assessed` catalog safety status and for any declared `safety_assessment_status` other than `complete`.
+- A null status or an unknown catalog safety status gets no safety note, because nothing says the checks are unfinished (decision 6). It withholds the all-clear without making that claim.
+- A folder an older build prepared lacks the column when the rebuild can't run, such as on a full phone. Typed reads use `SELECT *` and read a missing nullable column as null, so that phone keeps working under the older-catalog rule. A test pins this.
 - The quality message is the hero's, and Compare uses the same title. A product with no score keeps "Product quality score unavailable."
 - `quality_assessment_status` says whether the quality assessment finished, and `catalogProductHasCompletePublicScore` stays as it is for ranking and quality surfaces. A product with a quality gap still shows no completed score or tier.
 - A block keeps the page to itself: `safety_assessment_status` never lifts or hides one, and a blocked product gets neither the all-clear nor the note.
