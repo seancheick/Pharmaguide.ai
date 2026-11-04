@@ -27,6 +27,8 @@ import 'package:pharmaguide/features/profile/profile_provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
+import '../../services/safety_alerts/signed_feed_support.dart';
+
 const _dsldId = '9990001';
 const noticeKey = Key('live-safety-alert-SA_9999_0001');
 const pregnancyNoticeKey = Key('live-safety-alert-SA_9999_0003');
@@ -97,10 +99,14 @@ Future<void> runInteractionRuleJourney(
           'feed_path': 'safety/feed.json',
           'checksum': 'sha256:${sha256.convert(baseBytes)}',
           'manifest': {
-            'extended_feed': {
-              'path': 'safety/extended.json',
-              'checksum': 'sha256:${sha256.convert(feedBytes)}',
-            },
+            'signed_feed': await signedFeedBlock(
+              path: 'safety/feed.json',
+              checksum: 'sha256:${sha256.convert(baseBytes)}',
+              extended: {
+                'path': 'safety/extended.json',
+                'checksum': 'sha256:${sha256.convert(feedBytes)}',
+              },
+            ),
           },
         }),
         200,
@@ -129,6 +135,7 @@ Future<void> runInteractionRuleJourney(
           SafetyAlertRepository(
             client: client,
             preferences: _MemoryPreferences(),
+            verificationKeys: testAlertFeedKeys,
           ),
         ),
       ],

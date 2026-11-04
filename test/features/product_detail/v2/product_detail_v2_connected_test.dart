@@ -38,6 +38,8 @@ import 'package:pharmaguide/features/profile/profile_provider.dart';
 import 'package:pharmaguide/features/stack/providers/active_stack_provider.dart';
 import 'package:pharmaguide/features/stack/providers/stack_safety_providers.dart';
 
+import '../../../services/safety_alerts/signed_feed_support.dart';
+
 const _connectedDsldId = 'label-ledger-connected';
 const _connectedFingerprint =
     '0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef';
@@ -386,15 +388,19 @@ class _AlertFeed {
             jsonEncode({
               'feed_path': 'safety/feed.json',
               'checksum': 'sha256:${sha256.convert(bytes)}',
-              'manifest': server == _FeedServer.extendedUnavailable
-                  ? {
-                      'extended_feed': {
-                        'path': 'safety/extended.json',
-                        'checksum':
-                            'sha256:${sha256.convert(_alertsForOtherProducts)}',
-                      },
-                    }
-                  : null,
+              'manifest': {
+                'signed_feed': await signedFeedBlock(
+                  path: 'safety/feed.json',
+                  checksum: 'sha256:${sha256.convert(bytes)}',
+                  extended: server == _FeedServer.extendedUnavailable
+                      ? {
+                          'path': 'safety/extended.json',
+                          'checksum':
+                              'sha256:${sha256.convert(_alertsForOtherProducts)}',
+                        }
+                      : null,
+                ),
+              },
             }),
             200,
             headers: {'content-type': 'application/json'},
@@ -407,6 +413,7 @@ class _AlertFeed {
   late final repository = SafetyAlertRepository(
     client: _client,
     preferences: saved,
+    verificationKeys: testAlertFeedKeys,
   );
 
   /// Fetches once, so this phone holds a verified copy, then loses the server.
@@ -1028,8 +1035,10 @@ void main() {
           await open(
             tester,
             null,
-            buildAlertFeed: () =>
-                SafetyAlertRepository(preferences: feed.saved),
+            buildAlertFeed: () => SafetyAlertRepository(
+              preferences: feed.saved,
+              verificationKeys: testAlertFeedKeys,
+            ),
           );
 
           expect(find.text(allClear), findsOneWidget);

@@ -74,12 +74,16 @@ v2-audit: ## Run the v2 design-system governance audit (hex / serif / TextStyle)
 
 # ─── Build ────────────────────────────────────────────────────────────────────
 
+.PHONY: require-alert-feed-key
+require-alert-feed-key: ## Refuse a store build that could never verify the safety-alert feed
+	@bash scripts/require_alert_feed_key.sh
+
 .PHONY: build-ios
-build-ios: hydrate-interaction-db ## Build a signed IPA; set PHARMAGUIDE_IOS_DISTRIBUTION=testflight for beta testing
+build-ios: hydrate-interaction-db require-alert-feed-key ## Build a signed IPA; set PHARMAGUIDE_IOS_DISTRIBUTION=testflight for beta testing
 	@bash scripts/build_ios_release.sh "$(FLUTTER)" $(DART_DEFINES)
 
 .PHONY: build-android
-build-android: hydrate-interaction-db ## Build Android release AAB
+build-android: hydrate-interaction-db require-alert-feed-key ## Build Android release AAB
 	$(FLUTTER) build appbundle $(DART_DEFINES) --release
 
 # ─── Testing & Quality ────────────────────────────────────────────────────────

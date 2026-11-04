@@ -6,6 +6,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:pharmaguide/data/supabase/supabase_client.dart';
 import 'package:pharmaguide/data/supabase/supabase_contract.dart';
+import 'package:pharmaguide/services/release_manifest.dart';
 import 'package:pharmaguide/services/safety_alerts/safety_alert.dart';
 
 final class SafetyAlertRelease {
@@ -24,25 +25,31 @@ final class SafetyAlertRelease {
   final bool isComplete;
 
   /// No fully readable verified feed is available for an all-clear. This also
-  /// covers verified bytes containing unsupported alerts or a missing extended
-  /// feed. A readable saved copy remains usable when only the network fails.
+  /// covers verified bytes containing unsupported alerts, a missing extended
+  /// feed, or a saved copy whose signature this build can't check. A readable
+  /// saved copy remains usable when only the network fails.
   final bool neverVerified;
 }
 
-/// Fetches only the public, current release and refuses bytes that do not
-/// match its checksum. Last-known-good is retained for display but is marked
-/// incomplete, so it can never resolve a safety signal after a failed fetch.
+/// Fetches only the public, current release, and trusts it only through its
+/// signed statement: a missing or bad signature, an older sequence, or bytes that
+/// do not match the signed checksum all count as a failed fetch. Last-known-good
+/// is retained for display but is marked incomplete, so it can never resolve a
+/// safety signal after a failed fetch.
 class SafetyAlertRepository {
   SafetyAlertRepository({
     SupabaseClient? client,
     SharedPreferencesAsync? preferences,
+    Map<String, String>? verificationKeys,
   }) : _givenClient = client,
-       _preferences = preferences ?? SharedPreferencesAsync();
+       _preferences = preferences ?? SharedPreferencesAsync(),
+       _keys = verificationKeys ?? kAlertFeedVerificationKeys;
 
   static const _cacheKey = 'safety_alert_release_v1';
   static const _watermarkKey = 'safety_alert_baseline_revisions_v1';
   final SupabaseClient? _givenClient;
   final SharedPreferencesAsync _preferences;
+  final Map<String, String> _keys;
 
   /// Read inside the fetch: Supabase failing to start is a failed fetch, and a
   /// saved copy still counts.
@@ -50,6 +57,7 @@ class SafetyAlertRepository {
 
   Future<SafetyAlertRelease> loadCurrent() async {
     try {
+      // Installed builds read these same columns, so the request stays theirs.
       final row = await _client
           .from(SupabaseContract.safetyAlertReleasesTable)
           .select('feed_path,checksum,manifest')
@@ -96,13 +104,16 @@ class SafetyAlertRepository {
   }
 
   Future<_DecodedRelease> _decodeRemote(Map<String, dynamic> row) async {
-    final path = row['feed_path'];
-    final checksum = row['checksum'];
-    if (path is! String ||
-        checksum is! String ||
-        !RegExp(r'^sha256:[0-9a-f]{64}$').hasMatch(checksum)) {
+    final manifest = row['manifest'];
+    // The row's own fields are unsigned, and only older builds still need them.
+    final signed = await _verifiedStatement(
+      manifest is Map ? manifest['signed_feed'] : null,
+    );
+    final cached = await _loadCached();
+    final held = cached?.signed?.sequence;
+    if (held != null && signed.sequence < held) {
       throw const FormatException(
-        'Safety-alert release metadata is malformed.',
+        'Safety-alert release is older than this copy.',
       );
     }
     Future<_DecodedRelease> read(String path, String checksum) async =>
@@ -111,30 +122,34 @@ class SafetyAlertRepository {
               .from(SupabaseContract.storageBucket)
               .download(path),
           checksum,
+          signed: signed,
         );
 
     // `feed_path` stays readable by every installed build, so event types an
     // older reader would reject live in a superset the manifest names.
-    final manifest = row['manifest'];
-    final extended = manifest is Map ? manifest['extended_feed'] : null;
+    final extended = signed.extended;
+    final path = signed.basePath;
+    final checksum = signed.baseChecksum;
     if (extended == null) return read(path, checksum);
     try {
-      final extendedPath = extended['path'];
+      final extendedPath = (extended as Map)['path'];
       final extendedChecksum = extended['checksum'];
       if (extendedPath is! String || extendedChecksum is! String) {
         throw const FormatException('Extended feed location is malformed.');
       }
       // This checksum names the immutable current superset. Reusing its verified
       // bytes avoids degrading a usable saved release on a transient download
-      // failure. A new checksum must still be fetched and checked normally.
-      final cached = await _loadCached();
-      if (cached?.checksum == extendedChecksum) return cached!;
+      // failure. A new checksum must still be fetched and checked normally, and
+      // so must a copy no signature vouches for.
+      if (cached?.signed != null && cached?.checksum == extendedChecksum) {
+        return cached!.signedBy(signed);
+      }
       return await read(extendedPath, extendedChecksum);
     } on Object {
       // Bans and recalls must still arrive. Rules this device already holds
       // stay until a verified fetch can say otherwise.
       return (await read(path, checksum)).missingExtended(
-        (await _loadCached())?.alerts
+        cached?.alerts
                 .where((alert) => alert.interaction != null)
                 .map((alert) => alert.alertId) ??
             const [],
@@ -142,7 +157,56 @@ class SafetyAlertRepository {
     }
   }
 
-  _DecodedRelease _decodeBytes(Uint8List bytes, String expectedChecksum) {
+  /// Throws unless [block] is a statement about this feed, signed by a key this
+  /// build holds. Everything a release can change is read from that signed text.
+  Future<_SignedFeed> _verifiedStatement(Object? block) async {
+    if (block is! Map ||
+        block['statement'] is! String ||
+        block['signature'] is! String) {
+      throw const FormatException('Safety-alert release is not signed.');
+    }
+    final statement = block['statement'] as String;
+    final signature = block['signature'] as String;
+    final keyId = await verifySignedText(
+      text: statement,
+      signature: signature,
+      keys: _keys,
+    );
+    final decoded = jsonDecode(statement);
+    if (decoded is! Map ||
+        decoded['purpose'] != 'safety_alert_feed' ||
+        decoded['format'] != 1 ||
+        decoded['key_id'] != keyId) {
+      throw const FormatException('This is not a safety-alert statement.');
+    }
+    final sequence = decoded['release_sequence'];
+    final base = decoded['base_feed'];
+    final path = base is Map ? base['path'] : null;
+    final checksum = base is Map ? base['checksum'] : null;
+    if (sequence is! int ||
+        sequence <= 0 ||
+        path is! String ||
+        checksum is! String ||
+        !RegExp(r'^sha256:[0-9a-f]{64}$').hasMatch(checksum)) {
+      throw const FormatException(
+        'Safety-alert release metadata is malformed.',
+      );
+    }
+    return _SignedFeed(
+      statement: statement,
+      signature: signature,
+      sequence: sequence,
+      basePath: path,
+      baseChecksum: checksum,
+      extended: decoded['extended_feed'],
+    );
+  }
+
+  _DecodedRelease _decodeBytes(
+    Uint8List bytes,
+    String expectedChecksum, {
+    _SignedFeed? signed,
+  }) {
     final actual = 'sha256:${sha256.convert(bytes).toString()}';
     if (actual != expectedChecksum) {
       throw const FormatException('Safety-alert feed checksum mismatch.');
@@ -173,7 +237,20 @@ class SafetyAlertRepository {
       hasUnsupported: hasUnsupported,
       checksum: actual,
       feedBytes: Uint8List.fromList(bytes).asUnmodifiableView(),
+      signed: signed,
     );
+  }
+
+  /// The saved signature, re-checked so that removing an exposed key takes the
+  /// trust of what it signed with it. Null when nothing vouches for this copy,
+  /// which includes every copy saved by a build from before signatures.
+  Future<_SignedFeed?> _savedSignature(Object? block, String checksum) async {
+    try {
+      final signed = await _verifiedStatement(block);
+      return signed.names(checksum) ? signed : null;
+    } on Object {
+      return null;
+    }
   }
 
   Future<_DecodedRelease?> _loadCached() async {
@@ -186,10 +263,19 @@ class SafetyAlertRepository {
           decoded['checksum'] is! String) {
         return null;
       }
-      final release = _decodeBytes(
+      final bytes = _decodeBytes(
         base64Decode(decoded['feed'] as String),
         decoded['checksum'] as String,
       );
+      final signed = await _savedSignature(
+        decoded['signed_feed'],
+        bytes.checksum,
+      );
+      // Alerts only ever add a signal, so an unvouched copy stays on screen. It
+      // just can't give an all-clear.
+      final release = signed == null
+          ? bytes.unverified()
+          : bytes.signedBy(signed);
       final kept = decoded['kept'];
       if (kept == null) {
         return decoded['extended_missing'] == true
@@ -220,6 +306,11 @@ class SafetyAlertRepository {
     // models loses feed metadata/formatting and invalidates the checksum.
     'feed': base64Encode(release.feedBytes),
     if (release.extendedMissing) 'extended_missing': true,
+    if (release.signed case final signed?)
+      'signed_feed': {
+        'statement': signed.statement,
+        'signature': signed.signature,
+      },
     if (release.keptRows.isNotEmpty)
       ...() {
         final kept = jsonEncode(release.keptRows);
@@ -276,6 +367,35 @@ class SafetyAlertRepository {
   }
 }
 
+/// A release's signed statement, verified. Written by the pipeline's
+/// scripts/sync_safety_alerts.py::build_statement.
+final class _SignedFeed {
+  const _SignedFeed({
+    required this.statement,
+    required this.signature,
+    required this.sequence,
+    required this.basePath,
+    required this.baseChecksum,
+    required this.extended,
+  });
+
+  final String statement;
+  final String signature;
+
+  /// Monotonic. A lower one than this phone has verified is a replay.
+  final int sequence;
+  final String basePath;
+  final String baseChecksum;
+
+  /// The superset's location, or null when the release names none. Read inside
+  /// the extended-feed fallback, so a damaged entry only costs the superset.
+  final Object? extended;
+
+  bool names(String checksum) =>
+      checksum == baseChecksum ||
+      (extended is Map && (extended as Map)['checksum'] == checksum);
+}
+
 final class _DecodedRelease {
   const _DecodedRelease({
     required this.alerts,
@@ -286,6 +406,7 @@ final class _DecodedRelease {
     required this.feedBytes,
     this.keptRows = const [],
     this.extendedMissing = false,
+    this.signed,
   });
   final List<SafetyAlert> alerts;
 
@@ -310,6 +431,9 @@ final class _DecodedRelease {
   final String checksum;
   final Uint8List feedBytes;
 
+  /// What vouches for these bytes. Null for a saved copy nothing vouches for.
+  final _SignedFeed? signed;
+
   List<Map<String, Object?>> rowsFor(Set<String> ids) => [
     for (final id in ids)
       if (rows[id] case final row?) row,
@@ -326,6 +450,32 @@ final class _DecodedRelease {
     feedBytes: feedBytes,
     keptRows: keptRows,
     extendedMissing: true,
+    signed: signed,
+  );
+
+  /// These same bytes, now named by [statement], which may carry a newer sequence.
+  _DecodedRelease signedBy(_SignedFeed statement) => _DecodedRelease(
+    alerts: alerts,
+    rows: rows,
+    unreadableIds: unreadableIds,
+    hasUnsupported: hasUnsupported,
+    checksum: checksum,
+    feedBytes: feedBytes,
+    keptRows: keptRows,
+    extendedMissing: extendedMissing,
+    signed: statement,
+  );
+
+  /// Nothing vouches for this copy, so it can't count as a complete check.
+  _DecodedRelease unverified() => _DecodedRelease(
+    alerts: alerts,
+    rows: rows,
+    unreadableIds: unreadableIds,
+    hasUnsupported: true,
+    checksum: checksum,
+    feedBytes: feedBytes,
+    keptRows: keptRows,
+    extendedMissing: extendedMissing,
   );
 
   _DecodedRelease keeping(List<Map<String, Object?>> kept) {
@@ -351,6 +501,7 @@ final class _DecodedRelease {
       feedBytes: feedBytes,
       keptRows: kept,
       extendedMissing: extendedMissing,
+      signed: signed,
     );
   }
 }

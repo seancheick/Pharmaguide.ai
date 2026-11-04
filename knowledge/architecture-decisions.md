@@ -390,3 +390,27 @@ OS encryption protects a locked phone. It does nothing about two people using th
 **Unchanged gates:** A4 must review candidate feed overlap and compatibility before publication. Product-specific upgrade copy, future alert-format support, clinical rule sign-off and actual publication remain separate decisions. This record grants none of those approvals.
 
 **Verification:** Regression tests cover pointer-write failure, failed preparation cleanup, offline partial feeds, refresh versus dependency reload, and canonical report availability/provenance/consent. Device screenshots, relaunch and disk-pressure acceptance remain part of the combined candidate session.
+
+---
+
+## ADR-015: The safety-alert feed is signed before its first publish
+
+**Date:** 2026-11-03. **Decision by:** Sean (signature before first publish, and he alone holds the key).
+
+**Context:** No alert release has been published. The feed had a checksum in its release row and no signature, so anyone able to write to Supabase could replace both. ADR-012's signing already exists for catalogs.
+
+**Decision:**
+- Reuse ADR-012's signing: canonical JSON, Ed25519, `<key id>:<base64>`, `verifySignedText` here and `scripts/release_manifest.py` in the pipeline. There is no second system.
+- The signature is detached and travels as `manifest.signed_feed` on the release row. The feed bytes, `feed_path` and `checksum` don't change, so installed builds read what they read before. The dispatcher never reads `manifest`.
+- The signed statement names the base and extended feed by checksum, and a sequence. This build reads those from the statement, not from the row. A statement carries a `purpose`, so it can't pass as a catalog manifest, or the reverse.
+- Keys are pinned apart, in `_kProductionAlertFeedKeys` and `alert_feed_keys`. A key in the release lists starts signed-only catalogs and keyed catalog behaviour, which waits on A9. The feed must neither wait for that nor cause it.
+- A missing or bad signature is a failed fetch through the existing owners: a saved copy stays, and a phone that never verified a feed gets no all-clear. A saved copy nothing vouches for keeps its alerts and gives no all-clear. There is no new copy and no new verdict.
+- A lower sequence than the saved copy is refused. The sequence lives in the existing cache entry, along with the statement and signature, all of which are public.
+
+**Differs from ADR-012:** a catalog may be unsigned until the first key is pinned, and a keyless build ignores signed fields, because phones already depended on unsigned catalogs. The feed has no such history, so the publisher always refuses and a keyless build verifies nothing. `scripts/require_alert_feed_key.sh` refuses a store build with no key; TestFlight may go without one.
+
+**Accepted cost:** if the key is lost with no standby, keyed builds get no new alert until an app update. So the runbook generates a standby and pins it from the start.
+
+**Limits:** builds from before this change don't check. A signature can't prove a release is the latest, nor that it is clinically correct.
+
+**Steps:** the pipeline's `docs/RELEASE_SIGNING_RUNBOOK.md`, "The safety-alert feed".
