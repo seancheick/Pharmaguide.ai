@@ -22,6 +22,7 @@ List<StackDoseThresholdRule> stackDoseThresholdRulesFromWarnings(
     final ingredientName = warning.ingredientName?.trim();
     if (ingredientName == null || ingredientName.isEmpty) continue;
     final decision = warning.doseDecision;
+    if (decision != null && decision.formExcluded) continue;
     final emittedCanonicalId = warning.ingredientCanonicalId?.trim() ?? '';
     // New declarative rules must use the pipeline-owned identity. Name-based
     // canonicalization remains only for pre-contract cached blobs.
@@ -71,6 +72,7 @@ List<StackDoseThresholdRule> stackDoseThresholdRulesFromWarnings(
           normalizedDailyUnit: decision.evaluatedUnit,
           sourceStackEntryId: stackEntryId,
           sourceProductName: productName,
+          amountUnresolved: decision.amountUnread,
         );
         final at = decisionRuleAt[marker];
         if (at == null) {
@@ -82,6 +84,7 @@ List<StackDoseThresholdRule> stackDoseThresholdRulesFromWarnings(
       }
       continue;
     }
+    if (decision != null && decision.amountUnread) continue;
 
     final rawThresholds =
         warning.doseThresholdEvaluation?['thresholds_checked'];
@@ -938,8 +941,9 @@ class StackDoseThresholdRule {
   final String sourceStackEntryId;
   final String sourceProductName;
 
-  /// Another card for this rule on this product had no amount to read, so
-  /// [normalizedDailyAmount] may not be the product's whole exposure.
+  /// The pipeline could not read this product's amount for this rule, on this
+  /// card or another for the same rule, so [normalizedDailyAmount] may not be
+  /// its whole exposure. Its label rows are no substitute for that amount.
   final bool amountUnresolved;
 
   bool get _hasAmount =>

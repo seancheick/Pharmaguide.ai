@@ -1786,6 +1786,25 @@ void main() {
       );
     });
 
+    test('a surface that shows no card counts one the pipeline kept', () {
+      for (final disposition in ['review', 'block', 'suppress']) {
+        expect(
+          hasUnreadDoseRule(
+            parseBlobWarnings({
+              'warnings': [
+                card(status: 'form_unknown', disposition: disposition),
+              ],
+            }),
+            userConditions: {'high_cholesterol'},
+            userDrugClasses: const {},
+            cardsShown: false,
+          ),
+          isTrue,
+          reason: disposition,
+        );
+      }
+    });
+
     test('a card already on screen does not count', () {
       for (final disposition in ['review', 'block']) {
         expect(

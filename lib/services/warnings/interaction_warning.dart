@@ -86,6 +86,15 @@ class DoseDecision {
   final String? formContext;
   final DoseDecisionRule? decisionRule;
 
+  /// The pipeline could not read this product's amount or form for the rule.
+  bool get amountUnread =>
+      evaluationStatus == 'amount_unknown' ||
+      evaluationStatus == 'form_unknown';
+
+  /// The rule names other forms, so this product's form is outside it. That was
+  /// read, not left unknown.
+  bool get formExcluded => evaluationStatus == 'excluded_form';
+
   factory DoseDecision.fromJson(Map<String, dynamic> json) {
     final rawRule = json['decision_rule'];
     return DoseDecision(

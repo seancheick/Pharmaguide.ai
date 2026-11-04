@@ -49,13 +49,17 @@ List<InteractionWarning> applyConsumerDispositionGate(
 /// check. Who a rule applies to comes from its gate with the dose taken out,
 /// since the dose is the part that could not be read, so a rule with no target
 /// applies to every viewer.
+///
+/// [cardsShown] is for a surface that shows the product's own cards, where a
+/// rule the pipeline kept as a review is already on screen. Stack Health shows
+/// none, so there any disposition counts.
 bool hasUnreadDoseRule(
   Iterable<InteractionWarning> warnings, {
   required Set<String> userConditions,
   required Set<String> userDrugClasses,
   Set<String> userProfileFlags = const <String>{},
+  bool cardsShown = true,
 }) {
-  const unread = {'amount_unknown', 'form_unknown'};
   final profile = UserProfile(
     conditions: userConditions,
     drugClasses: userDrugClasses,
@@ -64,10 +68,11 @@ bool hasUnreadDoseRule(
   return warnings.any((warning) {
     final decision = warning.doseDecision;
     if (decision == null ||
-        !unread.contains(decision.evaluationStatus) ||
+        !decision.amountUnread ||
         warning.direction == 'beneficial' ||
-        consumerDispositionFromWire(decision.consumerDisposition) !=
-            ConsumerDisposition.suppress) {
+        (cardsShown &&
+            consumerDispositionFromWire(decision.consumerDisposition) !=
+                ConsumerDisposition.suppress)) {
       return false;
     }
     final gate = warning.profileGate;

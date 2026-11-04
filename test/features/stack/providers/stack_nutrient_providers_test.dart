@@ -655,6 +655,265 @@ void main() {
       },
     );
 
+    group('a dose rule with no amount the pipeline could stand behind', () {
+      Map<String, Object?> card(
+        String status, {
+        String disposition = 'review',
+        String ingredientName = 'Caffeine Anhydrous',
+        String canonicalId = 'caffeine',
+        String conditionId = 'hypertension',
+        String comparator = '>',
+        double threshold = 400,
+      }) => {
+        'type': 'interaction',
+        'severity': 'caution',
+        'evidence_level': 'established',
+        'title': '$ingredientName / $conditionId',
+        'ingredient_name': ingredientName,
+        'ingredient_canonical_id': canonicalId,
+        'condition_ids': [conditionId],
+        'direction': 'harmful',
+        'profile_gate': {
+          'gate_type': 'condition',
+          'requires': {
+            'conditions_any': [conditionId],
+            'drug_classes_any': <String>[],
+            'profile_flags_any': <String>[],
+          },
+          'excludes': <String, Object?>{},
+          'dose': null,
+        },
+        'dose_decision': {
+          'clinical_severity': 'caution',
+          'evaluation_status': status,
+          'consumer_disposition': disposition,
+          'evaluated_daily_amount': null,
+          'evaluated_unit': null,
+          'threshold': null,
+          'threshold_unit': null,
+          'comparator': null,
+          'decision_rule': {
+            'comparator': comparator,
+            'threshold': threshold,
+            'threshold_unit': 'mg',
+            'consumer_disposition_if_met': 'review',
+            'consumer_disposition_if_not_met': 'suppress',
+          },
+        },
+      };
+
+      Map<String, Object?> row(String name, double amount) => {
+        'name': name,
+        'standard_name': name,
+        'quantity': amount,
+        'unit': 'mg',
+      };
+
+      Future<ProviderContainer> stack(
+        Map<String, Map<String, Object?>> blobs, {
+        List<String> conditions = const ['hypertension'],
+      }) async {
+        final coreDb = CoreDatabase.memory();
+        final userDb = UserDatabase.memory();
+        addTearDown(() async {
+          await coreDb.close();
+          await userDb.close();
+        });
+        await userDb.saveProfile(
+          ProfileState(
+            ageBracket: '19-30',
+            sex: 'Female',
+            conditions: conditions,
+          ).toCompanion(),
+        );
+        for (final entry in blobs.entries) {
+          await _seedProduct(coreDb, dsldId: entry.key, name: entry.key);
+          await _seedStack(userDb, dsldId: entry.key, name: entry.key);
+          await userDb.cacheDetail(
+            entry.key,
+            jsonEncode(entry.value),
+            _blobSha,
+          );
+        }
+        final container = ProviderContainer(
+          overrides: [
+            coreDatabaseProvider.overrideWithValue(coreDb),
+            userDatabaseProvider.overrideWithValue(userDb),
+            evaluatorProfileFlagsProvider.overrideWith(
+              (ref) async => const <String>{},
+            ),
+          ],
+        );
+        addTearDown(container.dispose);
+        return container;
+      }
+
+      // 27808: the label prints 200 per scoop and 1-2 scoops, and its rows sum
+      // to 650. The product page reads form_unknown as a review.
+      Map<String, Object?> unreadProduct(String status, String disposition) => {
+        'ingredients': [row('Caffeine', 350), row('Caffeine', 300)],
+        'warnings': [card(status, disposition: disposition)],
+      };
+
+      Map<String, Object?> readProduct(double amount) => {
+        'warnings': [
+          _compactThresholdWarning(
+            targetId: 'hypertension',
+            ingredientName: 'Caffeine Anhydrous',
+            ingredientCanonicalId: 'caffeine',
+            evaluatedAmount: amount,
+            threshold: 400,
+            unit: 'mg',
+            comparator: '>',
+          ),
+        ],
+      };
+
+      test(
+        'claims no crossing from the rows and reads as incomplete',
+        () async {
+          for (final status in ['form_unknown', 'amount_unknown']) {
+            for (final disposition in ['review', 'block', 'suppress']) {
+              final reason = '$status $disposition';
+              final container = await stack({
+                'UNREAD': unreadProduct(status, disposition),
+              });
+
+              expect(
+                await container.read(stackDoseThresholdAlertsProvider.future),
+                isEmpty,
+                reason: reason,
+              );
+              expect(
+                await container.read(stackDoseRulesUnreadProvider.future),
+                isTrue,
+                reason: reason,
+              );
+            }
+          }
+        },
+      );
+
+      test('someone the rule does not apply to gets neither', () async {
+        final container = await stack(
+          {'UNREAD': unreadProduct('form_unknown', 'review')},
+          conditions: const ['pregnancy'],
+        );
+
+        expect(
+          await container.read(stackDoseThresholdAlertsProvider.future),
+          isEmpty,
+        );
+        expect(
+          await container.read(stackDoseRulesUnreadProvider.future),
+          isFalse,
+        );
+      });
+
+      test(
+        'a partner that crosses counts alone and stays incomplete',
+        () async {
+          final container = await stack({
+            'UNREAD': unreadProduct('form_unknown', 'review'),
+            'READ': readProduct(500),
+          });
+
+          final alerts = await container.read(
+            stackDoseThresholdAlertsProvider.future,
+          );
+
+          expect(alerts, hasLength(1));
+          expect(alerts.single.totalValue, 500);
+          expect(alerts.single.isIncomplete, isTrue);
+          expect(alerts.single.contributions.single.productName, 'READ');
+        },
+      );
+
+      test('a partner below the line is no all-clear', () async {
+        final container = await stack({
+          'UNREAD': unreadProduct('form_unknown', 'review'),
+          'READ': readProduct(100),
+        });
+
+        expect(
+          await container.read(stackDoseThresholdAlertsProvider.future),
+          isEmpty,
+        );
+        expect(
+          await container.read(stackDoseRulesUnreadProvider.future),
+          isTrue,
+        );
+      });
+
+      test('an unread rule sums no partner rows', () async {
+        final container = await stack({
+          'UNREAD': {
+            'warnings': [card('amount_unknown')],
+          },
+          'ROWS': {
+            'ingredients': [row('Caffeine', 650)],
+          },
+        });
+
+        expect(
+          await container.read(stackDoseThresholdAlertsProvider.future),
+          isEmpty,
+        );
+      });
+
+      // 62077: niacin at high_cholesterol. The rule names another form, so this
+      // label's niacin is outside it, and that was read, not left unknown.
+      test(
+        'a form the rule excludes adds nothing and reads complete',
+        () async {
+          Map<String, Object?> excluded(double amount) => {
+            'ingredients': [row('Niacin', amount)],
+            'warnings': [
+              card(
+                'excluded_form',
+                disposition: 'suppress',
+                ingredientName: 'Niacin',
+                canonicalId: 'vitamin_b3_niacin',
+                conditionId: 'high_cholesterol',
+                comparator: '>=',
+                threshold: 1500,
+              ),
+            ],
+          };
+          final container = await stack(
+            {'A': excluded(1000), 'B': excluded(600)},
+            conditions: const ['high_cholesterol'],
+          );
+
+          expect(
+            await container.read(stackDoseThresholdAlertsProvider.future),
+            isEmpty,
+          );
+          expect(
+            await container.read(stackDoseRulesUnreadProvider.future),
+            isFalse,
+          );
+        },
+      );
+
+      test('a rule from an older blob still sums its rows', () async {
+        final container = await stack({
+          'OLD': {
+            'ingredients': [row('Caffeine', 650)],
+            'warnings': [_thresholdWarning('hypertension', 'Caffeine', 400)],
+          },
+        });
+
+        final alerts = await container.read(
+          stackDoseThresholdAlertsProvider.future,
+        );
+
+        expect(alerts, hasLength(1));
+        expect(alerts.single.totalValue, 650);
+        expect(alerts.single.isIncomplete, isFalse);
+      });
+    });
+
     group('beta-carotene at 20 mg across a stack', () {
       Future<List<StackDoseThresholdAlert>> alertsFor(
         List<String> conditions,

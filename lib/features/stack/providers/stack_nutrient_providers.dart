@@ -239,6 +239,7 @@ final stackDoseRulesUnreadProvider = FutureProvider<bool>((ref) async {
       userConditions: userConditions,
       userDrugClasses: userDrugClasses,
       userProfileFlags: userProfileFlags,
+      cardsShown: false,
     )) {
       return true;
     }
@@ -327,15 +328,17 @@ final stackDoseThresholdAlertsProvider =
       final normalizedRules = thresholdRules
           .where(
             (rule) =>
-                rule.normalizedDailyAmount != null &&
-                rule.normalizedDailyUnit?.isNotEmpty == true,
+                rule.amountUnresolved ||
+                (rule.normalizedDailyAmount != null &&
+                    rule.normalizedDailyUnit?.isNotEmpty == true),
           )
           .toList(growable: false);
       final legacyRules = thresholdRules
           .where(
             (rule) =>
-                rule.normalizedDailyAmount == null ||
-                rule.normalizedDailyUnit?.isNotEmpty != true,
+                !rule.amountUnresolved &&
+                (rule.normalizedDailyAmount == null ||
+                    rule.normalizedDailyUnit?.isNotEmpty != true),
           )
           .toList(growable: false);
       final alerts = <StackDoseThresholdAlert>[
