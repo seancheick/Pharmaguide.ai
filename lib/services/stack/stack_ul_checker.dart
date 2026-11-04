@@ -273,7 +273,9 @@ class StackUlChecker {
         (entry['data'] as List?) ?? const [],
         (g) =>
             g['age_range'] == '14-18' &&
-            (sex == null ? _kAdultGroups.contains(g['group']) : g['group'] == sex),
+            (sex == null
+                ? _kAdultGroups.contains(g['group'])
+                : g['group'] == sex),
       );
       if (teenUl != null && highestAmount > teenUl) rangeUnresolved = true;
     }
