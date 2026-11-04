@@ -1,9 +1,40 @@
 import 'dart:convert';
+import 'dart:io';
 import 'dart:typed_data';
 import 'package:http/http.dart' as http;
+import 'package:path/path.dart' as p;
+import 'package:path_provider/path_provider.dart';
 import 'package:printing/printing.dart';
 import 'package:pharmaguide/core/scoring/catalog_product_semantics.dart';
 import 'package:share_plus/share_plus.dart';
+
+const _clinicianReportFilename = 'pharmaguide-clinician-report.pdf';
+
+/// Removes the report copy `Printing.sharePdf` leaves behind and never deletes:
+/// `tmp/` on iOS, `cache/share/` on Android. It is outside every account's
+/// folder, so nothing else would clear it (ADR-013). It can't go when the share
+/// call returns, because the share sheet may still need it. Never throws; a copy
+/// that survives is tried again at the next launch.
+Future<void> clearSharedClinicianReport({
+  Future<Directory> Function() supportDirectory =
+      getApplicationSupportDirectory,
+  Future<Directory> Function() cacheDirectory = getTemporaryDirectory,
+}) async {
+  Future<void> removeFrom(Future<String> Function() folder) async {
+    try {
+      final copy = File(p.join(await folder(), _clinicianReportFilename));
+      if (await copy.exists()) await copy.delete();
+    } on Object {
+      // Cleanup must never get in the way of launch or sign-out.
+    }
+  }
+
+  // Application Support is Library/Application Support in the iOS container.
+  await removeFrom(
+    () async => p.join((await supportDirectory()).parent.parent.path, 'tmp'),
+  );
+  await removeFrom(() async => p.join((await cacheDirectory()).path, 'share'));
+}
 
 /// Function shape used to invoke the system share sheet. Production
 /// callers leave it `null` and the service routes through
@@ -98,7 +129,7 @@ class ShareService {
   /// Returns `true` only when the platform confirms that the PDF was shared.
   /// A dismissed system share sheet is a normal cancellation, not an error.
   Future<bool> shareClinicianReportPdf(List<int> bytes) async {
-    const filename = 'pharmaguide-clinician-report.pdf';
+    const filename = _clinicianReportFilename;
     final override = _pdfShareOverride;
     if (override != null) {
       return override(bytes, filename: filename);
