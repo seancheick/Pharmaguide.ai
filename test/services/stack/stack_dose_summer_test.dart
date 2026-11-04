@@ -1111,6 +1111,66 @@ void main() {
       );
     });
 
+    group('a vitamin A row that reads only as a carotenoid mixture', () {
+      // 293269 prints Beta-Carotene and Mixed Carotenoids with no fraction, and
+      // 328639 prints Mixed Carotenoids. Both state vitamin A activity, not
+      // beta-carotene mass, so neither figure can reach the 20 mg tier.
+      Map<String, dynamic> row(num mcgRae) => {
+        'canonical_id': 'vitamin_a',
+        'standard_name': 'Vitamin A',
+        'matched_form': 'beta-carotene from mixed carotenoids',
+        'raw_source_path': 'ingredientRows[1]',
+        'dose_role': 'declared_total',
+        'skip_ul_check': true,
+        'skip_ul_reason': 'beta_carotene_no_established_ul',
+        'ul_assessment_status': 'not_applicable',
+        'per_day_min': mcgRae,
+        'per_day_max': mcgRae,
+        'converted_unit': 'mcg RAE',
+      };
+
+      test('its activity figure is no beta-carotene total', () {
+        final totals = summer.sum([
+          for (final (id, mcgRae) in const [('293269', 7000), ('328639', 9000)])
+            StackItemNutrients(
+              stackEntryId: id,
+              productName: id,
+              ingredients: [row(mcgRae)],
+            ),
+        ]);
+
+        expect(totals.containsKey('beta_carotene'), isFalse);
+      });
+
+      test('a card naming vitamin A adds nothing, however large', () {
+        final alert = summer.betaCaroteneStackCardAlert(
+          userConditions: const [],
+          products: [
+            product('293269', [
+              doseCard(amount: 7000, canonicalId: 'vitamin_a'),
+            ]),
+            product('328639', [
+              doseCard(amount: 9000, canonicalId: 'vitamin_a'),
+            ]),
+          ],
+        );
+
+        expect(alert, isNull);
+      });
+
+      test('a card with no usable amount makes no card and no figure', () {
+        final alert = summer.betaCaroteneStackCardAlert(
+          userConditions: const [],
+          products: [
+            product('293269', [doseCard()]),
+            product('328639', [doseCard()]),
+          ],
+        );
+
+        expect(alert, isNull);
+      });
+    });
+
     test('exactly 20 mg shows the card and just under it does not', () {
       expect(
         summer.betaCaroteneStackCardAlert(
