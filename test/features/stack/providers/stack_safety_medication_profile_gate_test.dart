@@ -25,7 +25,7 @@ class _ThrowingMedicationRulesRepository extends ReferenceDataRepository {
 
 UserStacksLocalData _medication({
   required String name,
-  required String rxcui,
+  required String? rxcui,
   String? drugClasses,
   String? medicationContext,
 }) {
@@ -171,6 +171,43 @@ Future<ProviderContainer> _containerWithSupplementAndMedication({
 }
 
 void main() {
+  for (final entry in {
+    'pregnancy': 'MCR_PREGNANCY_NSAIDS',
+    'kidney_disease': 'MCR_KIDNEY_DISEASE_NSAIDS',
+    '': null,
+  }.entries) {
+    test(
+      'saved class-only NSAID entry respects profile ${entry.key}',
+      () async {
+        final container = await _container(
+          profile: ProfileState(
+            conditions: [if (entry.key.isNotEmpty) entry.key],
+          ),
+          medication: _medication(
+            name: 'NSAIDs',
+            rxcui: null,
+            drugClasses: '["class:nsaids"]',
+          ),
+        );
+        final report = await container.read(stackSafetyReportProvider.future);
+        if (entry.value == null) {
+          expect(report.medicationProfileWarnings, isEmpty);
+        } else {
+          expect(
+            report.medicationProfileWarnings.map((w) => w.ruleId),
+            contains(entry.value),
+          );
+          expect(
+            orderedSignalsFrom(
+              report,
+            ).where((s) => s.family == SignalFamily.medicationProfile),
+            isNotEmpty,
+          );
+        }
+      },
+    );
+  }
+
   test(
     'actual stack consumer uses confirmed context and unknown legacy aspirin warns',
     () async {
