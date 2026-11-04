@@ -298,7 +298,7 @@ END $$;
 CREATE FUNCTION sec.check_reviewer_rpcs_refuse_non_reviewers() RETURNS void LANGUAGE plpgsql AS $$
 DECLARE d record; n integer := 0;
 BEGIN
-  FOR d IN SELECT * FROM sec.definers() WHERE name = ANY(sec.reviewer_rpcs()) LOOP
+  FOR d IN SELECT * FROM sec.definers() WHERE name = ANY(sec.reviewer_rpcs()) ORDER BY name LOOP
     PERFORM sec.expect('A', sec.null_call(d.proc), 'denied:42501', 'non-reviewer call of ' || d.name);
     n := n + 1;
   END LOOP;
@@ -308,7 +308,7 @@ END $$;
 CREATE FUNCTION sec.check_worker_rpcs_refuse_non_workers() RETURNS void LANGUAGE plpgsql AS $$
 DECLARE d record; n integer := 0;
 BEGIN
-  FOR d IN SELECT * FROM sec.definers() WHERE name = ANY(sec.worker_rpcs()) LOOP
+  FOR d IN SELECT * FROM sec.definers() WHERE name = ANY(sec.worker_rpcs()) ORDER BY name LOOP
     PERFORM sec.expect('A', sec.null_call(d.proc), 'denied:42501', 'non-worker call of ' || d.name);
     PERFORM sec.expect('R', sec.null_call(d.proc), 'denied:42501', 'reviewer call of worker RPC ' || d.name);
     n := n + 1;
