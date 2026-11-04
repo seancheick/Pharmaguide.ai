@@ -178,6 +178,100 @@ const _testClinicalProfileSchema = ClinicalProfileSchema(
 );
 
 void main() {
+  for (final waitForRequest in [false, true]) {
+    testWidgets(
+      'clear icon cancels ${waitForRequest ? "in-flight" : "pending"} medication search',
+      (tester) async {
+        final db = InteractionDatabase.memory();
+        final response = Completer<String>();
+        var requests = 0;
+        await tester.pumpWidget(
+          ProviderScope(
+            overrides: [
+              interactionDatabaseProvider.overrideWithValue(db),
+              referenceDataRepositoryProvider.overrideWith(
+                (ref) => _FakeReferenceDataRepository(),
+              ),
+              loadedProfileProvider.overrideWith(
+                (ref) async => const ProfileState(),
+              ),
+              clinicalProfileSchemaProvider.overrideWith(
+                (ref) async => _testClinicalProfileSchema,
+              ),
+              rxNormApiServiceProvider.overrideWithValue(
+                RxNormApiService(
+                  httpGet: (_) {
+                    requests++;
+                    return response.future;
+                  },
+                  offlineDb: db,
+                ),
+              ),
+            ],
+            child: const MaterialApp(home: MedicationEntryV2Screen()),
+          ),
+        );
+        final field = find.byKey(const Key('med-entry-search'));
+        await tester.enterText(field, 'aspirin');
+        await tester.pump(Duration(milliseconds: waitForRequest ? 301 : 50));
+        expect(requests, waitForRequest ? 1 : 0);
+        await tester.tap(find.byIcon(Icons.close_rounded));
+        await tester.pump();
+        expect(tester.widget<TextField>(field).controller!.text, isEmpty);
+        response.complete(
+          '{"approximateGroup":{"candidate":[{"rxcui":"1191","name":"Aspirin","score":"100"}]}}',
+        );
+        await tester.pumpAndSettle();
+        expect(requests, waitForRequest ? 1 : 0);
+        expect(
+          find.byKey(const Key('med-entry-suggestion-1191')),
+          findsNothing,
+        );
+        await tester.pumpWidget(const SizedBox.shrink());
+        await db.close();
+      },
+    );
+  }
+
+  testWidgets('clearing search rejects an in-flight medication response', (
+    tester,
+  ) async {
+    final db = InteractionDatabase.memory();
+    final response = Completer<String>();
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [
+          interactionDatabaseProvider.overrideWithValue(db),
+          referenceDataRepositoryProvider.overrideWith(
+            (ref) => _FakeReferenceDataRepository(),
+          ),
+          loadedProfileProvider.overrideWith(
+            (ref) async => const ProfileState(),
+          ),
+          clinicalProfileSchemaProvider.overrideWith(
+            (ref) async => _testClinicalProfileSchema,
+          ),
+          rxNormApiServiceProvider.overrideWithValue(
+            RxNormApiService(httpGet: (_) => response.future, offlineDb: db),
+          ),
+        ],
+        child: const MaterialApp(home: MedicationEntryV2Screen()),
+      ),
+    );
+    final field = find.byKey(const Key('med-entry-search'));
+    await tester.enterText(field, 'aspirin');
+    await tester.pump(const Duration(milliseconds: 301));
+    await tester.enterText(field, '');
+    response.complete(
+      '{"approximateGroup":{"candidate":[{"rxcui":"1191","name":"Aspirin","score":"100"}]}}',
+    );
+    await tester.pumpAndSettle();
+    expect(find.byKey(const Key('med-entry-suggestion-1191')), findsNothing);
+    expect(tester.widget<TextField>(field).controller!.text, isEmpty);
+    await tester.pumpWidget(const SizedBox.shrink());
+    await db.close();
+  });
+
   testWidgets(
     'pairwise confirmation is visible and invalidated by saved dose and schedule edits',
     (tester) async {

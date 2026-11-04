@@ -3,6 +3,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:pharmaguide/app.dart';
+import 'package:pharmaguide/features/search/v2/search_v2_screen.dart';
 import 'package:pharmaguide/core/widgets/pg_frosted_nav_bar.dart';
 import 'package:pharmaguide/data/database/core_database.dart';
 import 'package:pharmaguide/data/database/user_database.dart';
@@ -15,7 +16,11 @@ void main() {
   // Drift's close() hangs when called from tearDown after the fake-async
   // zone has drained — closing inside the body avoids the shutdown race.
 
-  Widget buildApp(CoreDatabase coreDb, UserDatabase userDb) {
+  Widget buildApp(
+    CoreDatabase coreDb,
+    UserDatabase userDb, {
+    bool catalogAvailable = true,
+  }) {
     return ProviderScope(
       overrides: [
         coreDatabaseProvider.overrideWithValue(coreDb),
@@ -25,7 +30,10 @@ void main() {
         ),
       ],
       // hasSeenOnboarding: true so splash ?next=/ → home shell.
-      child: const PharmaGuideApp(hasSeenOnboarding: true),
+      child: PharmaGuideApp(
+        hasSeenOnboarding: true,
+        catalogAvailable: catalogAvailable,
+      ),
     );
   }
 
@@ -64,6 +72,45 @@ void main() {
       await tester.pump(const Duration(milliseconds: 50));
     }
   }
+
+  testWidgets(
+    'catalog routes recover and withhold again without restarting the router',
+    (tester) async {
+      final coreDb = CoreDatabase.memory();
+      final userDb = UserDatabase.memory();
+      await tester.pumpWidget(
+        buildApp(coreDb, userDb, catalogAvailable: false),
+      );
+      await pumpPastSplash(tester);
+      final router = GoRouter.of(tester.element(find.byType(NavigationBar)));
+      router.go('/search');
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 300));
+      expect(find.byType(CatalogUnavailableScreen), findsOneWidget);
+      await tester.pumpWidget(buildApp(coreDb, userDb));
+      await tester.pump(const Duration(milliseconds: 300));
+      expect(find.byType(CatalogUnavailableScreen), findsNothing);
+      expect(find.byType(SearchV2Screen), findsOneWidget);
+      expect(
+        GoRouter.of(tester.element(find.byType(SearchV2Screen))),
+        same(router),
+      );
+      await tester.pumpWidget(
+        buildApp(coreDb, userDb, catalogAvailable: false),
+      );
+      await tester.pump(const Duration(milliseconds: 300));
+      expect(find.byType(CatalogUnavailableScreen), findsOneWidget);
+      expect(find.byType(SearchV2Screen), findsNothing);
+      // This file shares the production singleton router between tests.
+      // Restore its home route before the next app fixture mounts.
+      router.go('/');
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 300));
+      await tester.pumpWidget(const SizedBox.shrink());
+      await coreDb.close();
+      await userDb.close();
+    },
+  );
 
   // Chat was a placeholder ("still being prepared") taking one of five
   // primary tabs; it is hidden until chat ships.

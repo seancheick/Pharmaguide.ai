@@ -234,6 +234,8 @@ class _MedicationEntryV2ScreenState
   // ───────── autocomplete plumbing ─────────
 
   void _onQueryChanged(String value) {
+    // A cleared/edited query invalidates work before the next debounce fires.
+    _searchVersion++;
     _resetMedicationContext();
     _debounce?.cancel();
     final trimmed = value.trim();
@@ -287,13 +289,13 @@ class _MedicationEntryV2ScreenState
     });
 
     if (results.isEmpty) {
-      await _loadOfflineFallback();
+      await _loadOfflineFallback(version);
     }
   }
 
-  Future<void> _loadOfflineFallback() async {
+  Future<void> _loadOfflineFallback(int version) async {
     final classes = await _service.offlineDrugClasses();
-    if (!mounted) return;
+    if (!mounted || version != _searchVersion) return;
     setState(() {
       _offlineClasses = classes;
       _offlineFallbackVisible = classes.isNotEmpty;
@@ -433,8 +435,11 @@ class _MedicationEntryV2ScreenState
   }
 
   void _clearSelection() {
+    _debounce?.cancel();
+    _searchVersion++;
     _resetMedicationContext();
     setState(() {
+      _searching = false;
       _selectedName = null;
       _selectedRxcui = null;
       _selectedGenericRxcui = null;

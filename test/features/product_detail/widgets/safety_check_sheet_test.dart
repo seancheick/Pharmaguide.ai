@@ -58,6 +58,18 @@ void main() {
     expect(find.text('Add to stack'), findsOneWidget);
   });
 
+  testWidgets('incomplete mapping never renders a reassuring pre-add result', (
+    tester,
+  ) async {
+    await openSheet(
+      tester,
+      const PreAddSafetyResult(results: [], checksIncomplete: true),
+    );
+    expect(find.text("Couldn't fully check your stack"), findsOneWidget);
+    expect(find.text('No known interactions with your stack'), findsNothing);
+    expect(find.text('Add anyway'), findsOneWidget);
+  });
+
   testWidgets('a clear check reports no known interactions, not safety', (
     tester,
   ) async {
