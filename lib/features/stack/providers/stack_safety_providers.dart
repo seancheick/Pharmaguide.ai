@@ -562,6 +562,7 @@ final stackSafetyReportProvider = FutureProvider<StackSafetyReport>((
           userConditions: conditions,
           userDrugClasses: classes,
           userProfileFlags: flags,
+          ageBracket: profile.ageBracket,
         );
         final warnings = partitionProfileWarnings(
           warnings: guarded,
