@@ -5,7 +5,7 @@
     "schema_version": "5.5.0",
     "contract_test": "scripts/tests/test_clinical_risk_taxonomy_contract.py",
     "last_updated": "2026-11-03",
-    "total_entries": 84,
+    "total_entries": 85,
     "flutter_top_level_key": "clinical_risk_taxonomy",
     "drug_classes_count": 31,
     "migration": {
@@ -14,7 +14,7 @@
           "from": "5.4.0",
           "to": "5.5.0",
           "date": "2026-11-03",
-          "summary": "Additive: profile flag sex_male, derived on the device from the profile's sex, so a label statement addressed to men can reach only them. No other flag or condition changed."
+          "summary": "Additive: profile flags sex_male and sex_unstated, derived on the device from the profile's sex, so a label statement addressed to men reaches men and anyone who has not stated a sex, and no woman who has. No other flag or condition changed."
         },
         {
           "from": "5.2.0",
@@ -707,6 +707,14 @@
       "capture_mode": "derived_from_sex",
       "source_sex": "Male",
       "description": "The profile's sex is Male. Gates label statements addressed to men."
+    },
+    {
+      "id": "sex_unstated",
+      "label": "Sex not stated",
+      "category": "reproductive",
+      "capture_mode": "derived_from_sex",
+      "source_sex": "unstated",
+      "description": "The profile's sex is neither Male nor Female: not set, Prefer not to say, or a legacy Other. Gates label statements addressed to men, so a man who skipped the question is not falsely reassured."
     }
   ],
   "product_forms": [

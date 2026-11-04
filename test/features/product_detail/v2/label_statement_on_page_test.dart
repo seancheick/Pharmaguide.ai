@@ -263,7 +263,7 @@ void main() {
       severity: 'avoid',
       text: menText,
       gateType: 'combination',
-      flags: const ['sex_male'],
+      flags: const ['sex_male', 'sex_unstated'],
       conditionsAny: _ttc,
       conditionIds: _ttc,
     );
@@ -322,9 +322,23 @@ void main() {
       expect(find.textContaining(menText), findsNothing);
     });
 
-    for (final sex in const [null, 'Prefer not to say']) {
-      testWidgets('no stated sex ($sex): decision pending', (tester) async {
+    for (final sex in const [null, 'Prefer not to say', 'Other']) {
+      testWidgets('no stated sex ($sex) trying to conceive sees it', (
+        tester,
+      ) async {
         await _pumpPage(tester, sex: sex, conditions: _ttc, warnings: [men]);
+        _expectCard(menCard);
+      });
+
+      testWidgets('no stated sex ($sex) not trying to conceive does not', (
+        tester,
+      ) async {
+        await _pumpPage(
+          tester,
+          sex: sex,
+          conditions: const [],
+          warnings: [men],
+        );
         _expectUnchanged(text: menText);
       });
     }

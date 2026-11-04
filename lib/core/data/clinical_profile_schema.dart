@@ -49,7 +49,8 @@ class ClinicalProfileSchema {
   final List<ClinicalProfileFlag> userSelectableFlags;
   final Map<String, String> derivedFlagByCondition;
 
-  /// Flags derived from the profile's stored sex, keyed by that value.
+  /// Flags derived from the profile's stored sex, keyed by that value, or by
+  /// `unstated` for anything that is neither Male nor Female.
   final Map<String, String> derivedFlagBySex;
 
   const ClinicalProfileSchema({
@@ -192,7 +193,8 @@ class ClinicalProfileSchema {
     String? sex,
   }) {
     final result = <String>{...explicitFlags};
-    final sexFlag = derivedFlagBySex[sex];
+    final sexFlag =
+        derivedFlagBySex[sex == 'Male' || sex == 'Female' ? sex : 'unstated'];
     if (sexFlag != null) result.add(sexFlag);
     for (final condition in conditions) {
       final derived = derivedFlagByCondition[condition];

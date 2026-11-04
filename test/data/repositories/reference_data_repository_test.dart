@@ -53,10 +53,10 @@ void main() {
       );
     });
 
-    test('loads clinical_risk_taxonomy with 9 profile flags', () async {
+    test('loads clinical_risk_taxonomy with 10 profile flags', () async {
       final taxonomy = await repo.loadClinicalRiskTaxonomy();
       final profileFlags = taxonomy['profile_flags'] as List;
-      expect(profileFlags.length, 9);
+      expect(profileFlags.length, 10);
       expect(
         profileFlags.map((entry) => (entry as Map)['id']),
         containsAll(['pregnant', 'trying_to_conceive', 'bleeding_history']),
@@ -87,29 +87,15 @@ void main() {
           'lactation': 'breastfeeding',
           'surgery_scheduled': 'surgery_scheduled',
         });
-        expect(schema.derivedFlagBySex, {'Male': 'sex_male'});
-        expect(
-          schema.evaluatorFlags(
-            conditions: const [],
-            explicitFlags: const [],
-            sex: 'Male',
-          ),
-          {'sex_male'},
+        Set<String> flagsFor(String? sex) => schema.evaluatorFlags(
+          conditions: const [],
+          explicitFlags: const [],
+          sex: sex,
         );
-        for (final sex in const [
-          null,
-          'Female',
-          'Prefer not to say',
-          'Other',
-        ]) {
-          expect(
-            schema.evaluatorFlags(
-              conditions: const [],
-              explicitFlags: const [],
-              sex: sex,
-            ),
-            isEmpty,
-          );
+        expect(flagsFor('Male'), {'sex_male'});
+        expect(flagsFor('Female'), isEmpty);
+        for (final sex in const [null, '', 'Prefer not to say', 'Other']) {
+          expect(flagsFor(sex), {'sex_unstated'}, reason: '$sex');
         }
       },
     );

@@ -6,6 +6,10 @@ abstract final class SchemaIds {
 
   static const sexOptions = ['Male', 'Female', 'Other', 'Prefer not to say'];
 
+  /// Flags derived only from the profile's sex. No gate fires on one alone, so
+  /// they don't make a profile count as having something to check.
+  static const sexDerivedFlags = {'sex_male', 'sex_unstated'};
+
   // ---------------------------------------------------------------------------
   // "None" sentinels — Phase 11.7L.B.6.
   //

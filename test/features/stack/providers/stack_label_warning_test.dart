@@ -293,38 +293,104 @@ void main() {
     },
   );
   group('a statement to men trying to conceive', () {
+    const menText = 'Not for use in men if attempting to conceive.';
+    const womenText = 'Warning: Not for use by pregnant or nursing women.';
     final men = _labelWarning(
-      text: 'Not for use in men if attempting to conceive.',
+      text: menText,
       gateType: 'combination',
-      flags: const ['sex_male'],
+      flags: const ['sex_male', 'sex_unstated'],
       conditionsAny: const ['ttc'],
       conditionIds: const ['ttc'],
     );
 
-    Future<int> count({
-      required String sex,
-      required List<String> conditions,
+    Future<List<String>> shown(
+      String? sex,
+      List<String> conditions, {
+      bool withPregnancyStatement = false,
     }) async {
       final report = await _report(
         sex: sex,
         conditions: conditions,
         blob: () async => {
-          'warnings': [men],
+          'warnings': [
+            men,
+            if (withPregnancyStatement) _labelWarning(text: womenText),
+          ],
         },
       );
-      return report.stackInteractions.length;
+      return report.stackInteractions.map((r) => r.mechanism).toList();
     }
 
     test('reaches a man trying to conceive', () async {
-      expect(await count(sex: 'Male', conditions: const ['ttc']), 1);
+      expect(await shown('Male', const ['ttc']), [menText]);
     });
 
     test('stays from a woman trying to conceive', () async {
-      expect(await count(sex: 'Female', conditions: const ['ttc']), 0);
+      expect(await shown('Female', const ['ttc']), isEmpty);
     });
 
     test('stays from a man not trying to conceive', () async {
-      expect(await count(sex: 'Male', conditions: const ['hypertension']), 0);
+      expect(await shown('Male', const ['hypertension']), isEmpty);
+    });
+
+    for (final sex in const [null, 'Prefer not to say', 'Other']) {
+      test('no stated sex ($sex) trying to conceive sees it', () async {
+        expect(await shown(sex, const ['ttc']), [menText]);
+      });
+
+      test('no stated sex ($sex) not trying to conceive does not', () async {
+        expect(await shown(sex, const ['hypertension']), isEmpty);
+      });
+    }
+
+    group('on a label with both statements, like 66519', () {
+      test('a man trying to conceive sees only his', () async {
+        expect(
+          await shown('Male', const ['ttc'], withPregnancyStatement: true),
+          [menText],
+        );
+      });
+
+      test('a pregnant woman sees only hers', () async {
+        expect(
+          await shown('Female', const [
+            'pregnancy',
+          ], withPregnancyStatement: true),
+          [womenText],
+        );
+      });
+
+      test('a nursing woman sees only hers', () async {
+        expect(
+          await shown('Female', const [
+            'lactation',
+          ], withPregnancyStatement: true),
+          [womenText],
+        );
+      });
+
+      test('a woman trying to conceive sees neither', () async {
+        expect(
+          await shown('Female', const ['ttc'], withPregnancyStatement: true),
+          isEmpty,
+        );
+      });
+
+      test('no stated sex trying to conceive sees only the men\'s', () async {
+        expect(await shown(null, const ['ttc'], withPregnancyStatement: true), [
+          menText,
+        ]);
+      });
+
+      test('both statements count once each when both apply', () async {
+        expect(
+          await shown(null, const [
+            'ttc',
+            'pregnancy',
+          ], withPregnancyStatement: true),
+          unorderedEquals([menText, womenText]),
+        );
+      });
     });
   });
 
