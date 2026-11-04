@@ -93,7 +93,15 @@ Finder get _sheetScroll => find
 /// Review's consent sits at the end of its scrolling content, right above
 /// the pinned Submit button. The drags leave a fling running, so settle and
 /// reveal the whole tile before anything taps it.
+Future<void> _captureDirectionsIfNeeded(WidgetTester tester) async {
+  final add = find.byKey(const Key('missing-product-add-directions_warnings'));
+  if (add.evaluate().isEmpty) return;
+  await tester.tap(add);
+  await tester.pumpAndSettle();
+}
+
 Future<void> _scrollToConsent(WidgetTester tester) async {
+  await _captureDirectionsIfNeeded(tester);
   final consent = find.byKey(const Key('missing-product-consent'));
   await tester.scrollUntilVisible(consent, 300, scrollable: _sheetScroll);
   await tester.pumpAndSettle();
@@ -162,6 +170,11 @@ Future<void> _captureRequiredEvidence(
     await tester.tap(find.byKey(const Key('missing-product-add-barcode')));
     await tester.pumpAndSettle();
   }
+  expect(_stepTitle(tester), 'Directions / Suggested Use');
+  await tester.tap(
+    find.byKey(const Key('missing-product-add-directions_warnings')),
+  );
+  await tester.pumpAndSettle();
   expect(_stepTitle(tester), 'Review & submit');
   await _scrollToConsent(tester);
 }
@@ -891,6 +904,7 @@ void main() {
     expect(find.byKey(const Key('missing-product-next')), findsNothing);
     await tester.tap(find.byKey(const Key('missing-product-add-barcode')));
     await tester.pumpAndSettle();
+    await _captureDirectionsIfNeeded(tester);
     expect(_stepTitle(tester), 'Review & submit');
     await _scrollToConsent(tester);
 
@@ -953,7 +967,7 @@ void main() {
     // The combined-panel answer re-tagged the facts capture in place —
     // both photos survived the question (regression: a checkbox used to
     // delete the shot it described).
-    expect(backend.manifest, hasLength(4));
+    expect(backend.manifest, hasLength(5));
     expect(backend.manifest[0]['seq'], 1);
     expect(backend.manifest[0]['categories'], ['front_identity']);
     expect(backend.manifest[1]['seq'], 2);
@@ -1011,6 +1025,7 @@ void main() {
       );
       await tester.pumpAndSettle();
 
+      await _captureDirectionsIfNeeded(tester);
       expect(_stepTitle(tester), 'Review & submit');
       await _scrollToConsent(tester);
       expect(find.byKey(const Key('missing-product-submit')), findsOneWidget);
@@ -1021,7 +1036,7 @@ void main() {
       await tester.tap(find.byKey(const Key('missing-product-submit')));
       await tester.pumpAndSettle();
 
-      expect(backend.manifest, hasLength(2));
+      expect(backend.manifest, hasLength(3));
       expect(backend.manifest[0]['categories'], ['front_identity', 'barcode']);
       expect(backend.manifest[1]['categories'], [
         'supplement_facts',
@@ -1055,6 +1070,7 @@ void main() {
     expect(_stepTitle(tester), 'Barcode');
     await tester.tap(find.byKey(const Key('missing-product-add-barcode')));
     await tester.pumpAndSettle();
+    await _captureDirectionsIfNeeded(tester);
     expect(_stepTitle(tester), 'Review & submit');
 
     await _scrollToConsent(tester);
@@ -1064,7 +1080,7 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(backend.persistedCueFlag, isFalse);
-    expect(backend.manifest, hasLength(4));
+    expect(backend.manifest, hasLength(5));
     expect(backend.manifest[1]['categories'], ['supplement_facts']);
     expect(backend.manifest[2]['categories'], ['ingredient_disclosure']);
     expect(backend.manifest[3]['categories'], ['barcode']);
@@ -1100,7 +1116,7 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(backend.persistedCueFlag, isTrue);
-    expect(backend.manifest, hasLength(3));
+    expect(backend.manifest, hasLength(4));
     // Re-tagged in place, never deleted.
     expect(backend.manifest[1]['categories'], [
       'supplement_facts',
@@ -1145,11 +1161,12 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(backend.persistedCueFlag, isFalse);
-    expect(backend.manifest, hasLength(5));
+    expect(backend.manifest, hasLength(6));
     expect(backend.manifest[1]['categories'], ['supplement_facts']);
     expect(backend.manifest[2]['categories'], ['supplement_facts']);
     expect(backend.manifest[3]['categories'], ['barcode']);
-    expect(backend.manifest[4]['categories'], ['ingredient_disclosure']);
+    expect(backend.manifest[4]['categories'], ['directions_warnings']);
+    expect(backend.manifest[5]['categories'], ['ingredient_disclosure']);
   });
 
   testWidgets('the no-facts dead end explains why and can cancel', (
@@ -1307,7 +1324,7 @@ void main() {
           qualityGate: (photo) async {
             if (holdQuality &&
                 photo.categories.contains(
-                  ProductSubmissionEvidenceCategory.directionsWarnings,
+                  ProductSubmissionEvidenceCategory.lotExpiry,
                 )) {
               return await quality.future;
             }
@@ -1316,7 +1333,7 @@ void main() {
           readPhotoText: (photo) async {
             if (!holdQuality &&
                 photo.categories.contains(
-                  ProductSubmissionEvidenceCategory.directionsWarnings,
+                  ProductSubmissionEvidenceCategory.lotExpiry,
                 )) {
               return await text.future;
             }
@@ -1327,9 +1344,7 @@ void main() {
       await _captureRequiredEvidence(tester);
       await tester.tap(find.byKey(const Key('missing-product-consent')));
       await tester.pump();
-      final add = find.byKey(
-        const Key('missing-product-add-directions_warnings'),
-      );
+      final add = find.byKey(const Key('missing-product-add-lot_expiry'));
       await tester.ensureVisible(add);
       await tester.pumpAndSettle();
       await tester.tap(add);
@@ -1346,16 +1361,13 @@ void main() {
       if (holdQuality) {
         quality.complete(_okQuality);
       } else {
-        text.complete('Directions: Take one capsule daily.');
+        text.complete('Lot ABC. Expiration 2028.');
       }
       await tester.pumpAndSettle();
       await tester.tap(find.byKey(const Key('missing-product-submit')));
       await tester.pumpAndSettle();
-      expect(backend.manifest, hasLength(5));
-      expect(
-        backend.manifest.last['categories'],
-        contains('directions_warnings'),
-      );
+      expect(backend.manifest, hasLength(6));
+      expect(backend.manifest.last['categories'], contains('lot_expiry'));
       expect(find.text('Thanks — it’s in review'), findsOneWidget);
     });
   }
@@ -1374,7 +1386,7 @@ void main() {
     await tester.tap(find.byKey(const Key('missing-product-submit')));
     await tester.pump();
 
-    expect(find.text('Uploaded 0 of 4 photos…'), findsOneWidget);
+    expect(find.text('Uploaded 0 of 5 photos…'), findsOneWidget);
     expect(
       tester
           .widget<IconButton>(find.byKey(const Key('missing-product-close')))
@@ -1388,7 +1400,7 @@ void main() {
     await tester.pumpWidget(const SizedBox());
     pending.complete();
     await tester.pumpAndSettle();
-    expect(backend.uploaded, hasLength(4));
+    expect(backend.uploaded, hasLength(5));
     expect(await store.list(_userId), isEmpty);
     expect(tester.takeException(), isNull);
   });
@@ -1411,14 +1423,14 @@ void main() {
     await tester.pumpWidget(_harness(backend: backend, draftStore: store));
     await tester.pump();
     expect(find.text('Finish your photos?'), findsNothing);
-    expect(find.text('Uploaded 0 of 4 photos…'), findsOneWidget);
+    expect(find.text('Uploaded 0 of 5 photos…'), findsOneWidget);
     expect(backend.persistedSubmissionIds, [_submissionId]);
 
     pending.complete();
     await tester.pumpAndSettle();
     expect(find.text('Thanks — it’s in review'), findsOneWidget);
     expect(backend.persistedSubmissionIds, [_submissionId]);
-    expect(backend.uploaded, hasLength(4));
+    expect(backend.uploaded, hasLength(5));
     expect(await store.list(_userId), isEmpty);
   });
 
@@ -1560,6 +1572,28 @@ void main() {
         consentVersion: productSubmissionConsentVersion,
       );
     }
+
+    testWidgets('a saved capture that never sent resumes at Directions', (
+      tester,
+    ) async {
+      await store.save(
+        userId: _userId,
+        submissionId: _submissionId,
+        upc: _upc,
+        photos: [_photo(MissingProductSubmissionDraft.requiredCategories)],
+        consentVersion: productSubmissionConsentVersion,
+        uploadStarted: false,
+      );
+      final backend = _Backend(authenticatedUserId: _userId);
+      await tester.pumpWidget(_harness(backend: backend, draftStore: store));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Finish sending'));
+      await tester.pumpAndSettle();
+      expect(_stepTitle(tester), 'Directions / Suggested Use');
+      await _captureDirectionsIfNeeded(tester);
+      expect(_stepTitle(tester), 'Review & submit');
+      expect(backend.persistedSubmissionIds, isEmpty);
+    });
 
     testWidgets('offers to finish photos that were never sent', (tester) async {
       await seedInterruptedCapture();
@@ -1907,10 +1941,11 @@ void main() {
     await tester.tap(find.byKey(const Key('missing-product-add-barcode')));
     await tester.pumpAndSettle();
     // Optional panels are offered on review, not as a step of their own.
+    await _captureDirectionsIfNeeded(tester);
     expect(_stepTitle(tester), 'Review & submit');
 
     final library = find.byKey(
-      const Key('missing-product-add-library-directions_warnings'),
+      const Key('missing-product-add-library-lot_expiry'),
     );
     await tester.scrollUntilVisible(library, 200, scrollable: _sheetScroll);
     await tester.pumpAndSettle();
@@ -1928,16 +1963,14 @@ void main() {
     sources.clear();
     // The new photo joined the grid above, so the row moved: bring it back.
     await tester.ensureVisible(
-      find.byKey(const Key('missing-product-add-directions_warnings')),
+      find.byKey(const Key('missing-product-add-lot_expiry')),
     );
     await tester.pumpAndSettle();
-    await tester.tap(
-      find.byKey(const Key('missing-product-add-directions_warnings')),
-    );
+    await tester.tap(find.byKey(const Key('missing-product-add-lot_expiry')));
     await tester.pumpAndSettle();
     expect(sources, ['camera']);
     // Both land in the review grid, labelled with their panel.
-    expect(find.text('Directions', skipOffstage: false), findsNWidgets(2));
+    expect(find.text('Lot & expiry', skipOffstage: false), findsNWidgets(2));
   });
 
   testWidgets(
@@ -1954,9 +1987,7 @@ void main() {
       );
       await _captureRequiredEvidence(tester);
       blocked = true;
-      final add = find.byKey(
-        const Key('missing-product-add-directions_warnings'),
-      );
+      final add = find.byKey(const Key('missing-product-add-lot_expiry'));
       await tester.scrollUntilVisible(add, -200, scrollable: _sheetScroll);
       await tester.pumpAndSettle();
       await tester.ensureVisible(add);
@@ -2047,7 +2078,9 @@ void main() {
 
         expect(_stepTitle(tester), 'Barcode');
         await tapKey(tester, 'missing-product-add-barcode');
+        await _captureDirectionsIfNeeded(tester);
         expect(_stepTitle(tester), 'Review & submit');
+        await _scrollToConsent(tester);
         // The answer the photo gave stays correctable on review.
         expect(
           find.byKey(
@@ -2094,6 +2127,8 @@ void main() {
       await tapKey(tester, 'missing-product-next');
       expect(_stepTitle(tester), 'Barcode');
       await tapKey(tester, 'missing-product-add-barcode');
+      await _captureDirectionsIfNeeded(tester);
+      await _scrollToConsent(tester);
       // Still correctable on review, same escape hatch as a real
       // OCR-confirmed combined panel.
       expect(
@@ -2155,10 +2190,11 @@ void main() {
       // straight past it.
       await tapKey(tester, 'missing-product-next');
       // No separate barcode photo is asked for.
+      await _captureDirectionsIfNeeded(tester);
       expect(_stepTitle(tester), 'Review & submit');
       await submitFromReview(tester);
 
-      expect(backend.manifest, hasLength(2));
+      expect(backend.manifest, hasLength(3));
       expect(
         backend.manifest[1]['categories'],
         unorderedEquals([
@@ -2222,6 +2258,7 @@ void main() {
       await tapKey(tester, 'missing-product-add-supplement_facts');
       await tapKey(tester, 'missing-product-facts-combined');
       await tapKey(tester, 'missing-product-add-barcode');
+      await _captureDirectionsIfNeeded(tester);
       expect(_stepTitle(tester), 'Review & submit');
       expect(find.textContaining('Barcode found'), findsNothing);
     });
@@ -2352,7 +2389,7 @@ void main() {
       final text = {
         photos[0].photoId:
             'Supplement Facts\nServing Size 1 Capsule\n'
-            'Other Ingredients: cellulose\nWarning: keep out of reach of children.\n'
+            'Other Ingredients: cellulose\nDirections: Take one capsule daily.\n'
             '0 50428 38139 7',
         photos[1].photoId: 'NATURE BRAND\nVitamin D3',
         photos[2].photoId:
@@ -2595,6 +2632,7 @@ void main() {
     await tester.pumpAndSettle();
 
     // Not a review the user cannot submit: back for the missing panel.
+    await _captureDirectionsIfNeeded(tester);
     expect(_stepTitle(tester), 'Supplement Facts');
   });
 
@@ -2893,6 +2931,7 @@ class _MemoryDraftStorage implements ProductSubmissionDraftStorage {
     String? resubmissionOf,
     bool noSeparateIngredientPanel = false,
     int evidenceRevision = 1,
+    bool? uploadStarted,
   }) async {
     if (pendingSave != null) await pendingSave!.future;
     if (failSave) throw StateError('storage full');
@@ -2905,6 +2944,7 @@ class _MemoryDraftStorage implements ProductSubmissionDraftStorage {
       resubmissionOf: resubmissionOf,
       noSeparateIngredientPanel: noSeparateIngredientPanel,
       photos: List.unmodifiable(photos),
+      uploadStarted: uploadStarted,
       evidenceRevision: evidenceRevision,
     );
     records[submissionId] = PendingProductSubmission(

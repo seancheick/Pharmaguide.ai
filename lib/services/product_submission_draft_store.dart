@@ -85,6 +85,7 @@ abstract class ProductSubmissionDraftStorage {
     String? resubmissionOf,
     bool noSeparateIngredientPanel,
     int evidenceRevision,
+    bool? uploadStarted,
   });
 
   Future<List<PendingProductSubmission>> list(String userId);
@@ -107,6 +108,8 @@ class RestoredCapture {
   final List<ProductSubmissionPhoto> photos;
   final int evidenceRevision;
 
+  final bool? uploadStarted;
+
   const RestoredCapture({
     required this.submissionId,
     required this.upc,
@@ -115,6 +118,7 @@ class RestoredCapture {
     required this.noSeparateIngredientPanel,
     required this.photos,
     this.evidenceRevision = 1,
+    this.uploadStarted,
   });
 
   int? get retakeOfRevision => _retakeOf(evidenceRevision);
@@ -214,6 +218,7 @@ class ProductSubmissionDraftStore implements ProductSubmissionDraftStorage {
     String? resubmissionOf,
     bool noSeparateIngredientPanel = false,
     int evidenceRevision = 1,
+    bool? uploadStarted,
   }) {
     final capturedPhotos = List<ProductSubmissionPhoto>.unmodifiable(photos);
     final directory = _directoryFor(userId, submissionId);
@@ -268,6 +273,7 @@ class ProductSubmissionDraftStore implements ProductSubmissionDraftStorage {
         if (identifier != null) 'identifier': identifier.toJson(),
         'resubmission_of': resubmissionOf,
         'no_separate_ingredient_panel': noSeparateIngredientPanel,
+        'upload_started': uploadStarted,
         'consent_version': consentVersion,
         'evidence_revision': evidenceRevision,
         'captured_at': DateTime.now().toUtc().toIso8601String(),
@@ -414,6 +420,7 @@ class ProductSubmissionDraftStore implements ProductSubmissionDraftStorage {
         noSeparateIngredientPanel:
             manifest['no_separate_ingredient_panel'] == true,
         photos: photos,
+        uploadStarted: manifest['upload_started'] as bool?,
         evidenceRevision: manifest['evidence_revision'] as int,
       );
     });

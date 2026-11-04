@@ -119,9 +119,16 @@ Future<bool> showMissingProductSubmissionSheet(
 /// is tagged with; the ingredients step disappears when the facts capture
 /// already carries the ingredient list (asked as a one-tap question right
 /// under the facts photo — never a checkbox that could invalidate work).
-/// Optional panels (directions, lot) are offered on review, not as a step
-/// every contributor has to pass through.
-enum _CaptureStep { intro, front, facts, ingredients, barcode, review }
+/// Lot and expiration are offered on review.
+enum _CaptureStep {
+  intro,
+  front,
+  facts,
+  ingredients,
+  barcode,
+  directions,
+  review,
+}
 
 /// The answers to a question about what a photo shows.
 enum _HintChoice { keep, retake, move }
@@ -365,12 +372,19 @@ class _MissingProductSubmissionSheetState
           ) ??
           false);
 
+  bool get _needsDirections =>
+      widget.retake?.requestedPanels.contains(
+        ProductSubmissionEvidenceCategory.directionsWarnings,
+      ) ??
+      true;
+
   List<_CaptureStep> get _visibleSteps => [
     _CaptureStep.intro,
     _CaptureStep.front,
     _CaptureStep.facts,
     if (!_factsCarriesIngredients) _CaptureStep.ingredients,
     if (widget.identifier?.noCode != true) _CaptureStep.barcode,
+    if (_needsDirections && !_attemptedSubmission) _CaptureStep.directions,
     _CaptureStep.review,
   ];
 
@@ -396,6 +410,9 @@ class _MissingProductSubmissionSheetState
         _CaptureStep.ingredients => const {
           ProductSubmissionEvidenceCategory.ingredientDisclosure,
         },
+        _CaptureStep.directions => const {
+          ProductSubmissionEvidenceCategory.directionsWarnings,
+        },
         _CaptureStep.barcode => const {
           ProductSubmissionEvidenceCategory.barcode,
         },
@@ -413,6 +430,9 @@ class _MissingProductSubmissionSheetState
     _CaptureStep.ingredients => _covered(
       ProductSubmissionEvidenceCategory.ingredientDisclosure,
     ),
+    _CaptureStep.directions => _covered(
+      ProductSubmissionEvidenceCategory.directionsWarnings,
+    ),
     _CaptureStep.barcode => _covered(ProductSubmissionEvidenceCategory.barcode),
     _CaptureStep.intro || _CaptureStep.review => true,
   };
@@ -426,6 +446,7 @@ class _MissingProductSubmissionSheetState
   bool _alreadyCovered(_CaptureStep step) => switch (step) {
     _CaptureStep.front ||
     _CaptureStep.ingredients ||
+    _CaptureStep.directions ||
     _CaptureStep.barcode => _satisfies(step),
     _CaptureStep.facts => _satisfies(step) && _factsPanelLocationSettled,
     _CaptureStep.intro || _CaptureStep.review => false,
@@ -451,6 +472,12 @@ class _MissingProductSubmissionSheetState
       _coverageComplete;
 
   bool get _coverageComplete =>
+      _baseCoverageComplete &&
+      (!_needsDirections ||
+          _attemptedSubmission ||
+          _satisfies(_CaptureStep.directions));
+
+  bool get _baseCoverageComplete =>
       _photos.isNotEmpty &&
       MissingProductSubmissionDraft.requiredCategories.every(_covered);
 
@@ -863,8 +890,7 @@ class _MissingProductSubmissionSheetState
     if (h.showsFactsPanel) ProductSubmissionEvidenceCategory.supplementFacts,
     if (h.showsOtherIngredients)
       ProductSubmissionEvidenceCategory.ingredientDisclosure,
-    if (h.showsDirectionsOrWarnings)
-      ProductSubmissionEvidenceCategory.directionsWarnings,
+    if (h.showsDirections) ProductSubmissionEvidenceCategory.directionsWarnings,
     if (h.showsSubmissionBarcode) ProductSubmissionEvidenceCategory.barcode,
   };
 
@@ -1154,7 +1180,7 @@ class _MissingProductSubmissionSheetState
 
     // A single label photo can show several panels. Keep directions and
     // warnings alongside the chosen role instead of requiring another shot.
-    if (hints.showsDirectionsOrWarnings) {
+    if (hints.showsDirections) {
       tagged = tagged.withCategories({
         ...tagged.categories,
         ProductSubmissionEvidenceCategory.directionsWarnings,
@@ -1562,7 +1588,7 @@ class _MissingProductSubmissionSheetState
 
     final retake = widget.retake;
     if (retake != null) {
-      await _persistCapture();
+      await _persistCapture(uploadStarted: true);
       if (!_sameCaptureAccount) {
         await _finishSubmit(
           ProductSubmissionFailure(
@@ -1617,7 +1643,7 @@ class _MissingProductSubmissionSheetState
 
     // Save before the network call, not after. Everything from here on can
     // fail halfway, and the photos are the part the user cannot cheaply redo.
-    await _persistCapture();
+    await _persistCapture(uploadStarted: true);
     if (!_sameCaptureAccount) {
       await _finishSubmit(
         ProductSubmissionFailure(
@@ -1730,7 +1756,7 @@ class _MissingProductSubmissionSheetState
   /// Keep what has been captured so far. Called as photos land, not only at
   /// submit, because a capture abandoned at three of four photos is still
   /// several minutes of the user's effort.
-  Future<void> _persistCapture() async {
+  Future<void> _persistCapture({bool uploadStarted = false}) async {
     final store = _store;
     final userId = _captureOwnerId;
     final version = ++_captureSaveVersion;
@@ -1754,6 +1780,7 @@ class _MissingProductSubmissionSheetState
             resubmissionOf: _chosenResubmissionOf,
             noSeparateIngredientPanel: _factsCarriesIngredients,
             evidenceRevision: (widget.retake?.fromRevision ?? 0) + 1,
+            uploadStarted: uploadStarted || _attemptedSubmission,
           )
           .timeout(const Duration(seconds: 5));
       if (version == _captureSaveVersion) _captureSaved = true;
@@ -1955,14 +1982,12 @@ class _MissingProductSubmissionSheetState
       _chosenResubmissionOf = restored.resubmissionOf;
       _factsCarriesIngredients = restored.noSeparateIngredientPanel;
       _factsPanelLocationConfirmed = restored.noSeparateIngredientPanel;
-      // Land where the capture actually stands rather than assuming it was
-      // finished: a half-taken set resumes at the first missing panel.
+      // Legacy drafts lack the upload marker. A complete legacy manifest
+      // may already exist on the server, so preserve its exact retry bytes.
+      _attemptedSubmission = restored.uploadStarted ?? _baseCoverageComplete;
       _step = _firstUnsatisfiedStep();
       _stepError = null;
       _captureSaved = true;
-      // A complete restored capture may already have an immutable manifest
-      // on the server after a lost response. Preserve it for an exact retry.
-      _attemptedSubmission = _coverageComplete;
     });
     if (transfer != null) _observeTransfer(transfer);
   }
@@ -2176,6 +2201,13 @@ class _MissingProductSubmissionSheetState
             _CaptureStep.barcode,
             current: _step == _CaptureStep.barcode,
           ),
+        if (_needsDirections)
+          item(
+            'Directions',
+            ProductSubmissionEvidenceCategory.directionsWarnings,
+            _CaptureStep.directions,
+            current: _step == _CaptureStep.directions,
+          ),
       ],
     );
   }
@@ -2279,6 +2311,12 @@ class _MissingProductSubmissionSheetState
             hint: widget.identifier?.observedCode,
             kept: _covered(ProductSubmissionEvidenceCategory.barcode),
           ),
+          if (_needsDirections)
+            (
+              label: 'Directions / Suggested Use',
+              hint: 'How much to take and how often',
+              kept: _satisfies(_CaptureStep.directions),
+            ),
         ],
       ),
       const SizedBox(height: V2Spacing.space16),
@@ -2307,6 +2345,8 @@ class _MissingProductSubmissionSheetState
         _CaptureStep.facts => ProductSubmissionEvidenceCategory.supplementFacts,
         _CaptureStep.ingredients =>
           ProductSubmissionEvidenceCategory.ingredientDisclosure,
+        _CaptureStep.directions =>
+          ProductSubmissionEvidenceCategory.directionsWarnings,
         _CaptureStep.barcode => ProductSubmissionEvidenceCategory.barcode,
         _CaptureStep.intro ||
         _CaptureStep.front ||
@@ -2519,16 +2559,11 @@ class _MissingProductSubmissionSheetState
       PGEyebrow('Optional', color: context.v2.fgMuted),
       const SizedBox(height: V2Spacing.space4),
       Text(
-        'Directions and lot details help reviewers check dosing and '
-        'freshness.',
+        'Lot and expiration help reviewers identify the batch.',
         style: V2Typography.bodySm(color: context.v2.fgMuted),
       ),
       const SizedBox(height: V2Spacing.space12),
       for (final (category, label) in const [
-        (
-          ProductSubmissionEvidenceCategory.directionsWarnings,
-          'Directions & warnings',
-        ),
         (
           ProductSubmissionEvidenceCategory.lotExpiry,
           'Lot number & expiration',
@@ -2789,6 +2824,7 @@ class _MissingProductSubmissionSheetState
         _CaptureStep.front => 'Start with the front',
         _CaptureStep.facts => 'Start with Supplement Facts',
         _CaptureStep.ingredients => 'Start with Other Ingredients',
+        _CaptureStep.directions => 'Start with Directions',
         _CaptureStep.barcode => 'Start with the barcode',
         _CaptureStep.intro || _CaptureStep.review => 'Continue',
       };
@@ -2981,6 +3017,7 @@ class _MissingProductSubmissionSheetState
     _CaptureStep.front => 'Front of the package',
     _CaptureStep.facts => 'Supplement Facts',
     _CaptureStep.ingredients => 'Other Ingredients',
+    _CaptureStep.directions => 'Directions / Suggested Use',
     _CaptureStep.barcode =>
       widget.identifier == null ? 'Barcode' : 'Printed code',
     _CaptureStep.review => 'Review & submit',
@@ -2996,6 +3033,8 @@ class _MissingProductSubmissionSheetState
       'Fill the frame with the whole panel, straight on and without glare.',
     _CaptureStep.ingredients =>
       'Photograph the full list. Every ingredient matters for safety checks.',
+    _CaptureStep.directions =>
+      'Photograph the full directions, including how much to take and how often.',
     _CaptureStep.barcode =>
       widget.identifier == null
           ? 'Photograph the barcode so a reviewer can match it to the one you scanned.'
@@ -3008,6 +3047,7 @@ class _MissingProductSubmissionSheetState
     _CaptureStep.front => 'Front',
     _CaptureStep.facts => 'Supplement Facts',
     _CaptureStep.ingredients => 'Other Ingredients',
+    _CaptureStep.directions => 'Directions',
     _CaptureStep.barcode =>
       widget.identifier == null ? 'Barcode' : 'Printed code',
     _CaptureStep.intro || _CaptureStep.review => 'Label',
@@ -3021,6 +3061,8 @@ class _MissingProductSubmissionSheetState
     _CaptureStep.ingredients =>
       'Add at least one photo of the Other '
           'Ingredients list.',
+    _CaptureStep.directions =>
+      'Add a clear photo of the directions or suggested use.',
     _CaptureStep.barcode =>
       widget.identifier == null
           ? 'Add a clear photo or screenshot showing this package’s UPC digits.'
@@ -3029,7 +3071,7 @@ class _MissingProductSubmissionSheetState
   };
 }
 
-/// The four panels the intro promises, numbered in the order capture asks
+/// The panels the intro promises, numbered in the order capture asks
 /// for them. A retake marks the ones a reviewer already has as kept.
 class _PanelPlan extends StatelessWidget {
   const _PanelPlan({required this.rows});

@@ -20,6 +20,7 @@ class PanelHints {
   const PanelHints({
     this.showsFactsHeading = false,
     this.showsFactsPanel = false,
+    this.showsDirections = false,
     this.showsDirectionsOrWarnings = false,
     this.showsOtherIngredients = false,
     this.showsSubmissionBarcode = false,
@@ -34,6 +35,7 @@ class PanelHints {
   /// The heading or the table around it (serving size, % Daily Value), so a
   /// panel photographed with its heading cut off still counts.
   final bool showsFactsPanel;
+  final bool showsDirections;
   final bool showsDirectionsOrWarnings;
   final bool showsOtherIngredients;
 
@@ -50,6 +52,10 @@ final _factsHeading = RegExp(r'supplement\s*facts');
 final _factsTable = RegExp(
   r'serving\s*size|amount\s*per\s*serving|daily\s*value|%\s*dv\b|'
   r'servings?\s*per\s*container',
+);
+final _directions = RegExp(
+  r'\b(?:directions(?:\s+for\s+use)?|suggested\s+use|recommended\s+use)\s*[:.\n]?\s*'
+  r'(?:take|mix|add|use|consume|chew|dissolve|drink|adults?|[0-9])\b',
 );
 final _directionsOrWarnings = RegExp(
   r'directions|suggested\s*use|recommended\s*use|\bwarnings?\b|\bcaution\b|'
@@ -79,6 +85,7 @@ PanelHints readPanelHints(String text, {required GtinIdentity? submission}) {
   return PanelHints(
     showsFactsHeading: heading,
     showsFactsPanel: heading || _factsTable.hasMatch(lower),
+    showsDirections: _directions.hasMatch(lower),
     showsDirectionsOrWarnings: _directionsOrWarnings.hasMatch(lower),
     showsOtherIngredients: _otherIngredients.hasMatch(lower),
     showsSubmissionBarcode: showsSubmission,

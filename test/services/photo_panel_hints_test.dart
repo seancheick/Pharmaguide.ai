@@ -5,6 +5,24 @@ import 'package:pharmaguide/services/photo_panel_hints.dart';
 final _submission = GtinIdentity.parse('050428381397');
 
 void main() {
+  test('a warning alone does not cover the directions panel', () {
+    final hints = readPanelHints(
+      'Warning: keep out of reach of children.',
+      submission: _submission,
+    );
+    expect(hints.showsDirectionsOrWarnings, isTrue);
+    expect(hints.showsDirections, isFalse);
+  });
+
+  test('suggested use alongside Facts covers directions', () {
+    final hints = readPanelHints(
+      'Supplement Facts\nServing Size 1 scoop\nSuggested Use: Mix 2 scoops daily.',
+      submission: _submission,
+    );
+    expect(hints.showsFactsPanel, isTrue);
+    expect(hints.showsDirections, isTrue);
+  });
+
   test('a Supplement Facts panel reads as facts', () {
     final hints = readPanelHints(
       'Supplement Facts\nServing Size 1 Capsule\nAmount Per Serving %DV\n'
