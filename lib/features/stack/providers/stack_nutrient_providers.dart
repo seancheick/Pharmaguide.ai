@@ -261,7 +261,7 @@ final stackDoseRulesUnreadProvider = FutureProvider<bool>((ref) async {
     userConditions: userConditions,
     products: products,
   );
-});
+}, retry: (_, _) => null);
 
 final stackDoseThresholdAlertsProvider =
     FutureProvider<List<StackDoseThresholdAlert>>((ref) async {
