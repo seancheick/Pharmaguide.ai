@@ -104,14 +104,21 @@ class AccountStorage {
     await guest.rename(target.path);
   }
 
+  /// The step of [delete] that decides it. If this throws, nothing changed;
+  /// once it returns, the account's data can't be opened again.
+  Future<void> deleteDatabase(String? uid) async {
+    final folder = await _folderFor(uid);
+    final database = File(p.join(folder.path, databaseName));
+    if (await database.exists()) await database.delete();
+  }
+
   /// The database goes first, so a kill partway leaves no encrypted file behind
   /// without its key, which would lock this account out if it came back.
   Future<void> delete(String? uid) async {
     final folder = await _folderFor(uid);
     if (!await folder.exists()) return;
-    final database = File(p.join(folder.path, databaseName));
-    if (await database.exists()) await database.delete();
-    await _cipher?.forget(database.path);
+    await deleteDatabase(uid);
+    await _cipher?.forget(p.join(folder.path, databaseName));
     await folder.delete(recursive: true);
   }
 

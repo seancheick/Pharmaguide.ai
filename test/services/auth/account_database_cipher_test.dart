@@ -218,6 +218,67 @@ void main() {
       expect(await launch().prepare(path), key, reason: 'it comes back');
     });
 
+    group('only a key the store reports gone is lost for good', () {
+      File idFile() => File(p.join(p.dirname(path), 'database_key_id'));
+
+      test('absent from the store', () async {
+        vault.keys.clear();
+        await expectLater(
+          launch().prepare(path),
+          throwsA(isA<AccountKeyLost>()),
+        );
+      });
+
+      test('in the store, but not a usable key', () async {
+        vault.keys[idFile().readAsStringSync().trim()] = 'not a key';
+        await expectLater(
+          launch().prepare(path),
+          throwsA(isA<AccountKeyLost>()),
+        );
+      });
+
+      test('a store read that errors can be temporary', () async {
+        vault.readError = StateError('keystore locked');
+        await expectLater(
+          launch().prepare(path),
+          throwsA(
+            allOf(isA<AccountKeyUnavailable>(), isNot(isA<AccountKeyLost>())),
+          ),
+        );
+      });
+
+      test('a missing key id means the store was never asked', () async {
+        idFile().deleteSync();
+        await expectLater(
+          launch().prepare(path),
+          throwsA(
+            allOf(isA<AccountKeyUnavailable>(), isNot(isA<AccountKeyLost>())),
+          ),
+        );
+      });
+
+      test('a damaged key id means the store was never asked', () async {
+        idFile().writeAsStringSync('damaged');
+        await expectLater(
+          launch().prepare(path),
+          throwsA(
+            allOf(isA<AccountKeyUnavailable>(), isNot(isA<AccountKeyLost>())),
+          ),
+        );
+      });
+
+      test('a damaged plain file with no key id is not a lost key', () async {
+        idFile().deleteSync();
+        File(path).writeAsBytesSync(List.filled(4096, 7));
+        await expectLater(
+          launch().prepare(path),
+          throwsA(
+            allOf(isA<AccountKeyUnavailable>(), isNot(isA<AccountKeyLost>())),
+          ),
+        );
+      });
+    });
+
     test('a missing key id fails closed too', () async {
       File(p.join(p.dirname(path), 'database_key_id')).deleteSync();
       final writes = vault.writes;
@@ -457,6 +518,89 @@ void main() {
       guard = restart();
       await guard.boot(sessionUid: uid);
     }
+
+    group('starting over after a lost key, against real files', () {
+      /// Encrypts [uid]'s database with [name] in it, then forgets its key.
+      Future<void> lockedAccount(String uid, {String name = 'A med'}) async {
+        await nextLaunch(uid);
+        await _addTo(guard.database!, name);
+        await nextLaunch(uid);
+        expect(_isPlain(dbFor(uid)), isFalse);
+        final idFile = File(p.join(p.dirname(dbFor(uid)), 'database_key_id'));
+        vault.keys.remove(idFile.readAsStringSync().trim());
+      }
+
+      test(
+        'erases that account only, and gives it a new empty start',
+        () async {
+          await lockedAccount(a);
+          final lockedKeys = vault.keys.length;
+          await nextLaunch(b);
+          await _addTo(guard.database!, 'B med');
+          await nextLaunch(b);
+          await guard.onAuthEvent(event: AuthChangeEvent.signedOut, uid: null);
+          await _addTo(guard.database!, 'Guest med');
+          final bBytes = File(dbFor(b)).readAsBytesSync();
+          expect(vault.keys.length, greaterThan(lockedKeys));
+          final bKeys = Map.of(vault.keys);
+          final attachment = File(
+            p.join(p.dirname(dbFor(a)), 'attachments', 'scan.jpg'),
+          )..createSync(recursive: true);
+
+          await nextLaunch(a);
+          expect(guard.database, isNull);
+          expect(guard.canStartOver, isTrue);
+          await guard.startOver();
+
+          expect(guard.ownerUid, a);
+          expect(await _names(guard.database!), isEmpty);
+          expect(attachment.existsSync(), isFalse);
+          expect(guard.canStartOver, isFalse);
+          expect(File(dbFor(b)).readAsBytesSync(), bBytes);
+          bKeys.forEach((id, key) => expect(vault.keys[id], key));
+
+          await guard.onAuthEvent(event: AuthChangeEvent.signedOut, uid: null);
+          expect(await _names(guard.database!), ['Guest med']);
+          await guard.onAuthEvent(event: AuthChangeEvent.signedIn, uid: b);
+          expect(await _names(guard.database!), ['B med']);
+        },
+      );
+
+      test('a store read that errors never reaches the erase', () async {
+        await nextLaunch(a);
+        await _addTo(guard.database!, 'A med');
+        await nextLaunch(a);
+        vault.readError = StateError('keystore locked');
+        final before = File(dbFor(a)).readAsBytesSync();
+
+        await nextLaunch(a);
+
+        expect(guard.database, isNull);
+        expect(guard.canStartOver, isFalse);
+        await expectLater(guard.startOver(), throwsStateError);
+        expect(File(dbFor(a)).readAsBytesSync(), before);
+        vault.readError = null;
+        await guard.retry();
+        expect(await _names(guard.database!), ['A med']);
+      });
+
+      test('a damaged database with its key never reaches the erase', () async {
+        await nextLaunch(a);
+        await _addTo(guard.database!, 'A med');
+        await nextLaunch(a);
+        await guard.close();
+        File(dbFor(a)).writeAsBytesSync(List.filled(8192, 7));
+        final before = File(dbFor(a)).readAsBytesSync();
+        guard = restart();
+
+        await guard.boot(sessionUid: a);
+
+        expect(guard.database, isNull);
+        expect(guard.canStartOver, isFalse);
+        await expectLater(guard.startOver(), throwsStateError);
+        expect(File(dbFor(a)).readAsBytesSync(), before);
+      });
+    });
 
     test(
       'each account gets its own key, and neither opens the other',

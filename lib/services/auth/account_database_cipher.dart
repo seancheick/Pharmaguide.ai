@@ -17,6 +17,16 @@ class AccountKeyUnavailable implements Exception {
   String toString() => 'AccountKeyUnavailable';
 }
 
+/// The key store answered, and this database's key is gone or unusable. It
+/// won't come back on its own, so this alone may offer to erase. A store read
+/// that errors can be temporary, and stays [AccountKeyUnavailable].
+class AccountKeyLost extends AccountKeyUnavailable {
+  const AccountKeyLost();
+
+  @override
+  String toString() => 'AccountKeyLost';
+}
+
 /// Where database keys are kept, by key id.
 abstract interface class AccountKeyVault {
   Future<String?> read(String keyId);
@@ -175,16 +185,19 @@ class AccountDatabaseCipher {
   }
 
   Future<String> _keyForEncrypted(String dbPath) async {
-    String? key;
+    final String? key;
     try {
       final id = await _readKeyId(dbPath);
-      key = id == null ? null : await _vault.read(id);
+      // The store was never asked, and the file may simply be damaged.
+      if (id == null) throw const AccountKeyUnavailable();
+      key = await _vault.read(id);
+    } on AccountKeyUnavailable {
+      rethrow;
     } on Object catch (error, stackTrace) {
       _report(error, stackTrace);
-    }
-    if (key == null || !_hexKey.hasMatch(key)) {
       throw const AccountKeyUnavailable();
     }
+    if (key == null || !_hexKey.hasMatch(key)) throw const AccountKeyLost();
     return key;
   }
 

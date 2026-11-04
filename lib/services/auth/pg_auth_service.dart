@@ -9,6 +9,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:google_sign_in/google_sign_in.dart';
 import 'package:pharmaguide/data/database/user_database.dart';
 import 'package:pharmaguide/data/supabase/supabase_client.dart';
+import 'package:pharmaguide/services/auth/account_database_cipher.dart';
 import 'package:pharmaguide/services/auth/account_storage.dart';
 import 'package:pharmaguide/services/crash_reporting_service.dart';
 import 'package:pharmaguide/services/notifications/safety_push_service.dart';
@@ -104,6 +105,41 @@ class AccountOwnerStore {
   }
 }
 
+/// Stops every opt-in AI-share refresh, then deletes this user's snapshots
+/// while the session can still authorize it. Best-effort and bounded, so an
+/// offline phone gets through: the snapshots then stay until they expire.
+Future<void> purgeAiShareData({
+  AiSharePrefsStore? prefs,
+  AiShareSnapshotClient? snapshots,
+}) async {
+  // Stop every opt-in refresh first so nothing re-uploads after the purge.
+  try {
+    await (prefs ??
+            AiSharePrefsStore(SharedPreferencesAsyncAppPreferencesStore()))
+        .clear();
+  } on Object catch (error, stackTrace) {
+    CrashReportingService().recordError(
+      error,
+      stackTrace,
+      hint: 'ai_share:signout_prefs_clear_failed',
+    );
+  }
+  try {
+    // Bounded so an offline device can still sign out.
+    await (snapshots ?? AiShareSnapshotClient.production()).deleteAll().timeout(
+      const Duration(seconds: 10),
+    );
+  } on AiShareNotSignedIn {
+    // No session: nothing this device can authorize deleting.
+  } on Object catch (error, stackTrace) {
+    CrashReportingService().recordError(
+      error,
+      stackTrace,
+      hint: 'ai_share:signout_purge_failed',
+    );
+  }
+}
+
 /// The one owner of switching between people on a device (ADR-013). Holds the
 /// open user database, and applies [decideAccountAction] to live auth events.
 ///
@@ -124,6 +160,7 @@ class AccountSwitchGuard {
     this._readSessionUid,
     this._askBeforeAdoptingGuest = false,
     this._clearSharedReport = clearSharedClinicianReport,
+    this._purgeAiShare = purgeAiShareData,
   });
 
   factory AccountSwitchGuard.production({
@@ -150,6 +187,8 @@ class AccountSwitchGuard {
   final bool _askBeforeAdoptingGuest;
 
   final Future<void> Function() _clearSharedReport;
+
+  final Future<void> Function() _purgeAiShare;
 
   final AccountOwnerStore _ownerStore;
   final AccountStorage _storage;
@@ -219,6 +258,7 @@ class AccountSwitchGuard {
   ActiveAccount _account = ActiveAccount.guest;
   String? _ownerUid;
   Future<void> Function()? _retry;
+  bool _keyLost = false;
   Future<void> _tail = Future.value();
 
   /// Null when the owner's data could not be opened. See [retry].
@@ -272,6 +312,59 @@ class AccountSwitchGuard {
     await _retry?.call();
     onChanged?.call();
   });
+
+  /// True only while [database] is null because the key store says its key is
+  /// gone. No other failure qualifies: the data may still be recoverable.
+  bool get canStartOver => _keyLost && _database == null;
+
+  /// Erases the locked owner's data from this device for good, and opens an
+  /// empty database. Throws with nothing changed if the data can't be erased,
+  /// so the account stays locked and a new empty database never replaces it.
+  Future<void> startOver() => _enqueue(() async {
+    final uid = _ownerUid;
+    try {
+      if (!canStartOver) throw StateError('Only a lost key can start over');
+      if (_readSessionUid != null && _readSessionUid() != uid) {
+        throw StateError('Session changed while starting over');
+      }
+      await _storage.deleteDatabase(uid);
+    } on Object catch (error, stackTrace) {
+      CrashReportingService().recordError(
+        error,
+        stackTrace,
+        hint: 'account_switch:start_over',
+      );
+      rethrow;
+    }
+    // Their scheduled reminders outlive the folder.
+    await _endOwnerWork(previousOwner: uid, incomingUid: uid);
+    await _clearReportCopy();
+    await _finishErasing(uid);
+    // Never adopts: with no database left, the guest's folder would move in.
+    await _open(uid);
+    onChanged?.call();
+  });
+
+  /// The database is gone by now, so nothing here may leave the person locked.
+  Future<void> _finishErasing(String? uid) async {
+    final steps = <Future<void> Function()>[
+      () => _storage.delete(uid),
+      () => RecentSearchesService.deleteScope(AccountStorage.scopeFor(uid)),
+      if (uid != null) () async => _onAccountRemoved?.call(uid),
+      _purgeAiShare,
+    ];
+    for (final step in steps) {
+      try {
+        await step();
+      } on Object catch (error, stackTrace) {
+        CrashReportingService().recordError(
+          error,
+          stackTrace,
+          hint: 'account_switch:start_over_cleanup',
+        );
+      }
+    }
+  }
 
   /// Handle one auth event. Completes only after all side effects are done —
   /// callers MUST await this before flipping the app's auth mode, because the
@@ -512,6 +605,7 @@ class AccountSwitchGuard {
     _ownerUid = uid;
     _account = ActiveAccount(scope: AccountStorage.scopeFor(uid));
     _retry = () => _open(uid, adoptGuest: adoptGuest);
+    _keyLost = false;
     UserDatabase? opened;
     try {
       if (!_legacyMigrated) {
@@ -541,6 +635,7 @@ class AccountSwitchGuard {
       _acceptingNotificationWork = true;
       _retry = null;
     } on Object catch (error, stackTrace) {
+      _keyLost = error is AccountKeyLost;
       CrashReportingService().recordError(
         error,
         stackTrace,
@@ -813,34 +908,8 @@ class PGAuthService {
     await supabase.auth.signOut();
   }
 
-  Future<void> _purgeAiShareBeforeSignOut() async {
-    // Stop every opt-in refresh first so nothing re-uploads after the purge.
-    try {
-      await (_aiSharePrefs ??
-              AiSharePrefsStore(SharedPreferencesAsyncAppPreferencesStore()))
-          .clear();
-    } on Object catch (error, stackTrace) {
-      CrashReportingService().recordError(
-        error,
-        stackTrace,
-        hint: 'ai_share:signout_prefs_clear_failed',
-      );
-    }
-    try {
-      // Bounded so an offline device can still sign out.
-      await (_aiShareSnapshots ?? AiShareSnapshotClient.production())
-          .deleteAll()
-          .timeout(const Duration(seconds: 10));
-    } on AiShareNotSignedIn {
-      // No session: nothing this device can authorize deleting.
-    } on Object catch (error, stackTrace) {
-      CrashReportingService().recordError(
-        error,
-        stackTrace,
-        hint: 'ai_share:signout_purge_failed',
-      );
-    }
-  }
+  Future<void> _purgeAiShareBeforeSignOut() =>
+      purgeAiShareData(prefs: _aiSharePrefs, snapshots: _aiShareSnapshots);
 
   /// Clears only the session cached on this device.
   ///

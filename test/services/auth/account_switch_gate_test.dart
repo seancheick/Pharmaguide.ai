@@ -12,12 +12,19 @@ import 'package:path/path.dart' as p;
 import 'package:pharmaguide/data/database/user_database.dart';
 import 'package:pharmaguide/features/history/providers/health_history_providers.dart';
 import 'package:pharmaguide/features/stack/services/stack_sync_queue.dart';
+import 'package:pharmaguide/services/auth/account_database_cipher.dart';
 import 'package:pharmaguide/services/auth/account_storage.dart';
 import 'package:pharmaguide/services/auth/pg_auth_service.dart';
 import 'package:pharmaguide/services/recent_searches_service.dart';
 import 'package:pharmaguide/services/pending_submission_intent.dart';
+import 'package:pharmaguide/services/sharing/ai_share_prefs_store.dart';
+import 'package:pharmaguide/services/sharing/ai_share_scope.dart';
+import 'package:pharmaguide/services/sharing/ai_share_snapshot_client.dart';
+import 'package:pharmaguide/features/ai_share/ai_share_snapshot_pusher.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:supabase_flutter/supabase_flutter.dart' show AuthChangeEvent;
+
+import '../../features/ai_share/ai_share_test_fixtures.dart';
 
 const _a = 'account-a';
 const _b = 'account-b';
@@ -42,6 +49,31 @@ Future<void> _addHistoryEvent(UserDatabase db, String subjectType) => db
         effectiveAt: DateTime(2026),
       ),
     );
+
+/// Storage whose delete fails, as a held file or a full disk would.
+class _UndeletableStorage extends AccountStorage {
+  _UndeletableStorage({
+    required super.supportDirectory,
+    required super.documentsDirectory,
+    this.databaseFails = false,
+    this.restFails = false,
+  });
+
+  final bool databaseFails;
+  final bool restFails;
+
+  @override
+  Future<void> deleteDatabase(String? uid) async {
+    if (databaseFails) throw const FileSystemException('delete refused');
+    await super.deleteDatabase(uid);
+  }
+
+  @override
+  Future<void> delete(String? uid) async {
+    if (restFails) throw const FileSystemException('delete refused');
+    await super.delete(uid);
+  }
+}
 
 Future<List<String>> _names(UserDatabase db) async =>
     (await db.select(db.userStacksLocal).get()).map((r) => r.name).toList();
@@ -129,15 +161,20 @@ void main() {
       String? Function()? readSessionUid,
       bool askBeforeAdoptingGuest = false,
       Future<void> Function()? clearSharedReport,
+      Future<void> Function()? purgeAiShare,
+      Future<void> Function(String uid)? onAccountRemoved,
+      AccountStorage? storageOverride,
     }) {
       final guard = AccountSwitchGuard(
         ownerStore: AccountOwnerStore(),
-        storage: storage,
+        storage: storageOverride ?? storage,
         openDatabase: open ?? (path) async => UserDatabase.open(path),
         onOwnerChange: onOwnerChange,
         readSessionUid: readSessionUid,
         askBeforeAdoptingGuest: askBeforeAdoptingGuest,
         clearSharedReport: clearSharedReport ?? () async {},
+        purgeAiShare: purgeAiShare ?? () async {},
+        onAccountRemoved: onAccountRemoved,
       );
       addTearDown(guard.close);
       return guard;
@@ -524,6 +561,369 @@ void main() {
 
         expect(action, AccountSwitchAction.keep);
         expect(await storage.hasData(_a), isFalse);
+      });
+    });
+
+    group('starting over after a lost key', () {
+      /// Opens normally until [lock] names an account's database as lost.
+      late Object? failure;
+      late String? failingScope;
+      late int opens;
+
+      Future<UserDatabase> openOrFail(String path) async {
+        opens++;
+        final error = failure;
+        if (error != null && path.contains(failingScope!)) throw error;
+        return UserDatabase.open(path);
+      }
+
+      void lock(String? uid, Object error) {
+        failure = error;
+        failingScope = AccountStorage.scopeFor(uid);
+      }
+
+      File databaseOf(String? uid) => File(
+        p.join(
+          support.path,
+          'users',
+          AccountStorage.scopeFor(uid),
+          AccountStorage.databaseName,
+        ),
+      );
+
+      setUp(() {
+        failure = null;
+        failingScope = null;
+        opens = 0;
+      });
+
+      /// A guard on the locked account, its data on disk.
+      Future<AccountSwitchGuard> lockedGuard({
+        Future<void> Function()? onOwnerChange,
+        Future<void> Function()? purgeAiShare,
+        Future<void> Function(String uid)? onAccountRemoved,
+        String? Function()? readSessionUid,
+        AccountStorage? storageOverride,
+        Object error = const AccountKeyLost(),
+      }) async {
+        final first = guardWith(open: openOrFail);
+        await first.boot(sessionUid: _a);
+        await _addMedication(first.database!, 'Warfarin');
+        await first.close();
+        lock(_a, error);
+        final guard = guardWith(
+          open: openOrFail,
+          onOwnerChange: onOwnerChange,
+          purgeAiShare: purgeAiShare,
+          onAccountRemoved: onAccountRemoved,
+          readSessionUid: readSessionUid,
+          storageOverride: storageOverride,
+        );
+        await guard.boot(sessionUid: _a);
+        expect(guard.database, isNull);
+        return guard;
+      }
+
+      final otherFailures = <String, Object>{
+        'a store read that errors': const AccountKeyUnavailable(),
+        'a damaged database': StateError('file is not a database'),
+        'a full disk': const FileSystemException('No space left on device'),
+      };
+      for (final MapEntry(key: name, value: error) in otherFailures.entries) {
+        test('$name offers a retry only, and the erase refuses', () async {
+          var purges = 0;
+          final guard = await lockedGuard(
+            error: error,
+            purgeAiShare: () async => purges++,
+          );
+          final before = databaseOf(_a).readAsBytesSync();
+
+          expect(guard.canStartOver, isFalse);
+          await expectLater(guard.startOver(), throwsStateError);
+
+          expect(databaseOf(_a).readAsBytesSync(), before);
+          expect(guard.database, isNull);
+          expect(purges, 0);
+
+          failure = null;
+          await guard.retry();
+          expect(await _names(guard.database!), ['Warfarin']);
+        });
+      }
+
+      test('a lost key offers it, and a healthy account never does', () async {
+        final healthy = guardWith(open: openOrFail);
+        await healthy.boot(sessionUid: _a);
+        await _addMedication(healthy.database!, 'Warfarin');
+        expect(healthy.canStartOver, isFalse);
+        await expectLater(healthy.startOver(), throwsStateError);
+        expect(await _names(healthy.database!), ['Warfarin']);
+        await healthy.close();
+
+        lock(_a, const AccountKeyLost());
+        final guard = guardWith(open: openOrFail);
+        await guard.boot(sessionUid: _a);
+        expect(guard.canStartOver, isTrue);
+      });
+
+      test('a retry that opens the data takes the offer away', () async {
+        final guard = await lockedGuard();
+        expect(guard.canStartOver, isTrue);
+
+        failure = null;
+        await guard.retry();
+
+        expect(guard.canStartOver, isFalse);
+        await expectLater(guard.startOver(), throwsStateError);
+        expect(await _names(guard.database!), ['Warfarin']);
+      });
+
+      test('erases the locked account and opens an empty one', () async {
+        final removed = <String>[];
+        final guard = await lockedGuard(
+          onAccountRemoved: (uid) async => removed.add(uid),
+        );
+        final scope = guard.account.scope;
+        await RecentSearchesService(scope: scope).addSearch('warfarin');
+        failure = null;
+
+        await guard.startOver();
+
+        expect(guard.ownerUid, _a);
+        expect(await _names(guard.database!), isEmpty);
+        expect(guard.canStartOver, isFalse);
+        expect(await RecentSearchesService(scope: scope).getRecent(), isEmpty);
+        expect(removed, [_a]);
+      });
+
+      test('another account and the guest keep everything', () async {
+        final others = guardWith(open: openOrFail);
+        await others.boot(sessionUid: _a);
+        await _addMedication(others.database!, 'Warfarin');
+        await signIn(others, _b);
+        await _addMedication(others.database!, 'Metformin');
+        final bScope = others.account.scope;
+        await RecentSearchesService(scope: bScope).addSearch('b search');
+        await signOut(others);
+        await _addMedication(others.database!, 'Guest item');
+        final guestScope = others.account.scope;
+        await RecentSearchesService(
+          scope: guestScope,
+        ).addSearch('guest search');
+        await signIn(others, _a);
+        await others.close();
+
+        lock(_a, const AccountKeyLost());
+        final guard = guardWith(open: openOrFail);
+        await guard.boot(sessionUid: _a);
+        expect(guard.canStartOver, isTrue);
+        failure = null;
+
+        await guard.startOver();
+
+        expect(await _names(guard.database!), isEmpty);
+        await signOut(guard);
+        expect(await _names(guard.database!), ['Guest item']);
+        expect(await RecentSearchesService(scope: guestScope).getRecent(), [
+          'guest search',
+        ]);
+        await signIn(guard, _b);
+        expect(await _names(guard.database!), ['Metformin']);
+        expect(await RecentSearchesService(scope: bScope).getRecent(), [
+          'b search',
+        ]);
+      });
+
+      test(
+        'a guest waiting to be adopted is not pulled into the new start',
+        () async {
+          final seed = guardWith(open: openOrFail);
+          await seed.boot(sessionUid: _a);
+          await _addMedication(seed.database!, 'Warfarin');
+          await signOut(seed);
+          await _addMedication(seed.database!, 'Guest item');
+          await seed.close();
+
+          // No owner on record and a session found: this open adopts the guest
+          // if the account has no database, which is what erasing leaves.
+          lock(_a, const AccountKeyLost());
+          final guard = guardWith(open: openOrFail);
+          await guard.boot(sessionUid: _a);
+          expect(guard.canStartOver, isTrue);
+          failure = null;
+
+          await guard.startOver();
+
+          expect(await _names(guard.database!), isEmpty);
+          expect(databaseOf(null).existsSync(), isTrue);
+          await signOut(guard);
+          expect(await _names(guard.database!), ['Guest item']);
+        },
+      );
+
+      test('a locked guest erases the guest only', () async {
+        final seed = guardWith(open: openOrFail);
+        await seed.boot(sessionUid: _a);
+        await _addMedication(seed.database!, 'Warfarin');
+        await signOut(seed);
+        await _addMedication(seed.database!, 'Guest item');
+        await seed.close();
+
+        lock(null, const AccountKeyLost());
+        final guard = guardWith(open: openOrFail);
+        await guard.boot(sessionUid: null);
+        expect(guard.canStartOver, isTrue);
+        failure = null;
+
+        await guard.startOver();
+
+        expect(guard.ownerUid, isNull);
+        expect(await _names(guard.database!), isEmpty);
+        await signIn(guard, _a);
+        expect(await _names(guard.database!), ['Warfarin']);
+      });
+
+      test('a failed erase changes nothing, and nothing new opens', () async {
+        var ownerWork = 0;
+        var purges = 0;
+        final removed = <String>[];
+        final guard = await lockedGuard(
+          onOwnerChange: () async => ownerWork++,
+          purgeAiShare: () async => purges++,
+          onAccountRemoved: (uid) async => removed.add(uid),
+          storageOverride: _UndeletableStorage(
+            supportDirectory: () async => support,
+            documentsDirectory: () async => documents,
+            databaseFails: true,
+          ),
+        );
+        final scope = guard.account.scope;
+        await RecentSearchesService(scope: scope).addSearch('warfarin');
+        final before = databaseOf(_a).readAsBytesSync();
+        final opensBefore = opens;
+        final ownerWorkBefore = ownerWork;
+
+        await expectLater(
+          guard.startOver(),
+          throwsA(isA<FileSystemException>()),
+        );
+
+        expect(guard.database, isNull, reason: 'still locked');
+        expect(guard.canStartOver, isTrue, reason: 'it can be tried again');
+        expect(databaseOf(_a).readAsBytesSync(), before);
+        expect(opens, opensBefore, reason: 'nothing new was created');
+        expect(ownerWork, ownerWorkBefore);
+        expect(purges, 0);
+        expect(removed, isEmpty);
+        expect(await RecentSearchesService(scope: scope).getRecent(), [
+          'warfarin',
+        ]);
+      });
+
+      test(
+        'once the database is gone, a failed cleanup never leaves the person locked',
+        () async {
+          final guard = await lockedGuard(
+            purgeAiShare: () async => throw StateError('purge failed'),
+            onAccountRemoved: (_) async => throw StateError('drafts failed'),
+            storageOverride: _UndeletableStorage(
+              supportDirectory: () async => support,
+              documentsDirectory: () async => documents,
+              restFails: true,
+            ),
+          );
+          failure = null;
+
+          await guard.startOver();
+
+          expect(await _names(guard.database!), isEmpty);
+        },
+      );
+
+      test('a session that changed underneath refuses the erase', () async {
+        String? session = _a;
+        final guard = await lockedGuard(readSessionUid: () => session);
+        final before = databaseOf(_a).readAsBytesSync();
+        session = _b;
+
+        await expectLater(guard.startOver(), throwsStateError);
+
+        expect(databaseOf(_a).readAsBytesSync(), before);
+        expect(guard.database, isNull);
+      });
+
+      test('the erased account leaves no reminder behind', () async {
+        var ownerWork = 0;
+        final guard = await lockedGuard(onOwnerChange: () async => ownerWork++);
+        final before = ownerWork;
+        failure = null;
+
+        await guard.startOver();
+
+        expect(ownerWork, before + 1);
+      });
+
+      test('offline: it still finishes, and nothing uploads again', () async {
+        final backend = FakeAiShareBackend()..failWith = StateError('offline');
+        final prefs = AiSharePrefsStore(MemoryPreferencesStore());
+        await prefs.recordShare('c-1', AiShareScope.detailedReport, 24);
+        await prefs.setKeepUpdated('c-1', true);
+        final guard = await lockedGuard(
+          purgeAiShare: () =>
+              purgeAiShareData(prefs: prefs, snapshots: backend.client()),
+        );
+        failure = null;
+
+        await guard.startOver();
+
+        expect(await _names(guard.database!), isEmpty);
+        expect(backend.deletes, hasLength(1), reason: 'it did try');
+        expect(await prefs.readAll(), isEmpty);
+
+        backend.failWith = null;
+        final pushed = await AiShareSnapshotPusher(
+          isSignedIn: () => true,
+          prefs: prefs,
+          client: backend.client(),
+          loadData: () async => aiShareFixture(),
+        ).refreshAfterStackChange();
+        expect(pushed, 0);
+        expect(backend.uploads, isEmpty);
+      });
+
+      test('online: the snapshots are deleted', () async {
+        final backend = FakeAiShareBackend();
+        final prefs = AiSharePrefsStore(MemoryPreferencesStore());
+        final guard = await lockedGuard(
+          purgeAiShare: () =>
+              purgeAiShareData(prefs: prefs, snapshots: backend.client()),
+        );
+        failure = null;
+
+        await guard.startOver();
+
+        expect(backend.deletes.single.body, {'all': true});
+      });
+
+      testWidgets('a delete that never answers gives up after ten seconds', (
+        tester,
+      ) async {
+        final prefs = AiSharePrefsStore(MemoryPreferencesStore());
+        var finished = false;
+        unawaited(
+          purgeAiShareData(
+            prefs: prefs,
+            snapshots: AiShareSnapshotClient(
+              isSignedIn: () => true,
+              invoke: (_, _) => Completer<AiShareInvokeResponse>().future,
+            ),
+          ).then((_) => finished = true),
+        );
+
+        await tester.pump(const Duration(seconds: 9));
+        expect(finished, isFalse);
+        await tester.pump(const Duration(seconds: 2));
+        expect(finished, isTrue);
       });
     });
 
