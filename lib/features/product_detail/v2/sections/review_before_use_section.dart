@@ -483,8 +483,9 @@ class ProfileRelevanceSection extends StatelessWidget {
 
 /// A note the Product Safety card shows.
 bool isMaterialSafetyNote(InteractionWarning warning) =>
-    warning.severity.isActionable &&
-    isCriticalDisplayMode(warning.displayModeDefault);
+    isSourcedWatchlistSafetyNote(warning) ||
+    (warning.severity.isActionable &&
+        isCriticalDisplayMode(warning.displayModeDefault));
 
 /// Material global safety notes from the [partitionProfileWarnings] general
 /// bucket. Neutral education, benefits, and unmatched FYIs do not become

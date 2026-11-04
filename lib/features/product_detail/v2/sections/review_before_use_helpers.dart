@@ -440,22 +440,22 @@ String? buildConflictFooterBody(List<String> conflicts) {
 
 /// Pipeline-authored context is informational and has displayable copy.
 /// Shared by the notes renderer and the older-catalog history fallback.
-bool isProductContextNote(InteractionWarning warning) {
-  if (warning.displayModeDefault != 'informational' ||
-      warning.displayBody.trim().isEmpty) {
-    return false;
-  }
-  if (warning.warningType == 'watchlist_substance') {
-    return !warning.severity.isHard &&
-        warning.conditionIds.isEmpty &&
-        warning.drugClassIds.isEmpty &&
-        warning.profileGate == null &&
-        warning.sourceUrls.isNotEmpty;
-  }
-  return const {
-        'category_contamination_risk',
-        'manufacturer_violation',
-        'marketing_claim',
-      }.contains(warning.warningType) &&
-      warning.severity == Severity.informational;
-}
+bool isProductContextNote(InteractionWarning warning) =>
+    const {
+      'category_contamination_risk',
+      'manufacturer_violation',
+      'marketing_claim',
+    }.contains(warning.warningType) &&
+    warning.severity == Severity.informational &&
+    warning.displayModeDefault == 'informational' &&
+    warning.displayBody.trim().isNotEmpty;
+
+bool isSourcedWatchlistSafetyNote(InteractionWarning warning) =>
+    warning.warningType == 'watchlist_substance' &&
+    warning.displayModeDefault == 'informational' &&
+    !warning.severity.isHard &&
+    warning.conditionIds.isEmpty &&
+    warning.drugClassIds.isEmpty &&
+    warning.profileGate == null &&
+    warning.sourceUrls.isNotEmpty &&
+    (warning.alertBody?.trim().isNotEmpty ?? false);

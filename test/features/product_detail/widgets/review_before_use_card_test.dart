@@ -1236,14 +1236,13 @@ void main() {
     'category_contamination_risk',
     'manufacturer_violation',
     'marketing_claim',
-    'watchlist_substance',
   ]) {
     testWidgets('$type renders as product context with evidence and citation', (
       tester,
     ) async {
       final warning = InteractionWarning.fromJson({
         'type': type,
-        'severity': type == 'watchlist_substance' ? 'caution' : 'informational',
+        'severity': 'informational',
         'display_mode_default': 'informational',
         'evidence_level': 'ungraded',
         'title': 'Source-backed context',
@@ -1283,6 +1282,24 @@ void main() {
       expect(opened, isTrue);
     });
   }
+  testWidgets('a sourced watchlist note belongs in Product Safety', (
+    tester,
+  ) async {
+    final warning = InteractionWarning.fromJson({
+      'type': 'watchlist_substance',
+      'severity': 'caution',
+      'display_mode_default': 'informational',
+      'title': 'Watchlist ingredient: Frangula bark',
+      'safety_warning': 'Stimulant laxative for short-term use.',
+      'source_urls': ['https://doi.org/10.2903/j.efsa.2024.8766'],
+    });
+    final section = buildGeneralNotesSection(warnings: [warning]);
+    expect(section, isNotNull);
+    await tester.pumpWidget(MaterialApp(home: Scaffold(body: section!)));
+    expect(find.text('Review this product'), findsOneWidget);
+    expect(find.text('Product context'), findsNothing);
+  });
+
   test('context visibility rejects empty copy and hard hazards', () {
     for (final values in [
       {
