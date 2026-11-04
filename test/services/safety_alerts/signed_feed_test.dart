@@ -762,28 +762,67 @@ void main() {
       );
     }
 
-    const empty = 'const Map<String, String> _kProductionAlertFeedKeys = {};';
-    const pinned =
-        "const Map<String, String> _kProductionAlertFeedKeys = {\n"
-        "  'alert-feed-2026-11': 'ab',\n};";
+    String keysAre(String map) =>
+        'const Map<String, String> _kProductionAlertFeedKeys = $map;';
+    final realKey = "'alert-feed-2026-11': '${'ab' * 32}'";
 
-    test('is refused, because it could never verify a feed', () async {
-      final result = await check(empty);
+    final noKey = <String, String>{
+      'empty on one line': keysAre('{}'),
+      'empty with a space': keysAre('{ }'),
+      'empty across lines': keysAre('{\n}'),
+      'empty with a type': keysAre('<String, String>{}'),
+      'empty and const': keysAre('const {\n}'),
+      'only a comment': keysAre('{\n  // pinned later\n}'),
+      'a key commented out': keysAre('{\n  // $realKey,\n}'),
+      'a key in a block comment': keysAre('{\n  /* $realKey, */\n}'),
+      'the runbook placeholder': keysAre(
+        "{\n  'alert-feed-2026-11': '<public hex>',\n}",
+      ),
+      'a key that is too short': keysAre("{'alert-feed-2026-11': 'ab'}"),
+    };
+    for (final entry in noKey.entries) {
+      test('refuses ${entry.key}, which could never verify a feed', () async {
+        final result = await check(entry.value);
+        expect(result.exitCode, isNot(0));
+        expect('${result.stderr}', contains('RELEASE_SIGNING_RUNBOOK'));
+      });
+    }
+
+    test('refuses a source that no longer names the list', () async {
+      final result = await check('// moved');
       expect(result.exitCode, isNot(0));
-      expect('${result.stderr}', contains('RELEASE_SIGNING_RUNBOOK'));
+      expect('${result.stderr}', contains("can't find"));
     });
 
-    test('a pinned key is allowed', () async {
-      expect((await check(pinned)).exitCode, 0);
+    test('allows one real key', () async {
+      expect((await check(keysAre('{$realKey}'))).exitCode, 0);
+    });
+
+    test('allows a working key and a standby, across lines', () async {
+      final source = keysAre(
+        "{\n  $realKey,\n  'alert-feed-standby': '${'cd' * 32}',\n}",
+      );
+      expect((await check(source)).exitCode, 0);
     });
 
     test('a TestFlight build is allowed, for testing before the key', () async {
-      expect((await check(empty, distribution: 'testflight')).exitCode, 0);
+      expect(
+        (await check(keysAre('{}'), distribution: 'testflight')).exitCode,
+        0,
+      );
     });
 
-    test('a source that no longer names the list is refused', () async {
-      expect((await check('// moved')).exitCode, isNot(0));
-    });
+    test(
+      'the real source still names the list where the check looks',
+      () async {
+        final result = await Process.run(
+          'bash',
+          ['scripts/require_alert_feed_key.sh'],
+          environment: {'PHARMAGUIDE_IOS_DISTRIBUTION': ''},
+        );
+        expect('${result.stderr}', isNot(contains("can't find")));
+      },
+    );
 
     test('the Makefile runs it before both store builds', () {
       final makefile = File('Makefile').readAsStringSync();

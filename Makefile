@@ -79,11 +79,13 @@ require-alert-feed-key: ## Refuse a store build that could never verify the safe
 	@bash scripts/require_alert_feed_key.sh
 
 .PHONY: build-ios
-build-ios: hydrate-interaction-db require-alert-feed-key ## Build a signed IPA; set PHARMAGUIDE_IOS_DISTRIBUTION=testflight for beta testing
+build-ios: require-alert-feed-key hydrate-interaction-db ## Build a signed IPA; set PHARMAGUIDE_IOS_DISTRIBUTION=testflight for beta testing
 	@bash scripts/build_ios_release.sh "$(FLUTTER)" $(DART_DEFINES)
 
 .PHONY: build-android
-build-android: hydrate-interaction-db require-alert-feed-key ## Build Android release AAB
+# The TestFlight exemption is iOS only: an Android bundle is always a store build.
+build-android: export PHARMAGUIDE_IOS_DISTRIBUTION :=
+build-android: require-alert-feed-key hydrate-interaction-db ## Build Android release AAB
 	$(FLUTTER) build appbundle $(DART_DEFINES) --release
 
 # ─── Testing & Quality ────────────────────────────────────────────────────────
