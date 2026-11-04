@@ -277,15 +277,7 @@ class AccountSwitchGuard {
   Future<void> boot({required String? sessionUid}) => _enqueue(() async {
     await _clearReportCopy();
     // A kill can land between deciding an erase and finishing it.
-    try {
-      await _sweepErased();
-    } on Object catch (error, stackTrace) {
-      CrashReportingService().recordError(
-        error,
-        stackTrace,
-        hint: 'account_switch:start_over_cleanup',
-      );
-    }
+    await _finishErasing({null, await _ownerStore.read(), sessionUid});
     // No owner on record means the guest was open when the app last ran, so a
     // session found now is the sign-in whose event never got handled.
     final previousOwner = await _ownerStore.read();
@@ -346,38 +338,46 @@ class AccountSwitchGuard {
       );
       rethrow;
     }
-    // Their scheduled reminders outlive the folder.
-    await _endOwnerWork(previousOwner: uid, incomingUid: uid);
     await _clearReportCopy();
-    await _finishErasing(uid);
+    await _finishErasing({uid});
     // Never adopts: with no database left, the guest's folder would move in.
     await _open(uid);
     onChanged?.call();
   });
 
   /// The data is out of reach by now, so nothing here may leave the person
-  /// locked.
-  Future<void> _finishErasing(String? uid) async {
-    final steps = <Future<void> Function()>[
-      _sweepErased,
-      if (uid != null) () async => _onAccountRemoved?.call(uid),
-      _purgeAiShare,
-    ];
-    for (final step in steps) {
-      try {
-        await step();
-      } on Object catch (error, stackTrace) {
-        CrashReportingService().recordError(
-          error,
-          stackTrace,
-          hint: 'account_switch:start_over_cleanup',
-        );
-      }
+  /// locked. What fails is retried at the next launch.
+  Future<void> _finishErasing(Set<String?> known) async {
+    try {
+      await _storage.sweepErased((scope) async {
+        await RecentSearchesService.deleteScope(scope);
+        // The folder is named by a hash, so only a known uid can match it.
+        for (final uid in known) {
+          if (AccountStorage.scopeFor(uid) == scope) await _removeRest(uid);
+        }
+      });
+    } on Object catch (error, stackTrace) {
+      CrashReportingService().recordError(
+        error,
+        stackTrace,
+        hint: 'account_switch:start_over_cleanup',
+      );
     }
   }
 
-  Future<void> _sweepErased() =>
-      _storage.sweepErased(RecentSearchesService.deleteScope);
+  /// What an erased account has outside its folder.
+  Future<void> _removeRest(String? uid) async {
+    // Their scheduled reminders outlive the folder.
+    await _endOwnerWork(previousOwner: uid, incomingUid: uid);
+    try {
+      if (uid != null) await _onAccountRemoved?.call(uid);
+    } finally {
+      // The purge acts on whoever is signed in now, which must be them.
+      if (_readSessionUid == null || _readSessionUid() == uid) {
+        await _purgeAiShare();
+      }
+    }
+  }
 
   /// Handle one auth event. Completes only after all side effects are done —
   /// callers MUST await this before flipping the app's auth mode, because the

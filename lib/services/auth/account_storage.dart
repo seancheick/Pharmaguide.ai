@@ -127,7 +127,9 @@ class AccountStorage {
   }
 
   /// Removes every folder [moveAsideToErase] left, and tells [removeRest] whose
-  /// it was. A key that can't be forgotten is unusable with its folder gone.
+  /// it was. A key that can't be forgotten is unusable with its folder gone. If
+  /// anything fails this throws and the next call retries it, so [removeRest]
+  /// can run twice for one folder.
   Future<void> sweepErased(
     Future<void> Function(String scope) removeRest,
   ) async {
@@ -137,12 +139,20 @@ class AccountStorage {
       final name = p.basename(entry.path);
       final mark = name.indexOf(_erasingMark);
       if (entry is! Directory || mark < 0) continue;
-      await removeRest(name.substring(0, mark));
       try {
         await _cipher?.forget(p.join(entry.path, databaseName));
       } finally {
-        await entry.delete(recursive: true);
+        // The health data goes first, whatever else fails. What's left of the
+        // folder is the record that the rest is still owed.
+        try {
+          for (final child in await entry.list().toList()) {
+            await child.delete(recursive: true);
+          }
+        } finally {
+          await removeRest(name.substring(0, mark));
+        }
       }
+      await entry.delete(recursive: true);
     }
   }
 
