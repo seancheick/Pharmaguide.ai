@@ -243,7 +243,6 @@ class RxNormApiService {
 
     final raw = await _safeGet(url);
     if (raw == null) {
-      _writeCache(cacheKey, const <RxNormSuggestion>[]);
       return const <RxNormSuggestion>[];
     }
 
@@ -354,7 +353,10 @@ class RxNormApiService {
     }
 
     final result = classes.toList(growable: false)..sort();
-    _writeCache(cacheKey, result);
+    // A missing endpoint is a temporary partial result, not a durable lookup.
+    if (atcRaw != null && medrtRaw != null) {
+      _writeCache(cacheKey, result);
+    }
     return result;
   }
 
@@ -428,7 +430,6 @@ class RxNormApiService {
     final url = Uri.parse('$_baseUrl/REST/rxcui/$r/related.json?tty=IN');
     final raw = await _safeGet(url);
     if (raw == null) {
-      _writeCache(cacheKey, const <String>[]);
       return const <String>[];
     }
 

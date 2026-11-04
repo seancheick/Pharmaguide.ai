@@ -1,22 +1,29 @@
-# Safety state and search follow-up — November 3, 2026
+# Profile and Stack safety — PR199 current handoff
 
-Goal: confirm and repair the reported medication-dose, incomplete pre-add, catalog recovery and search races; user now authorizes merging #196 after green required checks; no release authorization. Branch codex/safety-state-followup, baseline origin/main7fa991ca (submission195 integrated). Existing Claude worktrees/replay untouched. Source qualification only, no device proof.
+Goal: preserve honest incomplete checks without hiding independently known findings. Branch codex/profile-stack-safety; root integrates/pushes. Other Claude worktrees remain untouched. Source qualification only; no catalog publication, signed build or installed-device claim.
 
-Owner: active_stack_provider.dart::StackActions.updateTracking; stack_safety_providers.dart::safetyCheckForAddProvider; app.dart::_buildRouter/PharmaGuideApp; medication_entry_v2_screen.dart query/clear handlers; search_v2_screen.dart query handlers; photo_panel_hints.dart::_directions. Evidence: call-site searches, fail-first tests and final diff review. Will NOT create new clinical rules, thresholds, persisted fields, severity meanings or duplicate safety engines.
+## Current source
 
-Implemented:
-- Changed/cleared medication dosage revokes old confirmed dailyDoseMg and dose/use-compliance confirmation, retaining the separately confirmed route. Existing aspirin kidney rule returns; unchanged-dose/non-dose control retains valid confirmation.
-- Candidate/stack low or unknown mapping, absent canonical ingredients or catalog identities produce incomplete pre-add checks. Preserve known interaction hits and distinct empty-stack copy; reuse existing coverage threshold.
-- Catalog routes observe current availability/reason/retry through a private inherited scope, preserving the same router. Recover and withhold again without restart.
-- Medication/product query edits invalidate in-flight work immediately. Actual medication Clear cancels debounce, invalidates old response and clears searching; offline fallback is also guarded.
-- Separate low-priority photo hint recognizes Shake well before dosing instructions. This is not a health warning and does not qualify clinical evidence; it is not a release blocker.
+PR196 merged16f89781 after green required checks. Main privacy PR179 at1aeefc9b is integrated. PR199 baseline56c89a92 passed full hosted CI41764670580; the following review corrections require CI on the new tip, so the old green is not its qualification:
 
-Validation:
-- RED:2aspirin stale-context cases;6mapping cases;catalog recovery retained unavailable route;medication/product old-response races;actual Clear pending timer and in-flight result;Shake well dosing prefix missed.
-- GREEN:58combined safety owner/consumer tests, then27pre-add/sheet tests after additional controls;98photo/submission tests;36app/search/medication tests. These runs overlap; do not sum as unique tests.
-- Scoped analysis clean; formatting and git diff --check passed. Independent review found actual Clear bypass, repaired with two failing-first button regressions; final review has no remaining actionable finding.
-- Initial SQLite native-library errors were concurrent Flutter invocation contention; serialized tests pass. New router test initially left the global router on search and polluted7later tests; restored home at teardown without weakening assertions; final36pass.
-- Pre-merge topical confirmation regression:2cases fail before fix;35actions/context/profile tests pass after, then17actions tests pass with reminder-only controls; scoped analysis clean. Source fix585b954e.
-- Full local make check intentionally not launched alongside the active corpus replay. Hosted full app CI remains required on pushed candidate. No merge/device/deployment acceptance claimed.
+- c48d553f: transport failures are not cached as successful empty medication lookup results; successful empty responses still cache. Partial class endpoint failure retries.
+- 785ff73f: optional dose/schedule edits no longer cancel medication identity hydration and strand Save. Existing dose confirmation invalidation/stale-identity guards remain; each visible warning shows its canonical evidence label.
+- 642c108f: unread profile is nullable/unavailable, never an invented empty profile. Independent interactions/food advisories/timing survive; dose-check failure cannot discard the snapshot's known interactions and catalog recall. The snapshot remains incomplete. Missing flags/classes skip only rules whose requires/excludes need those inputs; readable condition-only warnings survive. Both Home and Stack can retry the canonical profile load, including pull-to-refresh, without discarding a healthy loaded profile. Distinct visible warning headlines retain distinct signal identities.
 
-Durable local receipts: /Users/seancheick/pg_quality/codex_takeover_20261103/{SAFETY_STATE_FOLLOWUP_GREEN,PREADD_MAPPING_RED,PREADD_MAPPING_GREEN,SHAKE_DIRECTIONS_TEST,RECOVERY_SEARCH_FOCUSED,MEDICATION_CLEAR_RED}.log. Next: qualify the updated #196 candidate, merge only after required checks pass, then report release blockers. Device/catalog acceptance remains separate.
+Earlier PR199 fixes remain: class-only entries validated through bundled medication map; all applicable entry warnings shown; DB read/init/malformed-profile failures block unread saves and expose retry in both editors; shared Product Detail composition/schema3 resolution/allergen matching in Stack; cumulative dose/UL/regulatory owners retained; actionable Home/Stack counts exclude informational notes while Good to know and existing banner presentation remain available.
+
+## Owner check
+
+Owner: profile_provider.dart::ProfileNotifier/readiness and profile_load_gate.dart::retryProfileLoad; medication_entry_v2_screen.dart identity/context generation; rxnorm_api_service.dart lookup caches; medication_class_bridge.dart::resolve; warnings_pipeline.dart::composeGuardedWarnings/partitionProfileWarnings; profile_warning_rule_provider.dart; allergen_match.dart::matchAllergens; stack_dose_summer.dart::stackDoseThresholdRulesFromWarnings; stack_safety_providers.dart::stackSafetyReportProvider/stackHealthSnapshotProvider. Evidence: direct reads/rg plus pipeline matrix/glossary. Will NOT create a second clinical evaluator, new registry, persisted status, exported field, guessed medication class or scoring policy.
+
+## Verification
+
+Behavioral class. Review follow-up fail-first receipts: PROFILE_PARTIAL_RED.log (profile failure erased report), PROFILE_REVIEW_EDGES_RED.log (5 missing-input/identity/retry failures), MED_LOOKUP_RED.log and MED_SCHEDULE_RED.log (lookup/edit/evidence cases; initial schedule tap corrected before valid RED). All under /Users/seancheick/pg_quality/codex_takeover_20261103/.
+
+Current focused green:72 safety/profile/Home/Stack/cumulative tests (PROFILE_PARTIAL_GREEN.log);46 medication owner/entry tests (MED_LOOKUP_GREEN.log). Full Flutter analysis clean (PROFILE_PARTIAL_ANALYZE.log). Independent final review found no remaining concrete defect. Formatting/diff checks clean. Prior integrated88 and earlier76/148/28/11 receipts cover initial source, not a substitute for new-tip CI. No device reproduction claimed.
+
+## Next / integration
+
+1. Push new completed tip and inspect required CI; fix actual failures with named nodes. PR199 is not release authorization. Required CI and review-thread status on GitHub are authoritative, not a stale green in this file.
+2. A4 label-warning integration must retain this broader shared Stack pass instead of adding its narrow section1b/_labelStatementResult beside it. Keep A4's paired taxonomy/sex/export work. LABEL product/text identity matches its candidate; verbatim statement dedup regression passes. Male-TTC applicability remains the paired A4 rollout.
+3. Release still needs remaining dose/identity/completion/Evidence and label-warning integration, signed feed/catalog delivery, final fingerprint-bound clinical receipts and release gates. Sean owns the final catalog run, followed by combined candidate/device validation and a signed TestFlight build. Recheck live plan/PR state before asserting unresolved decisions. Evidence policy is committed through pipeline346; this app PR does not implement scoring calibration.

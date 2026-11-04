@@ -19,6 +19,7 @@ import 'package:pharmaguide/core/theme/v2/v2_spacing.dart';
 import 'package:pharmaguide/core/theme/v2/v2_typography.dart';
 import 'package:pharmaguide/data/providers/reference_data_provider.dart';
 import 'package:pharmaguide/features/profile/profile_provider.dart';
+import 'package:pharmaguide/features/profile/widgets/profile_load_gate.dart';
 import 'package:pharmaguide/services/onboarding_prefs.dart';
 
 /// Phase 11.7L.B.9 — First-time profile wizard.
@@ -387,7 +388,9 @@ class _ProfileWizardV2ScreenState extends ConsumerState<ProfileWizardV2Screen> {
   }
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context) => ProfileLoadGate(builder: _buildLoaded);
+
+  Widget _buildLoaded(BuildContext context, WidgetRef ref) {
     final mq = MediaQuery.of(context);
     final isLastStep = _currentStep == _totalSteps - 1;
 
