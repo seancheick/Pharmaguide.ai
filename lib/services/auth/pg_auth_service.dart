@@ -13,6 +13,7 @@ import 'package:pharmaguide/services/auth/account_storage.dart';
 import 'package:pharmaguide/services/crash_reporting_service.dart';
 import 'package:pharmaguide/services/notifications/safety_push_service.dart';
 import 'package:pharmaguide/services/recent_searches_service.dart';
+import 'package:pharmaguide/services/sharing/share_service.dart';
 import 'package:pharmaguide/services/pending_submission_intent.dart';
 import 'package:pharmaguide/services/settings/app_preferences.dart';
 import 'package:pharmaguide/services/sharing/ai_share_prefs_store.dart';
@@ -122,6 +123,7 @@ class AccountSwitchGuard {
     this._onAccountRemoved,
     this._readSessionUid,
     this._askBeforeAdoptingGuest = false,
+    this._clearSharedReport = clearSharedClinicianReport,
   });
 
   factory AccountSwitchGuard.production({
@@ -146,6 +148,8 @@ class AccountSwitchGuard {
   /// Whoever used this phone without signing in may not be the person signing
   /// in now, so their items don't join the account until that person says so.
   final bool _askBeforeAdoptingGuest;
+
+  final Future<void> Function() _clearSharedReport;
 
   final AccountOwnerStore _ownerStore;
   final AccountStorage _storage;
@@ -231,6 +235,7 @@ class AccountSwitchGuard {
 
   /// Opens the data for the session the app launched with. Never throws.
   Future<void> boot({required String? sessionUid}) => _enqueue(() async {
+    await _clearReportCopy();
     // No owner on record means the guest was open when the app last ran, so a
     // session found now is the sign-in whose event never got handled.
     final previousOwner = await _ownerStore.read();
@@ -317,6 +322,7 @@ class AccountSwitchGuard {
   /// account is open. Throws if the delete fails, and the data stays locked.
   Future<void> removeAccountData(String uid) => _enqueue(() async {
     if (_ownerUid == uid) await _switch(null);
+    await _clearReportCopy();
     await _storage.delete(uid);
     await RecentSearchesService.deleteScope(AccountStorage.scopeFor(uid));
     await _onAccountRemoved?.call(uid);
@@ -407,10 +413,24 @@ class AccountSwitchGuard {
     final pending = _notificationWork.toList();
     final drained = await _drainNotificationWork(pending);
     await _endOwnerWork(previousOwner: _ownerUid, incomingUid: uid);
+    await _clearReportCopy();
     await _closeDatabase();
     await _open(uid, adoptGuest: adoptGuest);
     onChanged?.call();
     if (!drained) _cleanUpAfterLateWork(pending);
+  }
+
+  /// A failed or stuck cleanup is reported and never holds up the caller.
+  Future<void> _clearReportCopy() async {
+    try {
+      await _clearSharedReport().timeout(const Duration(seconds: 2));
+    } on Object catch (error, stackTrace) {
+      CrashReportingService().recordError(
+        error,
+        stackTrace,
+        hint: 'account_switch:report_copy',
+      );
+    }
   }
 
   /// False when a call outlasted the limit. A hung OS call must not hold the
