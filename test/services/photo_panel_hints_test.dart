@@ -5,6 +5,19 @@ import 'package:pharmaguide/services/photo_panel_hints.dart';
 final _submission = GtinIdentity.parse('050428381397');
 
 void main() {
+  test('only a Nutrition Facts heading without Supplement Facts prompts', () {
+    for (final (label, expected) in [
+      ('Nutrition Facts\nServing Size 1 can', true),
+      ('Nutrition Facts\nSupplement Facts', false),
+      ('Serving Size 1 scoop\nAmount Per Serving', false),
+    ]) {
+      expect(
+        readPanelHints(label, submission: _submission).looksLikeFoodLabel,
+        expected,
+      );
+    }
+  });
+
   test('a warning alone does not cover the directions panel', () {
     final hints = readPanelHints(
       'Warning: keep out of reach of children.',

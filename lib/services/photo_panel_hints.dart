@@ -18,6 +18,7 @@ typedef ReadSubmissionPhotoText =
 /// what it shows.
 class PanelHints {
   const PanelHints({
+    this.showsNutritionFactsHeading = false,
     this.showsFactsHeading = false,
     this.showsFactsPanel = false,
     this.showsDirections = false,
@@ -31,6 +32,10 @@ class PanelHints {
 
   /// The printed "Supplement Facts" heading itself.
   final bool showsFactsHeading;
+  final bool showsNutritionFactsHeading;
+
+  bool get looksLikeFoodLabel =>
+      showsNutritionFactsHeading && !showsFactsHeading;
 
   /// The heading or the table around it (serving size, % Daily Value), so a
   /// panel photographed with its heading cut off still counts.
@@ -48,6 +53,7 @@ class PanelHints {
   final GtinIdentity? conflictingBarcode;
 }
 
+final _nutritionFactsHeading = RegExp(r'\bnutrition\s+facts\b');
 final _factsHeading = RegExp(r'supplement\s*facts');
 final _factsTable = RegExp(
   r'serving\s*size|amount\s*per\s*serving|daily\s*value|%\s*dv\b|'
@@ -83,6 +89,7 @@ PanelHints readPanelHints(String text, {required GtinIdentity? submission}) {
   }
 
   return PanelHints(
+    showsNutritionFactsHeading: _nutritionFactsHeading.hasMatch(lower),
     showsFactsHeading: heading,
     showsFactsPanel: heading || _factsTable.hasMatch(lower),
     showsDirections: _directions.hasMatch(lower),

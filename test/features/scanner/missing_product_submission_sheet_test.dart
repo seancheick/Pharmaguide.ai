@@ -2003,6 +2003,32 @@ void main() {
     },
   );
 
+  testWidgets('Nutrition Facts can be discarded or kept for review', (
+    tester,
+  ) async {
+    await tester.pumpWidget(
+      _harness(
+        backend: _Backend(authenticatedUserId: _userId),
+        readPhotoText: (_) async => 'Nutrition Facts\nServing Size 1 can',
+      ),
+    );
+    await tester.tap(find.byKey(const Key('missing-product-start')));
+    await tester.pumpAndSettle();
+    final facts = find.byKey(const Key('missing-product-add-supplement_facts'));
+    await tester.tap(facts);
+    await tester.pumpAndSettle();
+    expect(find.text('Is this a supplement?'), findsOneWidget);
+    await tester.tap(find.text('Choose another photo'));
+    await tester.pumpAndSettle();
+    expect(find.byTooltip('Remove photo'), findsNothing);
+
+    await tester.tap(facts);
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Keep photo'));
+    await tester.pumpAndSettle();
+    expect(find.byTooltip('Remove photo'), findsOneWidget);
+  });
+
   group('on-device panel hints', () {
     const facts = ProductSubmissionEvidenceCategory.supplementFacts;
 

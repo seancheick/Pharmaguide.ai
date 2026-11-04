@@ -809,16 +809,20 @@ class _MissingProductSubmissionSheetState
       }
       // One at a time: eight full-size recognizers at once is a memory spike
       // on an older phone, for a few seconds saved.
-      final hints = <PanelHints>[];
+      final candidates =
+          <({ProductSubmissionPhoto photo, bool blurry, PanelHints hints})>[];
       for (final item in usable) {
-        hints.add(await _readHints(item.photo));
-        if (!mounted) return false;
+        final hints = await _readHints(item.photo);
+        if (!mounted || !_sameCaptureAccount) return false;
+        if (hints.looksLikeFoodLabel && !await _confirmNutritionFacts()) {
+          continue;
+        }
+        if (!mounted || !_sameCaptureAccount) return false;
+        candidates.add((photo: item.photo, blurry: item.blurry, hints: hints));
       }
+      if (candidates.isEmpty) return false;
       setState(() => _processing = false);
-      final sorted = await _sortLibraryPhotos([
-        for (var i = 0; i < usable.length; i++)
-          (photo: usable[i].photo, blurry: usable[i].blurry, hints: hints[i]),
-      ]);
+      final sorted = await _sortLibraryPhotos(candidates);
       if (!mounted ||
           sorted == null ||
           sorted.isEmpty ||
@@ -1124,6 +1128,14 @@ class _MissingProductSubmissionSheetState
   /// user chose to retake it. Every question can be answered "keep it".
   Future<({ProductSubmissionPhoto photo, String? notice, bool moved})?>
   _placeByHints(ProductSubmissionPhoto photo, PanelHints hints) async {
+    if (photo.categories.contains(
+          ProductSubmissionEvidenceCategory.supplementFacts,
+        ) &&
+        hints.looksLikeFoodLabel &&
+        !await _confirmNutritionFacts()) {
+      return null;
+    }
+    if (!mounted || !_sameCaptureAccount) return null;
     final conflict = hints.conflictingBarcode;
     if (conflict != null) {
       final choice = await _askAboutPhoto(
@@ -1206,11 +1218,25 @@ class _MissingProductSubmissionSheetState
     return (photo: tagged, notice: notice, moved: moved);
   }
 
+  Future<bool> _confirmNutritionFacts() async =>
+      await _askAboutPhoto(
+        title: 'Is this a supplement?',
+        body:
+            'This looks like a Nutrition Facts panel, which usually appears '
+            'on food and drinks. If the package has Supplement Facts, choose '
+            'a photo of that panel. If this is the correct supplement label, '
+            'you can keep the photo for review.',
+        keepLabel: 'Keep photo',
+        retakeLabel: 'Choose another photo',
+      ) ==
+      _HintChoice.keep;
+
   Future<_HintChoice?> _askAboutPhoto({
     required String title,
     required String body,
     required String keepLabel,
     String? moveLabel,
+    String retakeLabel = 'Retake',
   }) => showDialog<_HintChoice>(
     context: context,
     // A tap outside must not silently discard or keep a photo.
@@ -1225,7 +1251,7 @@ class _MissingProductSubmissionSheetState
             key: const Key('missing-product-hint-retake'),
             onPressed: () =>
                 Navigator.of(dialogContext).pop(_HintChoice.retake),
-            child: const Text('Retake'),
+            child: Text(retakeLabel),
           )
         else
           TextButton(
