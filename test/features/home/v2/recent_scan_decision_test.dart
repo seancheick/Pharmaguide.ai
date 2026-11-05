@@ -280,6 +280,9 @@ void main() {
       double? mappedCoverage,
       String? scoreConfidence,
       String? assessment = 'complete',
+      String? safety,
+      String? tier,
+      String? scoreStatus,
     }) async {
       await coreDb
           .into(coreDb.productsCore)
@@ -290,6 +293,9 @@ void main() {
               brandName: const drift.Value('Good Brand'),
               qualityScoreV4100: drift.Value(score),
               qualityAssessmentStatus: drift.Value(assessment),
+              productSafetyStatus: drift.Value(safety),
+              qualityTier: drift.Value(tier),
+              qualityScoreStatus: drift.Value(scoreStatus),
               verdict: drift.Value(verdict),
               mappedCoverage: drift.Value(mappedCoverage),
               qualityScoreConfidence: drift.Value(scoreConfidence),
@@ -323,6 +329,37 @@ void main() {
       await tester.pump();
       await tester.pump(const Duration(milliseconds: 200));
     }
+
+    testWidgets(
+      'nonblocked missing completion withholds stale carousel rating',
+      (tester) async {
+        final (coreDb, userDb) = await makeDbs(tester);
+        await seedScan(
+          coreDb,
+          userDb,
+          score: 82,
+          verdict: 'SAFE',
+          assessment: null,
+          safety: 'no_known_catalog_concern',
+          tier: 'Excellent',
+          scoreStatus: 'scored',
+          mappedCoverage: 1,
+        );
+        final record = recentScanFromProduct(
+          (await coreDb.findById('recent-1'))!,
+          time: 'now',
+        );
+        expect(record.score, isNull);
+        expect(record.qualityTier, isNull);
+        expect(record.productSafetyStatus, 'NO_KNOWN_CATALOG_CONCERN');
+        await pumpHome(tester, coreDb, userDb);
+        expect(find.text('Recent Scan Product'), findsOneWidget);
+        expect(find.text('Not scored'), findsOneWidget);
+        expect(find.textContaining('/100'), findsNothing);
+        expect(find.text('Excellent'), findsNothing);
+        expect(find.text('Blocked'), findsNothing);
+      },
+    );
 
     for (final assessment in [null, 'partial']) {
       testWidgets(
