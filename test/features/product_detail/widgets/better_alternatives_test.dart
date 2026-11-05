@@ -20,9 +20,13 @@ Future<void> _seedProduct(
   required String dsldId,
   required String productName,
   required String? brandName,
-  required double qualityScoreV4100,
+  required double? qualityScoreV4100,
   required String category,
   String? scoreConfidence,
+  String? assessmentStatus = 'complete',
+  String? scoreStatus = 'scored',
+  String? safetyStatus = 'no_known_catalog_concern',
+  String? topWarnings,
 }) async {
   await coreDb
       .into(coreDb.productsCore)
@@ -34,7 +38,10 @@ Future<void> _seedProduct(
           exportedAt: '2026-04-29T00:00:00Z',
           brandName: Value(brandName),
           qualityScoreV4100: Value(qualityScoreV4100),
-          qualityScoreStatus: const Value('scored'),
+          qualityScoreStatus: Value(scoreStatus),
+          qualityAssessmentStatus: Value(assessmentStatus),
+          productSafetyStatus: Value(safetyStatus),
+          topWarnings: Value(topWarnings),
           qualityScoreConfidence: Value(scoreConfidence),
           primaryCategory: Value(category),
         ),
@@ -437,30 +444,83 @@ void main() {
     // Simulator walkthrough 2026-10-01: the empty card sat under a sticky
     // "Compare other products" button and read as a contradiction. The
     // button now hides when there are no alternatives, so the card goes too.
-    testWidgets('blocked unscored product makes no higher-score claim', (
-      tester,
-    ) async {
-      final coreDb = CoreDatabase.memory();
-      await _seedCurrent(coreDb);
-      await _seedProduct(
-        coreDb,
-        dsldId: 'alt-1',
-        productName: 'Comparison Multi',
-        brandName: 'BrandA',
-        qualityScoreV4100: 70,
-        category: 'multivitamin',
+    for (final assessment in [null, 'partial']) {
+      testWidgets(
+        'unqualified current $assessment cannot publish recommendations',
+        (tester) async {
+          final coreDb = CoreDatabase.memory();
+          await _seedProduct(
+            coreDb,
+            dsldId: 'cur',
+            productName: 'Unqualified Current',
+            brandName: 'CurrentBrand',
+            qualityScoreV4100: 40,
+            category: 'multivitamin',
+            assessmentStatus: assessment,
+          );
+          await _seedProduct(
+            coreDb,
+            dsldId: 'alt-1',
+            productName: 'Completed Alternative',
+            brandName: 'BrandA',
+            qualityScoreV4100: 70,
+            category: 'multivitamin',
+          );
+          await tester.pumpWidget(_wrap(coreDb, _section()));
+          await tester.pumpAndSettle();
+          expect(find.byType(PGBetterAlternatives), findsNothing);
+          expect(find.text('Completed Alternative'), findsNothing);
+          expect(find.text('70/100'), findsNothing);
+          await tester.pumpWidget(const SizedBox.shrink());
+          await coreDb.close();
+        },
       );
-      await tester.pumpWidget(
-        _wrap(coreDb, _section(isBlocked: true, score100: null)),
-      );
-      await tester.pumpAndSettle();
-      expect(find.text('Other products to compare'), findsOneWidget);
-      expect(find.textContaining('higher catalog scores'), findsNothing);
-      expect(find.textContaining('may not be interchangeable'), findsOneWidget);
-      await tester.pumpWidget(const SizedBox.shrink());
-      await coreDb.close();
-    });
+    }
 
+    for (final staleScore in [null, 100.0]) {
+      testWidgets('blocked source $staleScore makes no higher-score claim', (
+        tester,
+      ) async {
+        final coreDb = CoreDatabase.memory();
+        await _seedProduct(
+          coreDb,
+          dsldId: 'cur',
+          productName: 'Blocked current',
+          brandName: 'CurrentBrand',
+          qualityScoreV4100: staleScore,
+          category: 'multivitamin',
+          scoreStatus: 'suppressed_safety',
+          safetyStatus: 'blocked',
+          topWarnings: '["Recorded source warning"]',
+        );
+        await _seedProduct(
+          coreDb,
+          dsldId: 'alt-1',
+          productName: 'Comparison Multi',
+          brandName: 'BrandA',
+          qualityScoreV4100: 70,
+          category: 'multivitamin',
+        );
+        await tester.pumpWidget(
+          _wrap(coreDb, _section(isBlocked: true, score100: staleScore)),
+        );
+        await tester.pumpAndSettle();
+        expect(find.text('Other options to review'), findsOneWidget);
+        expect(find.text('Comparison Multi'), findsOneWidget);
+        expect(find.byType(PGBetterAlternatives), findsOneWidget);
+        expect(
+          (await coreDb.findById('cur'))!.topWarnings,
+          '["Recorded source warning"]',
+        );
+        expect(find.textContaining('higher catalog scores'), findsNothing);
+        expect(
+          find.textContaining('may not be interchangeable'),
+          findsOneWidget,
+        );
+        await tester.pumpWidget(const SizedBox.shrink());
+        await coreDb.close();
+      });
+    }
     testWidgets('blocked product with no match renders nothing', (
       tester,
     ) async {

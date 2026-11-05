@@ -192,8 +192,10 @@ class BetterAlternativesSection extends ConsumerWidget {
           // Title updated 2026-05-16 (Sean): ranker mixes
           // strict-quality with intent/family matching, so this
           // copy describes what we actually return.
-          title: 'Other products to compare',
-          body: score100 == null
+          title: isBlocked
+              ? 'Other options to review'
+              : 'Other products to compare',
+          body: isBlocked || score100 == null
               ? 'Compare ingredients and intended use; these products may not be interchangeable.'
               : 'These products have higher catalog scores. Compare their '
                     'ingredients and intended use; they may not be interchangeable.',

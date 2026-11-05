@@ -189,10 +189,16 @@ Widget buildHeroSection({
   required bool isNotScored,
   required bool assessmentIncomplete,
   required List<HeroTrustTag> trustTags,
+  Object? assessmentOverride,
   Map<String, dynamic>? scoreConfidenceDetail,
   String? servingsPerContainerText,
   Widget? bottomBanner,
 }) {
+  final canPublish = catalogProductHasCompletePublicScore(
+    product,
+    assessmentResolved: !assessmentIncomplete,
+    assessmentOverride: assessmentOverride,
+  );
   return PGHeroSection(
     imageWidget: ProductImage(
       dsldId: dsldId,
@@ -201,7 +207,7 @@ Widget buildHeroSection({
       productName: productName,
       brandName: brandName,
       formFactor: formFactor,
-      score: score100,
+      score: canPublish ? score100 : null,
       size: 112,
       compact: true,
       // Tap the hero image → open fullscreen viewer with pinch-zoom.
@@ -231,10 +237,10 @@ Widget buildHeroSection({
           (t) => PGTrustTag(label: t.label, isCertification: t.isCertification),
         )
         .toList(growable: false),
-    score: score100?.round(),
-    qualityTier: product?.qualityTier,
+    score: score100?.isFinite == true ? score100!.round() : null,
+    qualityTier: canPublish ? product?.qualityTier : null,
     isNotScored: isNotScored,
-    assessmentIncomplete: assessmentIncomplete,
+    assessmentIncomplete: assessmentIncomplete || !canPublish,
     isBlocked: isBlocked,
     limitedAssessment: hasLimitedAssessmentConfidence(
       product?.qualityScoreConfidence,

@@ -1,5 +1,8 @@
 import {
   barcodeCandidates,
+  catalogAssessmentStatus,
+  publicQuality,
+  toMatch,
   postgrestCatalogStore,
   BLOB_KEYS_READ,
   capText,
@@ -10,6 +13,60 @@ import {
   type Json,
   toProductFacts,
 } from "./catalog.ts";
+
+Deno.test("blocked and unsafe catalog rows never publish numeric quality or tier", () => {
+  for (const safety of ["blocked", "unsafe", " BLOCKED ", "\tUNSAFE\n", "caution", "no_known_catalog_concern", "not_assessed", null, "future"]) {
+    const product = row({ product_safety_status: safety });
+    const blocked = ["blocked", "unsafe"].includes(String(safety).trim().toLowerCase());
+    const direct = publicQuality(product);
+    const match = toMatch(product);
+    const facts = toProductFacts(blob(), product);
+    for (const quality of [direct.quality, match, facts.quality as Json]) {
+      assertEquals(quality.quality_score_v4_100, blocked ? null : 80, String(safety));
+      assertEquals(quality.quality_tier, blocked ? null : "Good", String(safety));
+      assertEquals(quality.quality_score_confidence, blocked ? null : "high", String(safety));
+    }
+    if (blocked) assert(direct.limitations.some(value => value.includes("safety finding")), "safety limitation retained");
+    assert((facts.warnings as Json[]).some(w => w.title === "Contains Titanium Dioxide"), "warning retained");
+  }
+});
+
+Deno.test("public quality needs explicit completion and a valid scored total for both number and tier", () => {
+  for (const assessment of [undefined, null, "", "partial", "failed", "new_status", "complete"]) {
+    for (const scoreStatus of [undefined, null, "", "not_scored", "suppressed_safety", "future", "scored"]) {
+      for (const score of [undefined, null, NaN, Infinity, -Infinity, -1, 101, 0, 80, 100]) {
+        const product = row({ quality_assessment_status: assessment, quality_score_status: scoreStatus, quality_score_v4_100: score });
+        const valid = assessment === "complete" && scoreStatus === "scored" && score != null && Number.isFinite(score) && score >= 0 && score <= 100;
+        const { quality } = publicQuality(product);
+        assertEquals(quality.quality_score_v4_100, valid ? score : null, "number " + String([assessment, scoreStatus, score]));
+        assertEquals(quality.quality_tier, valid ? "Good" : null, "tier " + String([assessment, scoreStatus, score]));
+        assertEquals(quality.quality_score_confidence, valid ? "high" : null, "confidence " + String([assessment, scoreStatus, score]));
+        const match = toMatch(product);
+        assertEquals(match.quality_score_v4_100, quality.quality_score_v4_100);
+        assertEquals(match.quality_tier, quality.quality_tier);
+      }
+    }
+  }
+  assertEquals(catalogAssessmentStatus(null, "scored"), "partial");
+  assertEquals(catalogAssessmentStatus("", "suppressed_safety"), "partial");
+});
+
+Deno.test("detail assessment can restrict row proof but never upgrade missing or incomplete proof", () => {
+  for (const assessment of [undefined, null, "", "partial", "failed", "new_status", "complete"]) {
+    for (const override of [undefined, null, "", "partial", "failed", "new_status", "complete"]) {
+      const product = row({ quality_assessment_status: assessment, quality_score_v4_100: 80 });
+      const valid = assessment === "complete" && (override == null || override === "complete");
+      const facts = toProductFacts(blob({ quality_assessment_status: override, quality_pillars_v4: { dose: { score: 10, max: 20 } } }), product);
+      const quality = facts.quality as Json;
+      assertEquals(quality.quality_score_v4_100, valid ? 80 : null, "number " + String([assessment, override]));
+      assertEquals(quality.quality_tier, valid ? "Good" : null, "tier " + String([assessment, override]));
+      assertEquals(quality.quality_score_confidence, valid ? "high" : null, "confidence " + String([assessment, override]));
+      assertEquals(facts.product_safety_status, "caution");
+      assert((facts.warnings as Json[]).some((w) => w.title === "Contains Titanium Dioxide"), "known warning retained");
+      assertEquals(((facts.quality_pillars_v4 as Json).dose as Json).score, 10);
+    }
+  }
+});
 
 Deno.test("new Dose receipt preserves optional-use deduction without inventing a cap", () => {
   const facts = toProductFacts(blob({ quality_pillars_v4: { dose: {
@@ -109,6 +166,7 @@ export function row(overrides: Partial<CatalogRow> = {}): CatalogRow {
     product_status: "active",
     quality_tier: "Good",
     quality_score_status: "scored",
+    quality_score_v4_100: 80,
     product_safety_status: "caution",
     mapped_coverage: 1,
     quality_score_confidence: "high",

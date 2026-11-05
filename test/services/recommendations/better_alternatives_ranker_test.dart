@@ -19,7 +19,8 @@
 // a deliberate trip-wire against silent regressions in the
 // recommendation surface.
 
-import 'package:drift/drift.dart' show Value;
+import 'package:drift/drift.dart' show Value, Variable;
+import 'package:pharmaguide/core/scoring/catalog_product_semantics.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:pharmaguide/data/database/core_database.dart';
 import 'package:pharmaguide/services/recommendations/better_alternatives_ranker.dart';
@@ -63,6 +64,7 @@ ProductsCoreData _product({
     qualityScoreV4100: qualityScoreV4100,
     qualityTier: qualityTier,
     qualityScoreStatus: qualityScoreStatus,
+    qualityAssessmentStatus: 'complete',
     discontinuedDate: discontinuedDate,
     keyIngredientTags: keyIngredientTags,
     goalMatches: goalMatches,
@@ -110,12 +112,469 @@ Future<void> _insertPoolProduct(
           primaryCategory: Value(supplementType),
           qualityScoreV4100: Value(score),
           qualityScoreStatus: const Value('scored'),
+          qualityAssessmentStatus: const Value('complete'),
           keyIngredientTags: Value(keyIngredientTags),
         ),
       );
 }
 
 void main() {
+  group('public rating SQL eligibility', () {
+    Future<void> seed(
+      CoreDatabase db,
+      String id,
+      double? score, {
+      String? assessment = 'complete',
+      String? status = 'scored',
+      String? safety = 'no_known_catalog_concern',
+      String? verdict,
+      String type = 'vitamin',
+      String tags = '["vitamin"]',
+    }) => db.customStatement(
+      'INSERT INTO products_core (dsld_id, product_name, export_version, exported_at, '
+      'quality_score_v4_100, quality_assessment_status, quality_score_status, '
+      'product_safety_status, verdict, supplement_type, primary_category, key_ingredient_tags) '
+      'VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
+      [
+        id,
+        'Vitamin',
+        'test',
+        '2026-11-05',
+        score,
+        assessment,
+        status,
+        safety,
+        verdict,
+        type,
+        'vitamin',
+        tags,
+      ],
+    );
+
+    for (final channel in ['intent', 'family']) {
+      test(
+        'blocked source SQL $channel discovery ignores stale score and keeps candidate gates',
+        () async {
+          final db = CoreDatabase.memory();
+          addTearDown(db.close);
+          await seed(
+            db,
+            'vinpocetine',
+            100,
+            safety: 'blocked',
+            status: 'suppressed_safety',
+            assessment: 'partial',
+            type: 'nootropic_support',
+            tags: '["vinpocetine"]',
+          );
+          await db.customStatement(
+            "UPDATE products_core SET product_name = 'Vinpocetine', primary_category = '' WHERE dsld_id = 'vinpocetine'",
+          );
+          final type = channel == 'intent'
+              ? 'nootropic_support'
+              : 'cognitive_support';
+          final tags = channel == 'family' ? '["vinpocetine"]' : '["other"]';
+          await seed(db, 'valid-zero', 0, type: type, tags: tags);
+          for (final id in [
+            'partial',
+            'blocked',
+            'unsafe',
+            'null',
+            'invalid',
+            'suppressed',
+            'recalled',
+            'off',
+          ]) {
+            await seed(
+              db,
+              id,
+              id == 'null'
+                  ? null
+                  : id == 'invalid'
+                  ? 101
+                  : 99,
+              type: type,
+              tags: tags,
+              assessment: id == 'partial' ? 'partial' : 'complete',
+              safety: ['blocked', 'unsafe'].contains(id)
+                  ? id
+                  : 'no_known_catalog_concern',
+              status: id == 'suppressed' ? 'suppressed_safety' : 'scored',
+            );
+          }
+          await db.customStatement(
+            "UPDATE products_core SET has_recalled_ingredient = 1 WHERE dsld_id = 'recalled'",
+          );
+          await db.customStatement(
+            "UPDATE products_core SET discontinued_date = '2026-01-01' WHERE dsld_id = 'off'",
+          );
+          final source = (await db.findById('vinpocetine'))!;
+          expect(
+            (await db.fetchBetterAlternativesPool(
+              source,
+              poolSize: 1,
+            )).map((p) => p.dsldId),
+            ['valid-zero'],
+          );
+          await db.customStatement(
+            "UPDATE products_core SET product_safety_status = 'caution' WHERE dsld_id = 'vinpocetine'",
+          );
+          expect(
+            await db.fetchBetterAlternativesPool(
+              (await db.findById('vinpocetine'))!,
+            ),
+            isEmpty,
+          );
+        },
+      );
+    }
+
+    test(
+      'SQLite eligibility matches canonical semantics across malformed and legacy rows',
+      () async {
+        final db = CoreDatabase.memory();
+        addTearDown(db.close);
+        var i = 0;
+        for (final assessment in [
+          null,
+          '',
+          'partial',
+          'failed',
+          'future',
+          ' Complete ',
+        ]) {
+          for (final status in [
+            null,
+            '',
+            'scored',
+            'not_scored',
+            'suppressed_safety',
+            'future',
+          ]) {
+            for (final safety in [
+              null,
+              'blocked',
+              'unsafe',
+              'caution',
+              'future',
+            ]) {
+              for (final score in [null, 0.0, 95.0]) {
+                final id = 'parity-${i++}';
+                await seed(
+                  db,
+                  id,
+                  score,
+                  assessment: assessment,
+                  status: status,
+                  safety: safety,
+                  verdict: safety == null ? 'BLOCKED' : 'SAFE',
+                );
+              }
+            }
+          }
+        }
+        final products = await db.select(db.productsCore).get();
+        final rows = await db
+            .customSelect(
+              'SELECT dsld_id, ${CoreDatabase.effectiveScoreSql} AS public_score FROM products_core',
+            )
+            .get();
+        final byId = {for (final p in products) p.dsldId: p};
+        for (final row in rows) {
+          final product = byId[row.read<String>('dsld_id')]!;
+          expect(
+            row.readNullable<double>('public_score'),
+            catalogProductHasCompletePublicScore(product)
+                ? product.qualityScoreV4100
+                : null,
+            reason: product.toString(),
+          );
+        }
+      },
+    );
+    test(
+      'public score requires a finite number in the existing 0–100 contract',
+      () async {
+        final db = CoreDatabase.memory();
+        addTearDown(db.close);
+        for (final score in [
+          double.nan,
+          double.infinity,
+          double.negativeInfinity,
+          -1.0,
+          101.0,
+          0.0,
+          100.0,
+        ]) {
+          final valid = score.isFinite && score >= 0 && score <= 100;
+          final id = 'number-$score';
+          final product = ProductsCoreData(
+            dsldId: id,
+            productName: 'Vitamin',
+            exportVersion: 'test',
+            exportedAt: '2026-11-05',
+            qualityScoreV4100: score,
+            qualityScoreStatus: 'scored',
+            qualityAssessmentStatus: 'complete',
+          );
+          expect(
+            catalogProductHasCompletePublicScore(product),
+            valid,
+            reason: '$score',
+          );
+          await seed(db, id, score);
+          final rows = await db
+              .customSelect(
+                'SELECT ${CoreDatabase.effectiveScoreSql} AS public_score FROM products_core WHERE dsld_id = ?',
+                variables: [Variable.withString(id)],
+              )
+              .get();
+          expect(
+            rows.single.readNullable<double>('public_score'),
+            valid ? score : null,
+            reason: '$score SQLite',
+          );
+        }
+      },
+    );
+    test(
+      'SQLite qualification matches Dart.trim across all SDK whitespace',
+      () async {
+        final db = CoreDatabase.memory();
+        addTearDown(db.close);
+        final codes = [
+          9,
+          10,
+          11,
+          12,
+          13,
+          32,
+          0x85,
+          0xa0,
+          0x1680,
+          ...List.generate(11, (i) => 0x2000 + i),
+          0x2028,
+          0x2029,
+          0x202f,
+          0x205f,
+          0x3000,
+          0xfeff,
+          0x180e,
+          0x200b,
+        ];
+        for (final code in codes) {
+          final ws = String.fromCharCode(code);
+          await seed(
+            db,
+            'positive-$code',
+            80,
+            assessment: '${ws}complete$ws',
+            status: '${ws}scored$ws',
+          );
+          await seed(db, 'blocked-$code', 95, safety: '${ws}BLOCKED$ws');
+          await seed(
+            db,
+            'legacy-$code',
+            95,
+            safety: null,
+            verdict: '${ws}BLOCKED$ws',
+          );
+          await seed(
+            db,
+            'suppressed-$code',
+            95,
+            status: '${ws}suppressed_safety$ws',
+          );
+          await seed(db, 'partial-$code', 95, assessment: '${ws}partial$ws');
+          await seed(db, 'not-scored-$code', 95, status: '${ws}not_scored$ws');
+          await seed(
+            db,
+            'blank-safety-$code',
+            95,
+            safety: ws,
+            verdict: 'BLOCKED',
+          );
+          await seed(db, 'blank-status-$code', 80, status: ws);
+        }
+        for (final product in await db.select(db.productsCore).get()) {
+          final row = await db
+              .customSelect(
+                'SELECT ${CoreDatabase.effectiveScoreSql} AS public_score FROM products_core WHERE dsld_id = ?',
+                variables: [Variable.withString(product.dsldId)],
+              )
+              .getSingle();
+          expect(
+            row.readNullable<double>('public_score'),
+            catalogProductHasCompletePublicScore(product)
+                ? product.qualityScoreV4100
+                : null,
+            reason: product.toString(),
+          );
+        }
+      },
+    );
+
+    test(
+      'whitespace-wrapped blocked rows cannot exhaust a bounded pool',
+      () async {
+        final db = CoreDatabase.memory();
+        addTearDown(db.close);
+        await seed(db, 'current', 30);
+        await seed(db, 'valid', 80);
+        for (var i = 0; i < 3; i++) {
+          await seed(db, 'blocked-$i', 95, safety: '\tBLOCKED\n');
+          await seed(
+            db,
+            'legacy-$i',
+            96,
+            safety: null,
+            verdict: '\u00a0BLOCKED\u00a0',
+          );
+        }
+        final pool = await db.fetchBetterAlternativesPool(
+          (await db.findById('current'))!,
+          poolSize: 2,
+        );
+        expect(pool.map((p) => p.dsldId), ['valid']);
+      },
+    );
+
+    for (final fts in [false, true]) {
+      test(
+        'search preserves discovery but excludes provisional ordering FTS=$fts',
+        () async {
+          final db = CoreDatabase.memory();
+          addTearDown(db.close);
+          await seed(db, 'partial', 95, assessment: 'partial');
+          await seed(db, 'complete', 80);
+          await seed(db, 'zero', 0);
+          await seed(
+            db,
+            'warning',
+            99,
+            assessment: 'partial',
+            safety: 'blocked',
+          );
+          if (fts) {
+            await db.customStatement(
+              'CREATE VIRTUAL TABLE products_fts USING fts5(product_name)',
+            );
+            await db.customStatement(
+              'INSERT INTO products_fts(rowid, product_name) SELECT rowid, product_name FROM products_core',
+            );
+          }
+          final results = await db.searchProducts('Vitamin');
+          expect(results.map((p) => p.dsldId).take(2), ['complete', 'zero']);
+          expect(
+            results.map((p) => p.dsldId),
+            containsAll(['partial', 'warning']),
+          );
+          expect(
+            results
+                .singleWhere((p) => p.dsldId == 'warning')
+                .productSafetyStatus,
+            'blocked',
+          );
+          final filtered = await db.filterProducts(sortBy: 'score');
+          expect(filtered.map((p) => p.dsldId).take(2), ['complete', 'zero']);
+        },
+      );
+    }
+    test(
+      'percentile ordering and score filters disregard stored provisional ratings',
+      () async {
+        final db = CoreDatabase.memory();
+        addTearDown(db.close);
+        await seed(db, 'partial', 95, assessment: 'partial');
+        await seed(db, 'complete', 80);
+        await seed(db, 'zero', 0);
+        await seed(db, 'unknown', null);
+        for (final id in ['partial', 'unknown']) {
+          await db.customStatement(
+            "UPDATE products_core SET percentile_top_pct = 1, quality_tier = 'EXCELLENT' WHERE dsld_id = ?",
+            [id],
+          );
+        }
+        await db.customStatement(
+          "UPDATE products_core SET percentile_top_pct = 20 WHERE dsld_id = 'complete'",
+        );
+        await db.customStatement(
+          "UPDATE products_core SET percentile_top_pct = 100 WHERE dsld_id = 'zero'",
+        );
+        final sorted = await db.filterProducts(sortBy: 'percentile');
+        expect(sorted.map((p) => p.dsldId).take(2), ['complete', 'zero']);
+        expect(
+          sorted.map((p) => p.dsldId),
+          containsAll(['partial', 'unknown']),
+        );
+        // ignore: deprecated_member_use_from_same_package
+        final filtered = await db.findAlternatives('vitamin', 0);
+        expect(filtered.map((p) => p.dsldId), ['complete', 'zero']);
+      },
+    );
+
+    test(
+      'legacy minScore never admits provisional or missing scores',
+      () async {
+        final db = CoreDatabase.memory();
+        addTearDown(db.close);
+        await seed(db, 'partial', 95, assessment: 'partial');
+        await seed(db, 'unknown', null);
+        await seed(db, 'complete', 80);
+        await seed(db, 'zero', 0);
+        // ignore: deprecated_member_use_from_same_package
+        final filtered = await db.findAlternatives('vitamin', 0);
+        expect(filtered.map((p) => p.dsldId), ['complete', 'zero']);
+      },
+    );
+
+    test(
+      'provisional current total cannot define a better-alternative threshold',
+      () async {
+        final db = CoreDatabase.memory();
+        addTearDown(db.close);
+        await seed(db, 'current', 20, assessment: 'partial');
+        await seed(db, 'complete', 80);
+        expect(
+          await db.fetchBetterAlternativesPool((await db.findById('current'))!),
+          isEmpty,
+        );
+      },
+    );
+    for (final family in [false, true]) {
+      test(
+        'partial rows cannot exhaust alternatives channel family=$family',
+        () async {
+          final db = CoreDatabase.memory();
+          addTearDown(db.close);
+          await seed(db, 'current', 30);
+          for (var i = 0; i < 3; i++) {
+            await seed(
+              db,
+              'partial-$i',
+              95,
+              assessment: 'partial',
+              type: family ? 'herb' : 'vitamin',
+              tags: family ? '["vitamin"]' : '[]',
+            );
+          }
+          await seed(
+            db,
+            'complete',
+            80,
+            type: family ? 'herb' : 'vitamin',
+            tags: family ? '["vitamin"]' : '[]',
+          );
+          final pool = await db.fetchBetterAlternativesPool(
+            (await db.findById('current'))!,
+            poolSize: 2,
+          );
+          expect(pool.map((p) => p.dsldId), ['complete']);
+        },
+      );
+    }
+  });
+
   group('Hard filters', () {
     test('drops self-recommendations', () {
       final cur = _product(
@@ -159,18 +618,12 @@ void main() {
       expect(result.map((p) => p.dsldId), equals(['on']));
     });
 
-    test('unscored current still returns a scored same-intent candidate', () {
-      // Sean's Phase 11.7L.F follow-up: blocked products like
-      // dsld 16012 Vinpocetine ship with `quality_score_v4_100 = NULL`.
-      // The user MUST still see safer alternatives — treat the
-      // missing score as "lower than any scored candidate."
+    test('unscored current cannot establish a quality comparison', () {
       final blockedNootropic = _product(
         dsldId: '16012',
         name: 'Blocked Nootropic Support',
         brand: 'Thorne Research',
         supplementType: 'nootropic_support',
-        // primaryCategory + qualityScoreV4100 intentionally NULL —
-        // mirrors the live catalog row.
       );
       final saferAlt = _product(
         dsldId: 'safer-alt',
@@ -183,14 +636,7 @@ void main() {
         current: blockedNootropic,
         candidates: [saferAlt],
       );
-      expect(
-        result.map((p) => p.dsldId),
-        equals(['safer-alt']),
-        reason:
-            'Blocked products with null qualityScoreV4100 must still '
-            "surface scored alternatives — that's the user's whole "
-            'reason for landing on this section.',
-      );
+      expect(result, isEmpty);
     });
 
     test('drops candidates with score ≤ current (strictly higher only)', () {

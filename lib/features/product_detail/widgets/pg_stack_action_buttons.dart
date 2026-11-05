@@ -83,8 +83,8 @@ class PGStackActionButtons extends ConsumerWidget {
     // Unsafe always wins over in-stack — even if the user already has
     // the product in their stack, the right primary action is to
     // direct them to the comparison options, not let them re-open the
-    // remove flow as the loudest button. The candidates are proven higher
-    // quality, not personalized as universally safer.
+    // remove flow as the loudest button. Candidates have qualified public
+    // assessments; a blocked source supplies no quality comparison baseline.
     final seeAlternatives = onSeeAlternatives;
     if (isUnsafe && seeAlternatives != null) {
       return _SeeHigherQualityButton(

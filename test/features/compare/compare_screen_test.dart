@@ -52,13 +52,15 @@ ProductsCoreCompanion _product({
   String? blobSha,
   String? scoreConfidence,
   String? qualityTier,
-  String? qualityAssessmentStatus,
+  String? qualityAssessmentStatus = 'complete',
+  String? scoreStatus = 'scored',
 }) {
   return ProductsCoreCompanion.insert(
     dsldId: dsldId,
     productName: name,
     brandName: drift.Value(brand),
     qualityScoreV4100: drift.Value(score),
+    qualityScoreStatus: drift.Value(scoreStatus),
     mappedCoverage: drift.Value(coverage),
     primaryCategory: drift.Value(category),
     verdict: drift.Value(verdict),
@@ -219,6 +221,33 @@ void main() {
 
     await tearDownDbs(tester);
   });
+
+  testWidgets(
+    'missing completion withholds comparison total and keeps identity',
+    (tester) async {
+      await seed(
+        product: _product(
+          dsldId: 'prod-a',
+          name: 'Alpha',
+          score: 81,
+          qualityTier: 'Good',
+          qualityAssessmentStatus: null,
+          verdict: 'CAUTION',
+        ),
+        blob: _pillarsBlob(),
+      );
+      await seed(
+        product: _product(dsldId: 'prod-b', name: 'Beta', score: 72),
+        blob: _pillarsBlob(dose: 7),
+      );
+      await pumpCompare(tester);
+      expect(find.byKey(const Key('compare-delta-callout')), findsNothing);
+      expect(find.textContaining('81', findRichText: true), findsNothing);
+      expect(find.text('Quality assessment incomplete'), findsOneWidget);
+      expect(find.text('Alpha'), findsOneWidget);
+      await tearDownDbs(tester);
+    },
+  );
 
   // The page withholds this total, so the two totals can't be compared either.
   for (final (name, partialScore, completeScore) in [
@@ -454,6 +483,51 @@ void main() {
     await tearDownDbs(tester);
   });
 
+  testWidgets(
+    'completed safety-suppressed assessment is withheld, not unfinished',
+    (tester) async {
+      await seed(
+        product: _product(
+          dsldId: 'prod-a',
+          name: 'Suppressed',
+          score: 81,
+          scoreStatus: 'suppressed_safety',
+        ),
+        blob: _pillarsBlob(),
+      );
+      await seed(
+        product: _product(dsldId: 'prod-b', name: 'Complete', score: 72),
+        blob: _pillarsBlob(dose: 7),
+      );
+      await pumpCompare(tester);
+      expect(find.text('Quality score withheld'), findsOneWidget);
+      expect(find.text('Quality assessment incomplete'), findsNothing);
+      expect(find.textContaining('81', findRichText: true), findsNothing);
+      await tearDownDbs(tester);
+    },
+  );
+
+  for (final blobStatus in ['partial', 'failed', 'unknown', <String>[]]) {
+    testWidgets(
+      'restrictive blob $blobStatus withholds Compare header and total',
+      (tester) async {
+        await seed(
+          product: _product(dsldId: 'prod-a', name: 'Alpha', score: 81),
+          blob: {..._pillarsBlob(), 'quality_assessment_status': blobStatus},
+        );
+        await seed(
+          product: _product(dsldId: 'prod-b', name: 'Beta', score: 72),
+          blob: _pillarsBlob(dose: 7),
+        );
+        await pumpCompare(tester);
+        expect(find.textContaining('81', findRichText: true), findsNothing);
+        expect(find.byKey(const Key('compare-delta-callout')), findsNothing);
+        expect(find.byType(PGComparePillarRow), findsNWidgets(6));
+        await tearDownDbs(tester);
+      },
+    );
+  }
+
   testWidgets('blocked product shows status instead of score and suppresses '
       'pillar rows', (tester) async {
     await seed(
@@ -461,6 +535,7 @@ void main() {
         dsldId: 'prod-a',
         name: 'Alpha',
         score: 81, // Older catalog row still contains a score.
+        qualityAssessmentStatus: null,
         verdict: 'BLOCKED',
       ),
       blob: _pillarsBlob(),
@@ -504,9 +579,10 @@ void main() {
 
     await pumpCompare(tester);
 
-    // Hero scores still render.
-    expect(find.text('90/100'), findsOneWidget);
-    expect(find.text('88/100'), findsOneWidget);
+    // An unresolved declared blob cannot qualify a public score.
+    expect(find.text('90/100'), findsNothing);
+    expect(find.text('88/100'), findsNothing);
+    expect(find.text('Quality assessment incomplete'), findsNWidgets(2));
     expect(find.byKey(const Key('compare-connection-hedge')), findsOneWidget);
     expect(find.textContaining('needs a connection'), findsOneWidget);
     expect(find.text('Pillar by pillar'), findsNothing);

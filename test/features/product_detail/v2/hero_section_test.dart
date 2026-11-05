@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:pharmaguide/core/widgets/product_image.dart';
 import 'package:pharmaguide/data/database/core_database.dart';
 import 'package:pharmaguide/core/components/pg_hero_section.dart';
 import 'package:pharmaguide/core/presentation/package_identity.dart';
@@ -29,6 +30,56 @@ void main() {
       ),
     );
     await tester.pumpAndSettle();
+  }
+
+  for (final assessment in [null, 'partial', 'complete']) {
+    testWidgets('row adapter qualifies hero and image score for $assessment', (
+      tester,
+    ) async {
+      final product = ProductsCoreData(
+        dsldId: 'hero',
+        productName: 'Canary',
+        exportVersion: 'test',
+        exportedAt: '2026-11-05',
+        qualityScoreV4100: 80,
+        qualityScoreStatus: 'scored',
+        qualityAssessmentStatus: assessment,
+        qualityTier: 'Good',
+        productSafetyStatus: 'caution',
+      );
+      late PGHeroSection hero;
+      await tester.pumpWidget(
+        MaterialApp(
+          home: Builder(
+            builder: (context) {
+              hero =
+                  buildHeroSection(
+                        context: context,
+                        dsldId: 'hero',
+                        product: product,
+                        productName: 'Canary',
+                        brandName: 'Brand',
+                        formFactor: 'capsule',
+                        score100: 80,
+                        isBlocked: false,
+                        isNotScored: false,
+                        assessmentIncomplete: false,
+                        trustTags: const [],
+                      )
+                      as PGHeroSection;
+              return const SizedBox.shrink();
+            },
+          ),
+        ),
+      );
+      expect(hero.assessmentIncomplete, assessment != 'complete');
+      expect(hero.qualityTier, assessment == 'complete' ? 'Good' : null);
+      expect(
+        (hero.imageWidget as ProductImage).score,
+        assessment == 'complete' ? 80 : null,
+      );
+      expect(hero.hasCatalogCaution, isTrue);
+    });
   }
 
   group('hero package identity', () {

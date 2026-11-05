@@ -3,6 +3,44 @@ import 'dart:io';
 import 'package:flutter_test/flutter_test.dart';
 
 void main() {
+  test('forward migration allows incomplete assessments without ratings', () {
+    final migration = File(
+      'supabase/migrations/20261105110000_public_share_incomplete_assessment.sql',
+    ).readAsStringSync();
+    expect(
+      migration,
+      contains(
+        "catalog_disposition IN ('scored', 'not_scored', 'blocked', 'assessment_incomplete')",
+      ),
+    );
+    expect(
+      migration,
+      contains(
+        "(catalog_disposition IN ('not_scored', 'blocked', 'assessment_incomplete') AND quality_score IS NULL AND quality_tier IS NULL)",
+      ),
+    );
+    expect(
+      migration,
+      contains(
+        "(catalog_disposition = 'scored' AND quality_score IS NOT NULL AND quality_tier IS NOT NULL)",
+      ),
+    );
+    expect(
+      migration,
+      contains('DROP CONSTRAINT IF EXISTS share_disposition_value'),
+    );
+    expect(
+      migration,
+      contains('DROP CONSTRAINT IF EXISTS share_disposition_score'),
+    );
+    expect(
+      migration,
+      contains('quality_score IS NULL AND quality_tier IS NULL'),
+    );
+    expect(migration, isNot(contains('GRANT')));
+    expect(migration, isNot(contains('UPDATE public.public_share_snapshots')));
+  });
+
   test('public share snapshots are server-only and preserve disposition', () {
     final hardening = File(
       'supabase/migrations/20260814090000_secure_public_share_snapshots.sql',

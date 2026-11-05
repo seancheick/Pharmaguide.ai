@@ -230,20 +230,43 @@ class _ProductDetailV2ConnectedState
 
   Future<void> _shareProduct() async {
     final product = _product;
-    if (product == null || _isSharing) return;
+    final requestedDsldId = widget.dsldId;
+    if (product == null || _isSharing || product.dsldId != requestedDsldId) {
+      return;
+    }
+    final blobIdentity = (
+      dsldId: requestedDsldId,
+      expectedSha: product.detailBlobSha256,
+    );
     setState(() => _isSharing = true);
     try {
+      final coreDb = ref.read(coreDatabaseProvider);
       String? catalogVersion;
       try {
         // This reads the active SQLite manifest locally. If an old or damaged
         // catalog lacks the stamp, ShareService deliberately falls back to a
         // text-only share instead of minting an undated public result.
-        catalogVersion = await ref.read(coreDatabaseProvider).readDbVersion();
+        catalogVersion = await coreDb.readDbVersion();
       } on Exception {
         catalogVersion = null;
       }
+      // The load owner replaces immutable rows, including a same-id/new-hash
+      // reload. Never resume a share for a disposed or superseded screen row.
+      if (!mounted ||
+          widget.dsldId != requestedDsldId ||
+          !identical(_product, product)) {
+        return;
+      }
       final isBlocked = catalogProductIsBlocked(product);
-      final canShareScore = catalogProductHasCompletePublicScore(product);
+      final blobState = ref.read(detailBlobForRowProvider(blobIdentity));
+      final cachedBlob = blobState.asData?.value;
+      final canShareScore = catalogProductHasCompletePublicScore(
+        product,
+        assessmentOverride: cachedBlob?['quality_assessment_status'],
+        assessmentResolved:
+            product.detailBlobSha256?.isNotEmpty != true ||
+            (!blobState.isLoading && !blobState.hasError),
+      );
       // Trust tags are gated on `isBlocked`, NOT on `canShareScore`.
       //
       // The two guards protect different things. A not-scored product still
@@ -277,7 +300,7 @@ class _ProductDetailV2ConnectedState
             : buildHeroTrustTags(
                 product,
               ).map((tag) => tag.label).toList(growable: false),
-        dsldId: widget.dsldId,
+        dsldId: requestedDsldId,
         catalogVersion: catalogVersion,
       );
     } on Exception {
@@ -457,10 +480,6 @@ class _ProductDetailV2ConnectedState
     final trustTags = buildHeroTrustTags(_product);
     final isBlocked = productIsBlocked(_product);
     final isNotScored = productIsNotScored(_product);
-    // scored + partial: a number exists, but a pillar the rubric requires was
-    // never assessed. The pillars can explain the inputs while the total is withheld.
-    final assessmentIncomplete = productAssessmentIncomplete(_product);
-
     // -------------------------------------------------------------
     // Async detail blob (same provider production uses)
     // -------------------------------------------------------------
@@ -471,6 +490,14 @@ class _ProductDetailV2ConnectedState
       )),
     );
     final detailBlob = blobAsync.asData?.value;
+    // Preserve source pillar explanations while withholding an unqualified total.
+    final assessmentIncomplete = !catalogProductHasCompletePublicScore(
+      _product,
+      assessmentOverride: detailBlob?['quality_assessment_status'],
+      assessmentResolved:
+          _product?.detailBlobSha256?.isNotEmpty != true ||
+          (!blobAsync.isLoading && !blobAsync.hasError),
+    );
     final ingredientSources = productDetailIngredientSourcesFromBlob(
       detailBlob,
     );
@@ -854,6 +881,8 @@ class _ProductDetailV2ConnectedState
                         isBlocked: isBlocked,
                         isNotScored: isNotScored,
                         assessmentIncomplete: assessmentIncomplete,
+                        assessmentOverride:
+                            detailBlob?['quality_assessment_status'],
                         trustTags: trustTags,
                         scoreConfidenceDetail: _blobMap(
                           detailBlob,

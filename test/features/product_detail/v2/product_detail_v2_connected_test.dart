@@ -6,6 +6,9 @@ import 'package:crypto/crypto.dart';
 import 'package:drift/drift.dart' show Value;
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
+import 'package:pharmaguide/core/components/pg_hero_section.dart';
+import 'package:pharmaguide/core/widgets/product_image.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:http/http.dart' as http;
@@ -88,7 +91,7 @@ Future<void> _seedConnectedProduct(
   bool blocked = false,
   double mappedCoverage = 1,
   double catalogScore = 88,
-  String? qualityAssessmentStatus,
+  String? qualityAssessmentStatus = 'complete',
 }) async {
   await _seedProduct(
     coreDb,
@@ -108,7 +111,7 @@ Future<void> _seedProduct(
   bool blocked = false,
   double mappedCoverage = 1,
   double catalogScore = 88,
-  String? qualityAssessmentStatus,
+  String? qualityAssessmentStatus = 'complete',
 }) async {
   await coreDb
       .into(coreDb.productsCore)
@@ -194,6 +197,8 @@ Future<void> _pumpConnectedScreen(
   WidgetTester tester, {
   required Map<String, dynamic>? detailBlob,
   String? initialSection = 'ingredients',
+  bool detailBlobFails = false,
+  Completer<Map<String, dynamic>?>? detailBlobGate,
   bool fitFails = false,
   Completer<void>? fitGate,
   List<int>? fitCalls,
@@ -201,7 +206,7 @@ Future<void> _pumpConnectedScreen(
   bool blocked = false,
   double mappedCoverage = 1,
   double catalogScore = 88,
-  String? qualityAssessmentStatus,
+  String? qualityAssessmentStatus = 'complete',
   FitScoreResult? fitResult,
   bool profiled = false,
   bool warningsFail = false,
@@ -214,10 +219,15 @@ Future<void> _pumpConnectedScreen(
   UserDatabase? profileDatabase,
   List<SafetyAlert> liveAlerts = const [],
   bool qualityWithheld = false,
+  CoreDatabase? catalogDb,
+  String? initialProductSha,
+  ValueListenable<String>? productRoute,
+  List<({String dsldId, String? expectedSha})>? observedBlobKeys,
   SafetyAlertRepository Function()? buildAlertFeed,
   Stream<ConnectionStatus>? connection,
 }) async {
-  final coreDb = CoreDatabase.memory(qualityWithheld: qualityWithheld);
+  final coreDb =
+      catalogDb ?? CoreDatabase.memory(qualityWithheld: qualityWithheld);
   final userDb = profileDatabase ?? UserDatabase.memory();
   final interactionDb = InteractionDatabase.memory();
   await _seedConnectedProduct(
@@ -227,6 +237,12 @@ Future<void> _pumpConnectedScreen(
     catalogScore: catalogScore,
     qualityAssessmentStatus: qualityAssessmentStatus,
   );
+  if (initialProductSha != null) {
+    await coreDb.customStatement(
+      'UPDATE products_core SET detail_blob_sha256 = ? WHERE dsld_id = ?',
+      [initialProductSha, _connectedDsldId],
+    );
+  }
   if (qualityWithheld) await coreDb.withholdQualityScores();
   addTearDown(() async {
     await tester.pumpWidget(const SizedBox.shrink());
@@ -256,12 +272,19 @@ Future<void> _pumpConnectedScreen(
         if (connection != null)
           connectionStatusProvider.overrideWith((ref) => connection),
         detailBlobProvider.overrideWith((ref, dsldId) async {
-          expect(dsldId, _connectedDsldId);
-          return detailBlob;
+          if (productRoute == null) expect(dsldId, _connectedDsldId);
+          if (detailBlobFails) throw StateError('offline blob');
+          return detailBlobGate == null
+              ? detailBlob
+              : await detailBlobGate.future;
         }),
         detailBlobForRowProvider.overrideWith((ref, key) async {
-          expect(key.dsldId, _connectedDsldId);
-          return detailBlob;
+          if (productRoute == null) expect(key.dsldId, _connectedDsldId);
+          observedBlobKeys?.add(key);
+          if (detailBlobFails) throw StateError('offline blob');
+          return detailBlobGate == null
+              ? detailBlob
+              : await detailBlobGate.future;
         }),
         if (profiled)
           profileProvider.overrideWith(
@@ -306,10 +329,18 @@ Future<void> _pumpConnectedScreen(
           return child!;
         },
         child: MaterialApp(
-          home: ProductDetailV2ConnectedScreen(
-            dsldId: _connectedDsldId,
-            initialSection: initialSection,
-          ),
+          home: productRoute == null
+              ? ProductDetailV2ConnectedScreen(
+                  dsldId: _connectedDsldId,
+                  initialSection: initialSection,
+                )
+              : ValueListenableBuilder<String>(
+                  valueListenable: productRoute,
+                  builder: (_, id, _) => ProductDetailV2ConnectedScreen(
+                    dsldId: id,
+                    initialSection: initialSection,
+                  ),
+                ),
         ),
       ),
     ),
@@ -321,6 +352,13 @@ Future<void> _pumpConnectedScreen(
       await tester.pump(const Duration(milliseconds: 100));
     }
   }
+}
+
+class _DelayedVersionCoreDatabase extends CoreDatabase {
+  _DelayedVersionCoreDatabase() : super.memory();
+  final versionGate = Completer<String?>();
+  @override
+  Future<String?> readDbVersion() => versionGate.future;
 }
 
 class _RetryProfileDatabase extends UserDatabase {
@@ -2075,6 +2113,290 @@ void main() {
         expect(find.text('12/20'), findsOneWidget);
       },
     );
+
+    testWidgets(
+      'missing quality completion keeps hero and breakdown total withheld',
+      (tester) async {
+        await _pumpConnectedScreen(
+          tester,
+          initialSection: null,
+          qualityAssessmentStatus: null,
+          detailBlob: {'quality_pillars_v4': _connectedV4Pillars()},
+        );
+        expect(find.text('Quality assessment incomplete'), findsOneWidget);
+        final breakdown = find.byType(PGScoreBreakdownCard);
+        await _scrollConnectedTowardBottomUntil(tester, breakdown);
+        expect(breakdown, findsOneWidget);
+        expect(find.text('Why this scored 88'), findsNothing);
+        expect(find.text('Quality score breakdown'), findsOneWidget);
+      },
+    );
+
+    for (final assessment in [null, 'partial']) {
+      testWidgets(
+        'unqualified detail $assessment retains the catalog warning',
+        (tester) async {
+          await _pumpConnectedScreen(
+            tester,
+            initialSection: null,
+            blocked: true,
+            qualityAssessmentStatus: assessment,
+            detailBlob: {'quality_pillars_v4': _connectedV4Pillars()},
+          );
+          expect(
+            find.text('PharmaGuide does not recommend this product'),
+            findsOneWidget,
+          );
+          expect(
+            find.text('Banned substance: organic Hemp Oil extract'),
+            findsOneWidget,
+          );
+          expect(find.text('Why this scored 88'), findsNothing);
+        },
+      );
+    }
+
+    for (final surface in ['detail', 'share']) {
+      for (final state in ['loading', 'failed', 'resolved_null', 'no_hash']) {
+        testWidgets('$surface qualification respects blob $state', (
+          tester,
+        ) async {
+          final gate = Completer<Map<String, dynamic>?>();
+          String? sharedText;
+          const channel = MethodChannel('dev.fluttercommunity.plus/share');
+          tester.binding.defaultBinaryMessenger.setMockMethodCallHandler(
+            channel,
+            (call) async {
+              sharedText = (call.arguments as Map)['text'] as String?;
+              return 'done';
+            },
+          );
+          addTearDown(
+            () => tester.binding.defaultBinaryMessenger
+                .setMockMethodCallHandler(channel, null),
+          );
+          await _pumpConnectedScreen(
+            tester,
+            initialSection: null,
+            initialProductSha: state == 'no_hash' ? null : 'a' * 64,
+            detailBlob: null,
+            detailBlobFails: state == 'failed',
+            detailBlobGate: state == 'loading' ? gate : null,
+            settle: state != 'loading',
+          );
+          final qualified = state == 'resolved_null' || state == 'no_hash';
+          final hero = tester.widget<PGHeroSection>(find.byType(PGHeroSection));
+          if (surface == 'detail') {
+            expect(hero.assessmentIncomplete, !qualified);
+            expect(
+              (hero.imageWidget as ProductImage).score,
+              qualified ? 88 : null,
+            );
+            if (!qualified) expect(hero.qualityTier, isNull);
+          }
+          await tester.tap(find.byTooltip('Share product'));
+          for (var i = 0; i < 5; i++) {
+            await tester.pump(const Duration(milliseconds: 100));
+          }
+          expect(sharedText, isNotNull);
+          expect(sharedText!.contains('88/100'), qualified);
+          if (state == 'loading') {
+            gate.complete({'quality_assessment_status': 'partial'});
+            await tester.pumpAndSettle();
+            expect(
+              tester
+                  .widget<PGHeroSection>(find.byType(PGHeroSection))
+                  .assessmentIncomplete,
+              isTrue,
+            );
+          }
+        });
+      }
+    }
+    for (final blobStatus in [null, 'complete']) {
+      testWidgets(
+        'complete core with nonrestrictive blob $blobStatus retains its total',
+        (tester) async {
+          await _pumpConnectedScreen(
+            tester,
+            initialSection: null,
+            detailBlob: {
+              'quality_assessment_status': blobStatus,
+              'quality_pillars_v4': _connectedV4Pillars(),
+            },
+          );
+          final hero = tester.widget<PGHeroSection>(find.byType(PGHeroSection));
+          expect(hero.assessmentIncomplete, isFalse);
+          expect((hero.imageWidget as ProductImage).score, 88);
+          final headline = find.text('Why this scored 88');
+          await _scrollConnectedTowardBottomUntil(tester, headline);
+          expect(headline, findsOneWidget);
+        },
+      );
+    }
+    testWidgets('complete blob cannot upgrade a partial core', (tester) async {
+      await _pumpConnectedScreen(
+        tester,
+        initialSection: null,
+        qualityAssessmentStatus: 'partial',
+        detailBlob: {
+          'quality_assessment_status': 'complete',
+          'quality_pillars_v4': _connectedV4Pillars(),
+        },
+      );
+      final hero = tester.widget<PGHeroSection>(find.byType(PGHeroSection));
+      expect(hero.assessmentIncomplete, isTrue);
+      expect((hero.imageWidget as ProductImage).score, isNull);
+    });
+    for (final transition in [
+      'disposed',
+      'other_product',
+      'same_id_new_hash',
+    ]) {
+      testWidgets('delayed share is abandoned after $transition', (
+        tester,
+      ) async {
+        final db = _DelayedVersionCoreDatabase();
+        final route = ValueNotifier(_connectedDsldId);
+        addTearDown(route.dispose);
+        final requests = <({String dsldId, String? expectedSha})>[];
+        final shares = <String>[];
+        const channel = MethodChannel('dev.fluttercommunity.plus/share');
+        tester.binding.defaultBinaryMessenger.setMockMethodCallHandler(
+          channel,
+          (call) async {
+            shares.add((call.arguments as Map)['text'] as String);
+            return 'done';
+          },
+        );
+        addTearDown(
+          () => tester.binding.defaultBinaryMessenger.setMockMethodCallHandler(
+            channel,
+            null,
+          ),
+        );
+        final shaA = 'a' * 64;
+        final shaB = 'b' * 64;
+        final shaNew = 'c' * 64;
+        await _seedProduct(db, dsldId: 'route-b', productName: 'Product B');
+        await db.customStatement(
+          'UPDATE products_core SET detail_blob_sha256 = ? WHERE dsld_id = ?',
+          [shaB, 'route-b'],
+        );
+        await _pumpConnectedScreen(
+          tester,
+          catalogDb: db,
+          initialProductSha: shaA,
+          productRoute: route,
+          observedBlobKeys: requests,
+          initialSection: null,
+          detailBlob: {'quality_assessment_status': 'partial'},
+        );
+        await tester.tap(find.byTooltip('Share product'));
+        await tester.pump();
+        if (transition == 'disposed') {
+          await tester.pumpWidget(const SizedBox.shrink());
+        } else {
+          route.value = 'route-b';
+          for (var i = 0; i < 5; i++) {
+            await tester.pump(const Duration(milliseconds: 100));
+          }
+          expect(
+            tester
+                .widget<PGHeroSection>(find.byType(PGHeroSection))
+                .productName,
+            'Product B',
+          );
+          if (transition == 'same_id_new_hash') {
+            await db.customStatement(
+              'UPDATE products_core SET detail_blob_sha256 = ? WHERE dsld_id = ?',
+              [shaNew, _connectedDsldId],
+            );
+            route.value = _connectedDsldId;
+            for (var i = 0; i < 5; i++) {
+              await tester.pump(const Duration(milliseconds: 100));
+            }
+          }
+        }
+        db.versionGate.complete(null);
+        await tester.pumpAndSettle();
+        expect(tester.takeException(), isNull);
+        expect(shares, isEmpty);
+        expect(
+          requests,
+          isNot(contains((dsldId: 'route-b', expectedSha: shaA))),
+        );
+        if (transition == 'same_id_new_hash') {
+          expect(
+            requests,
+            contains((dsldId: _connectedDsldId, expectedSha: shaNew)),
+          );
+        }
+      });
+    }
+
+    for (final status in ['partial', 'complete']) {
+      testWidgets(
+        'local share respects the cached blob $status qualification',
+        (tester) async {
+          String? sharedText;
+          const channel = MethodChannel('dev.fluttercommunity.plus/share');
+          tester.binding.defaultBinaryMessenger.setMockMethodCallHandler(
+            channel,
+            (call) async {
+              sharedText = (call.arguments as Map)['text'] as String?;
+              return 'done';
+            },
+          );
+          addTearDown(
+            () => tester.binding.defaultBinaryMessenger
+                .setMockMethodCallHandler(channel, null),
+          );
+          await _pumpConnectedScreen(
+            tester,
+            initialSection: null,
+            detailBlob: {
+              'quality_assessment_status': status,
+              'quality_pillars_v4': _connectedV4Pillars(),
+            },
+          );
+          await tester.tap(find.byTooltip('Share product'));
+          await tester.pumpAndSettle();
+          expect(sharedText, isNotNull);
+          expect(sharedText!.contains('88/100'), status == 'complete');
+        },
+      );
+    }
+
+    for (final status in [
+      'partial',
+      'failed',
+      'unknown',
+      <String>[],
+      {'invalid': true},
+    ]) {
+      testWidgets(
+        'restrictive blob $status withholds detail total with complete core',
+        (tester) async {
+          await _pumpConnectedScreen(
+            tester,
+            initialSection: null,
+            detailBlob: {
+              'quality_assessment_status': status,
+              'quality_pillars_v4': _connectedV4Pillars(),
+            },
+          );
+          final hero = tester.widget<PGHeroSection>(find.byType(PGHeroSection));
+          expect((hero.imageWidget as ProductImage).score, isNull);
+          expect(find.text('Quality assessment incomplete'), findsOneWidget);
+          final breakdown = find.byType(PGScoreBreakdownCard);
+          await _scrollConnectedTowardBottomUntil(tester, breakdown);
+          expect(breakdown, findsOneWidget);
+          expect(find.text('Why this scored 88'), findsNothing);
+          expect(find.text('Quality score breakdown'), findsOneWidget);
+        },
+      );
+    }
 
     testWidgets('an incomplete quality assessment keeps the total withheld', (
       tester,

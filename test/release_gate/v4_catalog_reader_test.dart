@@ -56,18 +56,60 @@ void main() {
     expect(blocked.verdict, 'BLOCKED');
   });
 
-  test('ranked browse orders by v4 score and suppresses unsafe rows', () async {
-    final db = await openCopy(_v4Fixture);
-    final ranked = await db.filterProducts(sortBy: 'score', limit: 10);
-    final ids = ranked.map((r) => r.dsldId).toList();
+  test(
+    'legacy browse keeps products findable without inventing score ranking',
+    () async {
+      final db = await openCopy(_v4Fixture);
+      final ranked = await db.filterProducts(sortBy: 'score', limit: 10);
+      expect(ranked.length, 4);
+      expect(
+        ranked.map((r) => r.dsldId),
+        containsAll(['175321', '78355', '204468']),
+      );
+      expect(
+        ranked.every((r) => !catalogProductHasCompletePublicScore(r)),
+        isTrue,
+      );
+      // The frozen fixture has no completion proof. Its order cannot claim that
+      // one unfinished numeric assessment outranks another, or outranks a block.
+      final projected = await db
+          .customSelect(
+            'SELECT ${CoreDatabase.effectiveScoreSql} AS public_score FROM products_core',
+          )
+          .get();
+      expect(
+        projected.every((r) => r.readNullable<double>('public_score') == null),
+        isTrue,
+      );
+    },
+  );
 
-    expect(ids.indexOf('175321'), lessThan(ids.indexOf('78355')));
-
-    final blockedIdx = ids.indexOf('204468');
-    if (blockedIdx != -1) {
-      expect(blockedIdx, greaterThan(ids.indexOf('78355')));
-    }
-  });
+  test(
+    'qualified browse ranks completed numbers including zero before unknowns',
+    () async {
+      final db = CoreDatabase.memory();
+      addTearDown(db.close);
+      for (final (id, score, assessment, status) in [
+        ('complete', 80, 'complete', 'scored'),
+        ('zero', 0, 'complete', 'scored'),
+        ('missing', 95, null, 'scored'),
+        ('partial', 99, 'partial', 'scored'),
+        ('blocked', 100, 'complete', 'suppressed_safety'),
+      ]) {
+        await db.customStatement(
+          'INSERT INTO products_core (dsld_id, product_name, export_version, exported_at, quality_score_v4_100, quality_assessment_status, quality_score_status) VALUES (?, ?, ?, ?, ?, ?, ?)',
+          [id, id, 'test', '2026-11-05', score, assessment, status],
+        );
+      }
+      final ranked = await db.filterProducts(sortBy: 'score', limit: 10);
+      expect(ranked.map((r) => r.dsldId).take(2), ['complete', 'zero']);
+      expect(ranked.length, 5);
+      expect(
+        ranked.skip(2).every((r) => !catalogProductHasCompletePublicScore(r)),
+        isTrue,
+      );
+    },
+  );
 
   test(
     'recommendation pool never contains a safety-suppressed product',
@@ -76,7 +118,12 @@ void main() {
       final current = await db.findById('78355'); // a scored product
       expect(current, isNotNull);
       final pool = await db.fetchBetterAlternativesPool(current!, poolSize: 50);
-      expect(pool.map((r) => r.dsldId), isNot(contains('204468')));
+      expect(catalogProductHasCompletePublicScore(current), isFalse);
+      expect(
+        pool,
+        isEmpty,
+        reason: 'missing completion cannot establish a quality recommendation',
+      );
     },
   );
 

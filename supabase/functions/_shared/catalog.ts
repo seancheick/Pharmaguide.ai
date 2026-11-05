@@ -130,15 +130,12 @@ export function catalogSafetyStatus(value: unknown): string {
 /// complete | partial | failed. Unknown populated values fail closed.
 export function catalogAssessmentStatus(
   assessmentStatus: unknown,
-  scoreStatus: unknown,
+  _scoreStatus: unknown,
 ): "complete" | "partial" | "failed" {
   const status = lower(assessmentStatus);
   if (status === "complete" || status === "partial" || status === "failed") return status;
   if (status) return "failed";
-  const score = lower(scoreStatus);
-  if (score === "scored" || score === "suppressed_safety") return "complete";
-  // No numeric score is published to this surface, so the app's
-  // "number present -> complete" fallback cannot apply: stay partial.
+  // A scored number is not evidence that the assessment actually finished.
   return "partial";
 }
 
@@ -146,16 +143,25 @@ export function catalogAssessmentStatus(
 /// the limitation explaining why.
 export function publicQuality(row: Pick<
   CatalogRow,
-  "quality_tier" | "quality_score_status" | "quality_score_confidence" | "quality_assessment_status" | "quality_score_v4_100"
+  "quality_tier" | "quality_score_status" | "quality_score_confidence" | "quality_assessment_status" | "quality_score_v4_100" | "product_safety_status"
 >, assessmentOverride?: unknown): { quality: Json; limitations: string[] } {
   const limitations: string[] = [];
   const scoreStatus = lower(row.quality_score_status);
-  const completion = catalogAssessmentStatus(
-    assessmentOverride ?? row.quality_assessment_status,
-    row.quality_score_status,
-  );
-  let tier = capText(row.quality_tier, 60);
-  if (completion === "failed" || scoreStatus === "not_scored" ||
+  const rowCompletion = catalogAssessmentStatus(row.quality_assessment_status, scoreStatus);
+  // The search row is mandatory proof. A detail blob can restrict that proof,
+  // never upgrade it. Missing legacy blob status preserves explicit row proof.
+  const detailCompletion = assessmentOverride == null ? rowCompletion :
+    catalogAssessmentStatus(assessmentOverride, scoreStatus);
+  const completion = rowCompletion === "failed" || detailCompletion === "failed" ? "failed" :
+    rowCompletion === "partial" || detailCompletion === "partial" ? "partial" : "complete";
+  const publishedScore = finiteNumber(row.quality_score_v4_100);
+  const validScore = publishedScore !== null && publishedScore >= 0 && publishedScore <= 100;
+  const blocked = ["blocked", "unsafe"].includes(catalogSafetyStatus(row.product_safety_status));
+  const canPublish = !blocked && completion === "complete" && scoreStatus === "scored" && validScore;
+  let tier = canPublish ? capText(row.quality_tier, 60) : null;
+  if (blocked) {
+    limitations.push("Quality score withheld because of a catalog safety finding.");
+  } else if (completion === "failed" || scoreStatus === "not_scored" ||
       (scoreStatus && !["scored", "suppressed_safety"].includes(scoreStatus)) ||
       (!scoreStatus && !tier)) {
     tier = null;
@@ -168,20 +174,21 @@ export function publicQuality(row: Pick<
     limitations.push(
       "Quality assessment incomplete: a required part was not assessed, so no definitive quality tier is published.",
     );
+  } else if (scoreStatus !== "scored" || !validScore) {
+    tier = null;
+    limitations.push("No public quality score: the catalog assessment did not produce one.");
   }
   const confidence = capText(row.quality_score_confidence, 40);
   const confidenceKey = lower(confidence).replaceAll("-", "_");
   if (tier && confidence && !["high", "moderate", "medium"].includes(confidenceKey)) {
     limitations.push("Quality score confidence is limited.");
   }
-  const publishedScore = finiteNumber(row.quality_score_v4_100);
   return {
     quality: {
-      quality_score_v4_100: tier && completion === "complete" && scoreStatus === "scored" &&
-          publishedScore !== null && publishedScore >= 0 && publishedScore <= 100 ? publishedScore : null,
+      quality_score_v4_100: tier && canPublish ? publishedScore : null,
       quality_tier: tier,
       quality_score_status: capText(row.quality_score_status, 40),
-      quality_score_confidence: confidence,
+      quality_score_confidence: tier && canPublish ? confidence : null,
       quality_assessment_status: completion,
     },
     limitations,

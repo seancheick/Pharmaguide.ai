@@ -20,7 +20,7 @@ function row(dsldId: string, overrides: Partial<CatalogRow> = {}): CatalogRow {
     catalog_version: VERSION, dsld_id: dsldId, product_name: "Magnesium Bisglycinate", brand_name: "Thorne",
     brand_family: "Thorne", product_line: null, upc_sku: "693749009016", form_factor: "capsule",
     supplement_type: "single_nutrient", product_status: "active", quality_tier: "Very good",
-    quality_score_status: "scored", product_safety_status: "no_known_catalog_concern", mapped_coverage: 1,
+    quality_score_status: "scored", quality_score_v4_100: 80, product_safety_status: "no_known_catalog_concern", mapped_coverage: 1,
     quality_score_confidence: "high", quality_assessment_status: "complete", match_score: 0.9,
     ...overrides,
   };
@@ -188,6 +188,25 @@ Deno.test("search_products wraps matches in the S8 envelope and asks for a barco
   assertEquals((data.matches as Json[])[0].match_confidence, 0.8);
   assertPublicOnly(env);
   assertEquals(JSON.parse(result.content[0].text), env);
+});
+
+Deno.test("public MCP search and detail both withhold unqualified stored tiers and totals", async () => {
+  for (const overrides of [
+    { quality_assessment_status: null }, { quality_assessment_status: "partial" },
+    { quality_assessment_status: "failed" }, { quality_score_v4_100: null },
+    { quality_score_v4_100: 101 }, { quality_score_status: "suppressed_safety" },
+  ]) {
+    const { call } = await harness([row("1", { product_safety_status: "caution", ...overrides })]);
+    const search = await call("search_products", { query: "Magnesium" });
+    const match = ((search.structuredContent.data as Json).matches as Json[])[0];
+    assertEquals(match.quality_tier, null);
+    assertEquals(match.quality_score_v4_100, null);
+    const detail = await call("get_product", { dsld_id: "1" });
+    const facts = detail.structuredContent.data as Json;
+    assertEquals((facts.quality as Json).quality_tier, null);
+    assertEquals((facts.quality as Json).quality_score_v4_100, null);
+    assertEquals(facts.product_safety_status, "caution");
+  }
 });
 
 Deno.test("get_product returns verified facts within the public allowlist", async () => {
