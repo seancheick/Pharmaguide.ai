@@ -438,18 +438,12 @@ void main() {
       expect(result.map((p) => p.dsldId), equals(['on']));
     });
 
-    test('unscored current still returns a scored same-intent candidate', () {
-      // Sean's Phase 11.7L.F follow-up: blocked products like
-      // dsld 16012 Vinpocetine ship with `quality_score_v4_100 = NULL`.
-      // The user MUST still see safer alternatives — treat the
-      // missing score as "lower than any scored candidate."
+    test('unscored current cannot establish a quality comparison', () {
       final blockedNootropic = _product(
         dsldId: '16012',
         name: 'Blocked Nootropic Support',
         brand: 'Thorne Research',
         supplementType: 'nootropic_support',
-        // primaryCategory + qualityScoreV4100 intentionally NULL —
-        // mirrors the live catalog row.
       );
       final saferAlt = _product(
         dsldId: 'safer-alt',
@@ -462,14 +456,7 @@ void main() {
         current: blockedNootropic,
         candidates: [saferAlt],
       );
-      expect(
-        result.map((p) => p.dsldId),
-        equals(['safer-alt']),
-        reason:
-            'Blocked products with null qualityScoreV4100 must still '
-            "surface scored alternatives — that's the user's whole "
-            'reason for landing on this section.',
-      );
+      expect(result, isEmpty);
     });
 
     test('drops candidates with score ≤ current (strictly higher only)', () {

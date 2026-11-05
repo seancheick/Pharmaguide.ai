@@ -1385,8 +1385,12 @@ RecentScan recentScanFromProduct(
     formFactor: product.formFactor,
     brand: product.brandName ?? '',
     name: product.productName,
-    score: product.qualityScoreV4100,
-    qualityTier: product.qualityTier,
+    score: catalogProductHasCompletePublicScore(product)
+        ? product.qualityScoreV4100
+        : null,
+    qualityTier: catalogProductHasCompletePublicScore(product)
+        ? product.qualityTier
+        : null,
     productSafetyStatus: catalogProductSafetyStatusId(
       catalogProductSafetyStatus(product),
     ),

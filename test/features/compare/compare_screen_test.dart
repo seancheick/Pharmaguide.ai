@@ -52,7 +52,7 @@ ProductsCoreCompanion _product({
   String? blobSha,
   String? scoreConfidence,
   String? qualityTier,
-  String? qualityAssessmentStatus,
+  String? qualityAssessmentStatus = 'complete',
 }) {
   return ProductsCoreCompanion.insert(
     dsldId: dsldId,
@@ -219,6 +219,33 @@ void main() {
 
     await tearDownDbs(tester);
   });
+
+  testWidgets(
+    'missing completion withholds comparison total and keeps identity',
+    (tester) async {
+      await seed(
+        product: _product(
+          dsldId: 'prod-a',
+          name: 'Alpha',
+          score: 81,
+          qualityTier: 'Good',
+          qualityAssessmentStatus: null,
+          verdict: 'CAUTION',
+        ),
+        blob: _pillarsBlob(),
+      );
+      await seed(
+        product: _product(dsldId: 'prod-b', name: 'Beta', score: 72),
+        blob: _pillarsBlob(dose: 7),
+      );
+      await pumpCompare(tester);
+      expect(find.byKey(const Key('compare-delta-callout')), findsNothing);
+      expect(find.textContaining('81', findRichText: true), findsNothing);
+      expect(find.text('Quality assessment incomplete'), findsOneWidget);
+      expect(find.text('Alpha'), findsOneWidget);
+      await tearDownDbs(tester);
+    },
+  );
 
   // The page withholds this total, so the two totals can't be compared either.
   for (final (name, partialScore, completeScore) in [
@@ -461,6 +488,7 @@ void main() {
         dsldId: 'prod-a',
         name: 'Alpha',
         score: 81, // Older catalog row still contains a score.
+        qualityAssessmentStatus: null,
         verdict: 'BLOCKED',
       ),
       blob: _pillarsBlob(),

@@ -18,6 +18,7 @@ import 'package:pharmaguide/core/components/pg_score_breakdown_card.dart'
 import 'package:pharmaguide/core/components/pg_score_line.dart';
 import 'package:pharmaguide/core/constants/routes.dart';
 import 'package:pharmaguide/core/scoring/coverage.dart';
+import 'package:pharmaguide/core/scoring/catalog_product_semantics.dart';
 import 'package:pharmaguide/core/scoring/v4_pillars.dart';
 import 'package:pharmaguide/core/theme/v2/v2_palette.dart';
 import 'package:pharmaguide/core/theme/v2/v2_shadows.dart';
@@ -170,8 +171,8 @@ class _CompareBody extends StatelessWidget {
         isLowCoverage(productB.mappedCoverage);
 
     // An unfinished total isn't shown, so nothing here may compare it either.
-    final totalA = scorableA && !productAssessmentIncomplete(productA);
-    final totalB = scorableB && !productAssessmentIncomplete(productB);
+    final totalA = catalogProductHasCompletePublicScore(productA);
+    final totalB = catalogProductHasCompletePublicScore(productB);
 
     final delta = _largestPillarGap(
       pillarsA: pillarsA,
@@ -357,7 +358,9 @@ class _ProductHeader extends StatelessWidget {
   Widget build(BuildContext context) {
     final brand = product.brandName ?? '';
     final name = product.productName;
-    final score = product.qualityScoreV4100?.round();
+    final score = catalogProductHasCompletePublicScore(product)
+        ? product.qualityScoreV4100!.round()
+        : null;
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -383,21 +386,21 @@ class _ProductHeader extends StatelessWidget {
             'Not recommended — see product page',
             style: V2Typography.caption(color: context.v2.fgMuted),
           )
-        else if (isNotScored || score == null)
+        else if (isNotScored)
           Text(
             'Not scored yet',
             style: V2Typography.caption(color: context.v2.fgMuted),
           )
         // Same rule as the detail hero: an unfinished assessment publishes no
         // tier, because the unassessed pillar could still move it.
-        else if (productAssessmentIncomplete(product))
+        else if (!catalogProductHasCompletePublicScore(product))
           Text(
             kQualityAssessmentIncompleteTitle,
             style: V2Typography.caption(color: context.v2.fgMuted),
           )
         else
           PGScoreLine(
-            score: score,
+            score: score!,
             qualityTier: product.qualityTier,
             compact: true,
             confidence: product.qualityScoreConfidence,

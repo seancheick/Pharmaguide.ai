@@ -459,7 +459,9 @@ class _ProductDetailV2ConnectedState
     final isNotScored = productIsNotScored(_product);
     // scored + partial: a number exists, but a pillar the rubric requires was
     // never assessed. The pillars can explain the inputs while the total is withheld.
-    final assessmentIncomplete = productAssessmentIncomplete(_product);
+    final assessmentIncomplete = !catalogProductHasCompletePublicScore(
+      _product,
+    );
 
     // -------------------------------------------------------------
     // Async detail blob (same provider production uses)

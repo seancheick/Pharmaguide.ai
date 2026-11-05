@@ -88,7 +88,7 @@ Future<void> _seedConnectedProduct(
   bool blocked = false,
   double mappedCoverage = 1,
   double catalogScore = 88,
-  String? qualityAssessmentStatus,
+  String? qualityAssessmentStatus = 'complete',
 }) async {
   await _seedProduct(
     coreDb,
@@ -108,7 +108,7 @@ Future<void> _seedProduct(
   bool blocked = false,
   double mappedCoverage = 1,
   double catalogScore = 88,
-  String? qualityAssessmentStatus,
+  String? qualityAssessmentStatus = 'complete',
 }) async {
   await coreDb
       .into(coreDb.productsCore)
@@ -201,7 +201,7 @@ Future<void> _pumpConnectedScreen(
   bool blocked = false,
   double mappedCoverage = 1,
   double catalogScore = 88,
-  String? qualityAssessmentStatus,
+  String? qualityAssessmentStatus = 'complete',
   FitScoreResult? fitResult,
   bool profiled = false,
   bool warningsFail = false,
@@ -2075,6 +2075,48 @@ void main() {
         expect(find.text('12/20'), findsOneWidget);
       },
     );
+
+    testWidgets(
+      'missing quality completion keeps hero and breakdown total withheld',
+      (tester) async {
+        await _pumpConnectedScreen(
+          tester,
+          initialSection: null,
+          qualityAssessmentStatus: null,
+          detailBlob: {'quality_pillars_v4': _connectedV4Pillars()},
+        );
+        expect(find.text('Quality assessment incomplete'), findsOneWidget);
+        final breakdown = find.byType(PGScoreBreakdownCard);
+        await _scrollConnectedTowardBottomUntil(tester, breakdown);
+        expect(breakdown, findsOneWidget);
+        expect(find.text('Why this scored 88'), findsNothing);
+        expect(find.text('Quality score breakdown'), findsOneWidget);
+      },
+    );
+
+    for (final assessment in [null, 'partial']) {
+      testWidgets(
+        'unqualified detail $assessment retains the catalog warning',
+        (tester) async {
+          await _pumpConnectedScreen(
+            tester,
+            initialSection: null,
+            blocked: true,
+            qualityAssessmentStatus: assessment,
+            detailBlob: {'quality_pillars_v4': _connectedV4Pillars()},
+          );
+          expect(
+            find.text('PharmaGuide does not recommend this product'),
+            findsOneWidget,
+          );
+          expect(
+            find.text('Banned substance: organic Hemp Oil extract'),
+            findsOneWidget,
+          );
+          expect(find.text('Why this scored 88'), findsNothing);
+        },
+      );
+    }
 
     testWidgets('an incomplete quality assessment keeps the total withheld', (
       tester,

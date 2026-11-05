@@ -31,11 +31,13 @@ ProductsCoreData _row({
   String? scoreConfidence,
   String? qualityTier,
   String? productSafetyStatus,
+  bool completed = true,
 }) {
   return ProductsCoreData(
     dsldId: 'TEST-1',
     productName: 'Test Supplement',
     qualityScoreV4100: score,
+    qualityAssessmentStatus: completed && score != null ? 'complete' : null,
     verdict: verdict,
     mappedCoverage: mappedCoverage,
     qualityScoreConfidence: scoreConfidence,
@@ -47,6 +49,24 @@ ProductsCoreData _row({
 }
 
 void main() {
+  test(
+    'missing completion withholds recent scan number without losing warning',
+    () {
+      final record = recentScanFromProduct(
+        _row(
+          score: 80,
+          completed: false,
+          productSafetyStatus: 'caution',
+          qualityTier: 'Good',
+        ),
+        time: 'now',
+      );
+      expect(record.score, isNull);
+      expect(record.qualityTier, isNull);
+      expect(record.productSafetyStatus, 'CAUTION');
+    },
+  );
+
   group('recentScanFromProduct — record building', () {
     test('BLOCKED product keeps score null — never coerced to 0', () {
       final rec = recentScanFromProduct(
@@ -259,6 +279,7 @@ void main() {
       String? verdict,
       double? mappedCoverage,
       String? scoreConfidence,
+      String? assessment = 'complete',
     }) async {
       await coreDb
           .into(coreDb.productsCore)
@@ -268,6 +289,7 @@ void main() {
               productName: 'Recent Scan Product',
               brandName: const drift.Value('Good Brand'),
               qualityScoreV4100: drift.Value(score),
+              qualityAssessmentStatus: drift.Value(assessment),
               verdict: drift.Value(verdict),
               mappedCoverage: drift.Value(mappedCoverage),
               qualityScoreConfidence: drift.Value(scoreConfidence),
@@ -302,6 +324,24 @@ void main() {
       await tester.pump(const Duration(milliseconds: 200));
     }
 
+    for (final assessment in [null, 'partial']) {
+      testWidgets(
+        'unqualified recent scan $assessment withholds stale number',
+        (tester) async {
+          final (coreDb, userDb) = await makeDbs(tester);
+          await seedScan(
+            coreDb,
+            userDb,
+            score: 82,
+            verdict: 'BLOCKED',
+            assessment: assessment,
+          );
+          await pumpHome(tester, coreDb, userDb);
+          expect(find.text('Blocked'), findsOneWidget);
+          expect(find.textContaining('/100'), findsNothing);
+        },
+      );
+    }
     testWidgets('BLOCKED scan renders "Blocked" — never "0/100" / "Poor"', (
       tester,
     ) async {

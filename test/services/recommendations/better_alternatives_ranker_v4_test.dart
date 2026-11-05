@@ -40,6 +40,31 @@ ProductsCoreData _p({
 }
 
 void main() {
+  for (final assessment in [null, 'partial', 'failed']) {
+    test(
+      'unqualified current $assessment cannot establish a quality comparison',
+      () {
+        final current = _p(
+          dsldId: 'current',
+          name: 'Vitamin',
+          supplementType: 'vitamin',
+          qualityScoreV4100: 20,
+          qualityAssessmentStatus: assessment,
+        );
+        final candidate = _p(
+          dsldId: 'candidate',
+          name: 'Vitamin Better',
+          supplementType: 'vitamin',
+          qualityScoreV4100: 80,
+        );
+        expect(
+          rankAlternatives(current: current, candidates: [candidate]),
+          isEmpty,
+        );
+      },
+    );
+  }
+
   test(
     'excludes a safety-suppressed candidate even when on-market + same type',
     () {

@@ -201,7 +201,7 @@ Widget buildHeroSection({
       productName: productName,
       brandName: brandName,
       formFactor: formFactor,
-      score: score100,
+      score: catalogProductHasCompletePublicScore(product) ? score100 : null,
       size: 112,
       compact: true,
       // Tap the hero image → open fullscreen viewer with pinch-zoom.
@@ -231,10 +231,13 @@ Widget buildHeroSection({
           (t) => PGTrustTag(label: t.label, isCertification: t.isCertification),
         )
         .toList(growable: false),
-    score: score100?.round(),
-    qualityTier: product?.qualityTier,
+    score: score100?.isFinite == true ? score100!.round() : null,
+    qualityTier: catalogProductHasCompletePublicScore(product)
+        ? product?.qualityTier
+        : null,
     isNotScored: isNotScored,
-    assessmentIncomplete: assessmentIncomplete,
+    assessmentIncomplete:
+        assessmentIncomplete || !catalogProductHasCompletePublicScore(product),
     isBlocked: isBlocked,
     limitedAssessment: hasLimitedAssessmentConfidence(
       product?.qualityScoreConfidence,
