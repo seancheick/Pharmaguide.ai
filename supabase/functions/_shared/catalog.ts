@@ -188,7 +188,7 @@ export function publicQuality(row: Pick<
       quality_score_v4_100: tier && canPublish ? publishedScore : null,
       quality_tier: tier,
       quality_score_status: capText(row.quality_score_status, 40),
-      quality_score_confidence: confidence,
+      quality_score_confidence: tier && canPublish ? confidence : null,
       quality_assessment_status: completion,
     },
     limitations,

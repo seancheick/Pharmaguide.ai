@@ -151,6 +151,84 @@ void main() {
       ],
     );
 
+    for (final channel in ['intent', 'family']) {
+      test(
+        'blocked source SQL $channel discovery ignores stale score and keeps candidate gates',
+        () async {
+          final db = CoreDatabase.memory();
+          addTearDown(db.close);
+          await seed(
+            db,
+            'vinpocetine',
+            100,
+            safety: 'blocked',
+            status: 'suppressed_safety',
+            assessment: 'partial',
+            type: 'nootropic_support',
+            tags: '["vinpocetine"]',
+          );
+          await db.customStatement(
+            "UPDATE products_core SET product_name = 'Vinpocetine', primary_category = '' WHERE dsld_id = 'vinpocetine'",
+          );
+          final type = channel == 'intent'
+              ? 'nootropic_support'
+              : 'cognitive_support';
+          final tags = channel == 'family' ? '["vinpocetine"]' : '["other"]';
+          await seed(db, 'valid-zero', 0, type: type, tags: tags);
+          for (final id in [
+            'partial',
+            'blocked',
+            'unsafe',
+            'null',
+            'invalid',
+            'suppressed',
+            'recalled',
+            'off',
+          ]) {
+            await seed(
+              db,
+              id,
+              id == 'null'
+                  ? null
+                  : id == 'invalid'
+                  ? 101
+                  : 99,
+              type: type,
+              tags: tags,
+              assessment: id == 'partial' ? 'partial' : 'complete',
+              safety: ['blocked', 'unsafe'].contains(id)
+                  ? id
+                  : 'no_known_catalog_concern',
+              status: id == 'suppressed' ? 'suppressed_safety' : 'scored',
+            );
+          }
+          await db.customStatement(
+            "UPDATE products_core SET has_recalled_ingredient = 1 WHERE dsld_id = 'recalled'",
+          );
+          await db.customStatement(
+            "UPDATE products_core SET discontinued_date = '2026-01-01' WHERE dsld_id = 'off'",
+          );
+          final source = (await db.findById('vinpocetine'))!;
+          expect(
+            (await db.fetchBetterAlternativesPool(
+              source,
+              poolSize: 1,
+            )).map((p) => p.dsldId),
+            ['valid-zero'],
+          );
+          await db.customStatement(
+            "UPDATE products_core SET product_safety_status = 'caution' WHERE dsld_id = 'vinpocetine'",
+          );
+          expect(
+            await db.fetchBetterAlternativesPool(
+              (await db.findById('vinpocetine'))!,
+            ),
+            isEmpty,
+          );
+        },
+      );
+    }
+
     test(
       'SQLite eligibility matches canonical semantics across malformed and legacy rows',
       () async {

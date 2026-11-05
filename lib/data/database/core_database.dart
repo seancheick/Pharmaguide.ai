@@ -665,14 +665,18 @@ class CoreDatabase extends _$CoreDatabase {
     ProductsCoreData current, {
     int poolSize = 50,
   }) async {
-    if (poolSize <= 0 || !catalogProductHasCompletePublicScore(current)) {
+    // Blocked sources may discover options without a numerical comparison.
+    // Every candidate still needs its own complete public score.
+    final blockedSource = catalogProductIsBlocked(current);
+    if (poolSize <= 0 ||
+        (!blockedSource && !catalogProductHasCompletePublicScore(current))) {
       return const [];
     }
 
     final currentCategory = current.primaryCategory?.trim().toLowerCase() ?? '';
     final currentType = current.supplementType?.trim().toLowerCase() ?? '';
     final currentTags = current.keyIngredientTags?.trim() ?? '[]';
-    final currentScore = current.qualityScoreV4100 ?? 0;
+    final currentScore = blockedSource ? 0.0 : current.qualityScoreV4100!;
     if (currentCategory.isEmpty && currentType.isEmpty && currentTags == '[]') {
       // No intent signal to match on — return nothing rather than
       // dump the top-N by raw score.
@@ -681,8 +685,8 @@ class CoreDatabase extends _$CoreDatabase {
 
     final rows = await customSelect(
       '''
-      WITH current_context(type, category, tags, score, dsld_id, pool_size) AS (
-        VALUES (?, ?, ?, ?, ?, ?)
+      WITH current_context(type, category, tags, score, dsld_id, pool_size, compare_score) AS (
+        VALUES (?, ?, ?, ?, ?, ?, ?)
       ),
       current_tags(value) AS (
         SELECT lower(trim(CAST(value AS TEXT)))
@@ -718,7 +722,8 @@ class CoreDatabase extends _$CoreDatabase {
         FROM products_core AS p, current_context AS c
         WHERE p.dsld_id <> c.dsld_id
           AND p.quality_score_status = 'scored'
-          AND ${_effectiveScoreSql(prefix: 'p.')} > c.score
+          AND ${catalogCompletePublicScoreSql(prefix: 'p.')}
+          AND (c.compare_score = 0 OR p.quality_score_v4_100 > c.score)
           AND trim(COALESCE(p.discontinued_date, '')) = ''
           AND COALESCE(p.has_banned_substance, 0) = 0
           AND COALESCE(p.has_recalled_ingredient, 0) = 0
@@ -762,6 +767,7 @@ class CoreDatabase extends _$CoreDatabase {
         Variable.withReal(currentScore),
         Variable.withString(current.dsldId),
         Variable.withInt(poolSize),
+        Variable.withInt(blockedSource ? 0 : 1),
       ],
       readsFrom: {productsCore},
     ).get();

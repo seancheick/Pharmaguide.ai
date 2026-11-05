@@ -477,46 +477,50 @@ void main() {
       );
     }
 
-    testWidgets('blocked unscored product makes no higher-score claim', (
-      tester,
-    ) async {
-      final coreDb = CoreDatabase.memory();
-      await _seedProduct(
-        coreDb,
-        dsldId: 'cur',
-        productName: 'Blocked current',
-        brandName: 'CurrentBrand',
-        qualityScoreV4100: null,
-        category: 'multivitamin',
-        scoreStatus: 'suppressed_safety',
-        safetyStatus: 'blocked',
-        topWarnings: '["Recorded source warning"]',
-      );
-      await _seedProduct(
-        coreDb,
-        dsldId: 'alt-1',
-        productName: 'Comparison Multi',
-        brandName: 'BrandA',
-        qualityScoreV4100: 70,
-        category: 'multivitamin',
-      );
-      await tester.pumpWidget(
-        _wrap(coreDb, _section(isBlocked: true, score100: null)),
-      );
-      await tester.pumpAndSettle();
-      expect(find.text('Other products to compare'), findsNothing);
-      expect(find.text('Comparison Multi'), findsNothing);
-      expect(find.byType(PGBetterAlternatives), findsNothing);
-      expect(
-        (await coreDb.findById('cur'))!.topWarnings,
-        '["Recorded source warning"]',
-      );
-      expect(find.textContaining('higher catalog scores'), findsNothing);
-      expect(find.textContaining('may not be interchangeable'), findsNothing);
-      await tester.pumpWidget(const SizedBox.shrink());
-      await coreDb.close();
-    });
-
+    for (final staleScore in [null, 100.0]) {
+      testWidgets('blocked source $staleScore makes no higher-score claim', (
+        tester,
+      ) async {
+        final coreDb = CoreDatabase.memory();
+        await _seedProduct(
+          coreDb,
+          dsldId: 'cur',
+          productName: 'Blocked current',
+          brandName: 'CurrentBrand',
+          qualityScoreV4100: staleScore,
+          category: 'multivitamin',
+          scoreStatus: 'suppressed_safety',
+          safetyStatus: 'blocked',
+          topWarnings: '["Recorded source warning"]',
+        );
+        await _seedProduct(
+          coreDb,
+          dsldId: 'alt-1',
+          productName: 'Comparison Multi',
+          brandName: 'BrandA',
+          qualityScoreV4100: 70,
+          category: 'multivitamin',
+        );
+        await tester.pumpWidget(
+          _wrap(coreDb, _section(isBlocked: true, score100: staleScore)),
+        );
+        await tester.pumpAndSettle();
+        expect(find.text('Other options to review'), findsOneWidget);
+        expect(find.text('Comparison Multi'), findsOneWidget);
+        expect(find.byType(PGBetterAlternatives), findsOneWidget);
+        expect(
+          (await coreDb.findById('cur'))!.topWarnings,
+          '["Recorded source warning"]',
+        );
+        expect(find.textContaining('higher catalog scores'), findsNothing);
+        expect(
+          find.textContaining('may not be interchangeable'),
+          findsOneWidget,
+        );
+        await tester.pumpWidget(const SizedBox.shrink());
+        await coreDb.close();
+      });
+    }
     testWidgets('blocked product with no match renders nothing', (
       tester,
     ) async {

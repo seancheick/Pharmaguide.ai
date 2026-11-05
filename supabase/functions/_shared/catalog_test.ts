@@ -24,6 +24,7 @@ Deno.test("blocked and unsafe catalog rows never publish numeric quality or tier
     for (const quality of [direct.quality, match, facts.quality as Json]) {
       assertEquals(quality.quality_score_v4_100, blocked ? null : 80, String(safety));
       assertEquals(quality.quality_tier, blocked ? null : "Good", String(safety));
+      assertEquals(quality.quality_score_confidence, blocked ? null : "high", String(safety));
     }
     if (blocked) assert(direct.limitations.some(value => value.includes("safety finding")), "safety limitation retained");
     assert((facts.warnings as Json[]).some(w => w.title === "Contains Titanium Dioxide"), "warning retained");
@@ -39,6 +40,7 @@ Deno.test("public quality needs explicit completion and a valid scored total for
         const { quality } = publicQuality(product);
         assertEquals(quality.quality_score_v4_100, valid ? score : null, "number " + String([assessment, scoreStatus, score]));
         assertEquals(quality.quality_tier, valid ? "Good" : null, "tier " + String([assessment, scoreStatus, score]));
+        assertEquals(quality.quality_score_confidence, valid ? "high" : null, "confidence " + String([assessment, scoreStatus, score]));
         const match = toMatch(product);
         assertEquals(match.quality_score_v4_100, quality.quality_score_v4_100);
         assertEquals(match.quality_tier, quality.quality_tier);
@@ -58,6 +60,7 @@ Deno.test("detail assessment can restrict row proof but never upgrade missing or
       const quality = facts.quality as Json;
       assertEquals(quality.quality_score_v4_100, valid ? 80 : null, "number " + String([assessment, override]));
       assertEquals(quality.quality_tier, valid ? "Good" : null, "tier " + String([assessment, override]));
+      assertEquals(quality.quality_score_confidence, valid ? "high" : null, "confidence " + String([assessment, override]));
       assertEquals(facts.product_safety_status, "caution");
       assert((facts.warnings as Json[]).some((w) => w.title === "Contains Titanium Dioxide"), "known warning retained");
       assertEquals(((facts.quality_pillars_v4 as Json).dose as Json).score, 10);

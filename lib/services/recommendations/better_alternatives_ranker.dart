@@ -47,9 +47,9 @@ const int kDefaultBetterAlternativesLimit = 3;
 /// `candidates` should be a reasonably wide pool (30-50 items) so
 /// the ranker has room to skip down through tiers. The recommended
 /// pool is `CoreDatabase.fetchBetterAlternativesPool` (which already
-/// applies on-market and strictly-higher-score gates at the SQL
-/// layer) — but the ranker re-applies every hard filter as a defence
-/// in depth.
+/// applies on-market and qualified-candidate gates at the SQL
+/// layer; blocked sources use noncomparative discovery). The ranker
+/// re-applies every hard filter as a defence in depth.
 ///
 /// `userGoals`, when non-empty, lets the goal-match tiebreaker
 /// prefer candidates that align with the user's saved goals. Pass
@@ -61,7 +61,9 @@ List<ProductsCoreData> rankAlternatives({
   Set<String>? userGoals,
   int limit = kDefaultBetterAlternativesLimit,
 }) {
-  if (candidates.isEmpty || !catalogProductHasCompletePublicScore(current)) {
+  if (candidates.isEmpty ||
+      (!catalogProductIsBlocked(current) &&
+          !catalogProductHasCompletePublicScore(current))) {
     return const [];
   }
 
@@ -349,8 +351,10 @@ bool _passesHardFilters(
   // Candidate must carry a score so the section can render a value.
   final candScore = effectiveQualityScore(candidate);
   if (candScore == null) return false;
-  // Both sides must have qualified public totals before comparing quality.
-  final curScore = effectiveQualityScore(current);
+  // A blocked source offers noncomparative discovery, never a score baseline.
+  final curScore = catalogProductIsBlocked(current)
+      ? null
+      : effectiveQualityScore(current);
   if (curScore != null) {
     // "Higher quality" follows the same named tier contract the consumer
     // sees everywhere else. This avoids a hidden local +3 heuristic and

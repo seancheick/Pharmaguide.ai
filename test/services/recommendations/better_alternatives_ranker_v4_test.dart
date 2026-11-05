@@ -22,6 +22,7 @@ ProductsCoreData _p({
   String? qualityAssessmentStatus = 'complete',
   String? discontinuedDate,
   int hasBannedSubstance = 0,
+  int hasRecalledIngredient = 0,
 }) {
   return ProductsCoreData(
     dsldId: dsldId,
@@ -34,12 +35,69 @@ ProductsCoreData _p({
     qualityAssessmentStatus: qualityAssessmentStatus,
     discontinuedDate: discontinuedDate,
     hasBannedSubstance: hasBannedSubstance,
+    hasRecalledIngredient: hasRecalledIngredient,
     exportVersion: 'test',
     exportedAt: '2026-06-09T00:00:00Z',
   );
 }
 
 void main() {
+  test(
+    'blocked Vinpocetine source discovers qualified options without score comparison',
+    () {
+      final source = _p(
+        dsldId: '16012',
+        name: 'Vinpocetine',
+        supplementType: 'nootropic_support',
+        qualityScoreV4100: 100,
+        productSafetyStatus: 'blocked',
+        qualityScoreStatus: 'suppressed_safety',
+        qualityAssessmentStatus: 'partial',
+      );
+      ProductsCoreData candidate(
+        String id, {
+        double? score = 0,
+        String? assessment = 'complete',
+        String? safety,
+        String? status = 'scored',
+        String? discontinued,
+        int banned = 0,
+        int recalled = 0,
+        String name = 'Nootropic Support',
+        String type = 'nootropic_support',
+      }) => _p(
+        dsldId: id,
+        name: name,
+        supplementType: type,
+        qualityScoreV4100: score,
+        qualityAssessmentStatus: assessment,
+        productSafetyStatus: safety,
+        qualityScoreStatus: status,
+        discontinuedDate: discontinued,
+        hasBannedSubstance: banned,
+        hasRecalledIngredient: recalled,
+      );
+      final result = rankAlternatives(
+        current: source,
+        candidates: [
+          candidate('valid-zero'),
+          candidate('partial', score: 99, assessment: 'partial'),
+          candidate('missing', score: null),
+          candidate('invalid', score: double.nan),
+          candidate('blocked', safety: 'blocked'),
+          candidate('unsafe', safety: 'unsafe'),
+          candidate('suppressed', status: 'suppressed_safety'),
+          candidate('banned', banned: 1),
+          candidate('recalled', recalled: 1),
+          candidate('off', discontinued: '2026-01-01'),
+          candidate('kids', name: 'Kids Nootropic Support'),
+          candidate('unrelated', type: 'probiotic'),
+        ],
+      );
+      expect(result.map((p) => p.dsldId), ['valid-zero']);
+    },
+  );
+
   for (final assessment in [null, 'partial', 'failed']) {
     test(
       'unqualified current $assessment cannot establish a quality comparison',
