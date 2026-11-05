@@ -1,8 +1,25 @@
 import 'package:flutter_test/flutter_test.dart';
+import 'package:pharmaguide/core/utils/app_version.dart';
 import 'package:pharmaguide/data/providers/database_providers.dart';
 
 void main() {
   group('interaction database compatibility gate', () {
+    test('shared warning reader floor excludes the old release cohort', () {
+      expect(
+        () => enforceInteractionDatabaseVersionGate(
+          minAppVersion: '1.0.1',
+          schemaVersion: '4.0.0',
+          appVersion: '1.0.0',
+        ),
+        throwsA(isA<InteractionDatabaseVersionGateException>()),
+      );
+      enforceInteractionDatabaseVersionGate(
+        minAppVersion: '1.0.1',
+        schemaVersion: '4.0.0',
+        appVersion: kAppVersion,
+      );
+    });
+
     test('rejects a database requiring a newer app', () {
       expect(
         () => enforceInteractionDatabaseVersionGate(
