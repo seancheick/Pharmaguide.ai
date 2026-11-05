@@ -147,7 +147,14 @@ bool catalogProductAssessmentIncomplete(ProductsCoreData? product) {
 /// qualifies only when it is not blocked, has a usable number, AND the
 /// assessment behind that number actually finished.
 bool catalogProductHasCompletePublicScore(ProductsCoreData? product) {
-  if (product == null || product.qualityScoreV4100 == null) return false;
+  final score = product?.qualityScoreV4100;
+  if (product == null ||
+      score == null ||
+      !score.isFinite ||
+      score < 0 ||
+      score > 100) {
+    return false;
+  }
   if (catalogProductIsBlocked(product)) return false;
   if (catalogProductIsNotScored(product)) return false;
   if (product.qualityScoreStatus?.trim().toLowerCase() == 'suppressed_safety') {
@@ -163,7 +170,7 @@ String catalogCompletePublicScoreSql({String prefix = ''}) {
   final safety = normalized('product_safety_status');
   final verdict = normalized('verdict');
   final status = normalized('quality_score_status');
-  return "(${prefix}quality_score_v4_100 IS NOT NULL "
+  return "(${prefix}quality_score_v4_100 BETWEEN 0 AND 100 "
       "AND ${normalized('quality_assessment_status')} = 'complete' "
       "AND $status IN ('', 'scored') "
       "AND $safety NOT IN ('blocked', 'unsafe') "

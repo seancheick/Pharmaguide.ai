@@ -19,7 +19,7 @@
 // a deliberate trip-wire against silent regressions in the
 // recommendation surface.
 
-import 'package:drift/drift.dart' show Value;
+import 'package:drift/drift.dart' show Value, Variable;
 import 'package:pharmaguide/core/scoring/catalog_product_semantics.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:pharmaguide/data/database/core_database.dart';
@@ -214,6 +214,51 @@ void main() {
         }
       },
     );
+    test(
+      'public score requires a finite number in the existing 0–100 contract',
+      () async {
+        final db = CoreDatabase.memory();
+        addTearDown(db.close);
+        for (final score in [
+          double.nan,
+          double.infinity,
+          double.negativeInfinity,
+          -1.0,
+          101.0,
+          0.0,
+          100.0,
+        ]) {
+          final valid = score.isFinite && score >= 0 && score <= 100;
+          final id = 'number-$score';
+          final product = ProductsCoreData(
+            dsldId: id,
+            productName: 'Vitamin',
+            exportVersion: 'test',
+            exportedAt: '2026-11-05',
+            qualityScoreV4100: score,
+            qualityScoreStatus: 'scored',
+            qualityAssessmentStatus: 'complete',
+          );
+          expect(
+            catalogProductHasCompletePublicScore(product),
+            valid,
+            reason: '$score',
+          );
+          await seed(db, id, score);
+          final rows = await db
+              .customSelect(
+                'SELECT ${CoreDatabase.effectiveScoreSql} AS public_score FROM products_core WHERE dsld_id = ?',
+                variables: [Variable.withString(id)],
+              )
+              .get();
+          expect(
+            rows.single.readNullable<double>('public_score'),
+            valid ? score : null,
+            reason: '$score SQLite',
+          );
+        }
+      },
+    );
     for (final fts in [false, true]) {
       test(
         'search preserves discovery but excludes provisional ordering FTS=$fts',
@@ -255,6 +300,54 @@ void main() {
         },
       );
     }
+    test(
+      'percentile ordering and score filters disregard stored provisional ratings',
+      () async {
+        final db = CoreDatabase.memory();
+        addTearDown(db.close);
+        await seed(db, 'partial', 95, assessment: 'partial');
+        await seed(db, 'complete', 80);
+        await seed(db, 'zero', 0);
+        await seed(db, 'unknown', null);
+        for (final id in ['partial', 'unknown']) {
+          await db.customStatement(
+            "UPDATE products_core SET percentile_top_pct = 1, quality_tier = 'EXCELLENT' WHERE dsld_id = ?",
+            [id],
+          );
+        }
+        await db.customStatement(
+          "UPDATE products_core SET percentile_top_pct = 20 WHERE dsld_id = 'complete'",
+        );
+        await db.customStatement(
+          "UPDATE products_core SET percentile_top_pct = 100 WHERE dsld_id = 'zero'",
+        );
+        final sorted = await db.filterProducts(sortBy: 'percentile');
+        expect(sorted.map((p) => p.dsldId).take(2), ['complete', 'zero']);
+        expect(
+          sorted.map((p) => p.dsldId),
+          containsAll(['partial', 'unknown']),
+        );
+        // ignore: deprecated_member_use_from_same_package
+        final filtered = await db.findAlternatives('vitamin', 0);
+        expect(filtered.map((p) => p.dsldId), ['complete', 'zero']);
+      },
+    );
+
+    test(
+      'legacy minScore never admits provisional or missing scores',
+      () async {
+        final db = CoreDatabase.memory();
+        addTearDown(db.close);
+        await seed(db, 'partial', 95, assessment: 'partial');
+        await seed(db, 'unknown', null);
+        await seed(db, 'complete', 80);
+        await seed(db, 'zero', 0);
+        // ignore: deprecated_member_use_from_same_package
+        final filtered = await db.findAlternatives('vitamin', 0);
+        expect(filtered.map((p) => p.dsldId), ['complete', 'zero']);
+      },
+    );
+
     test(
       'provisional current total cannot define a better-alternative threshold',
       () async {

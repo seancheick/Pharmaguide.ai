@@ -628,7 +628,9 @@ class CoreDatabase extends _$CoreDatabase {
           ..where((t) {
             var expr =
                 t.primaryCategory.equals(category) &
-                t.qualityScoreV4100.isBiggerOrEqualValue(minScore);
+                CustomExpression<double>(
+                  effectiveScoreSql,
+                ).isBiggerOrEqualValue(minScore);
             if (excludeDsldId != null) {
               expr = expr & t.dsldId.equals(excludeDsldId).not();
             }
@@ -636,7 +638,7 @@ class CoreDatabase extends _$CoreDatabase {
           })
           ..orderBy([
             (t) => OrderingTerm(
-              expression: t.qualityScoreV4100,
+              expression: CustomExpression<double>(effectiveScoreSql),
               mode: OrderingMode.desc,
             ),
           ])
@@ -825,7 +827,20 @@ class CoreDatabase extends _$CoreDatabase {
     } else if (sortBy == 'name') {
       query.orderBy([(t) => OrderingTerm(expression: t.productName)]);
     } else if (sortBy == 'percentile') {
-      query.orderBy([(t) => OrderingTerm(expression: t.percentileTopPct)]);
+      final publicPercentileSql =
+          'CASE WHEN ${catalogCompletePublicScoreSql()} '
+          'THEN percentile_top_pct ELSE NULL END';
+      query.orderBy([
+        (t) => OrderingTerm(
+          expression: CustomExpression<bool>(
+            '$publicPercentileSql IS NOT NULL',
+          ),
+          mode: OrderingMode.desc,
+        ),
+        (t) => OrderingTerm(
+          expression: CustomExpression<double>(publicPercentileSql),
+        ),
+      ]);
     }
 
     return query.get();
