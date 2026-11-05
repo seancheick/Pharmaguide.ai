@@ -341,9 +341,10 @@ class SyncService {
     }
   }
 
-  /// Null when there's no usable descriptor, which is every catalog published
-  /// before compression. It can't change what activates: it must name this
-  /// catalog's checksum, and the result must then hash to it.
+  /// Null when there's no usable descriptor, including catalogs published
+  /// before compression. Transient lookup failures propagate for a later retry.
+  /// It can't change what activates: it must name this catalog's checksum, and
+  /// the result must then hash to it.
   Future<CompressedCatalog?> _readCompressedDescriptor(
     String version,
     String expectedSha256,
@@ -358,7 +359,20 @@ class SyncService {
       final response = await client
           .get(Uri.parse(url))
           .timeout(_manifestTimeout);
-      if (response.statusCode != 200) return null;
+      if (response.statusCode != 200) {
+        final error = StorageException(
+          response.body,
+          statusCode: response.statusCode.toString(),
+        );
+        // Public auth denial is not a missing artifact, but the established
+        // plain path can still deliver it through authenticated Storage access.
+        if (response.statusCode == 401 ||
+            response.statusCode == 403 ||
+            _isMissingStorageObject(error)) {
+          return null;
+        }
+        throw error;
+      }
       final decoded = jsonDecode(response.body);
       if (decoded is! Map ||
           decoded['version'] != version ||
@@ -369,9 +383,9 @@ class SyncService {
         decoded,
         expectedPath: SupabaseContract.compressedCoreDbPath(version),
       );
-    } on Object catch (error) {
+    } on FormatException catch (error) {
       CrashReportingService().log(
-        'catalog descriptor unavailable: ${error.runtimeType}',
+        'catalog descriptor invalid: ${error.runtimeType}',
       );
       return null;
     } finally {
@@ -390,10 +404,15 @@ class SyncService {
     required String expectedSha256,
   }) async {
     final gz = File('${stagingFile.parent.path}/catalog.gz.staging');
-    // Neither is needed now, and both count against the room measured next.
+    // The decompression scratch file is disposable. Keep plain download bytes
+    // and their version marker until the verified gzip atomically replaces them;
+    // a missing/rejected gzip must not erase the plain fallback's Range resume.
     await _deleteQuietly(File('${stagingFile.path}.decompressing'));
-    await _deleteQuietly(stagingFile);
-    await _deleteStagingVersionMarker(stagingFile);
+    // Free an unusable older plain partial before measuring room. Fresh attempts
+    // create no marker here; matching-version bytes remain available for resume.
+    if (await stagingFile.exists()) {
+      await _prepareStagingForVersion(stagingFile, version);
+    }
 
     await _requireRoom(
       stagingFile.parent.path,
@@ -432,28 +451,32 @@ class SyncService {
     } on StorageException catch (error) {
       // A failed storage service is not proof the compressed object is absent.
       // Preserve partial bytes and let the normal updater retry those failures.
-      var code = error.error;
-      if (error.statusCode == '400' && code == null) {
-        // The pinned storage SDK leaves download error JSON in message.
-        try {
-          final payload = jsonDecode(error.message);
-          if (payload is Map && payload['error'] is String) {
-            code = payload['error'] as String;
-          }
-        } on FormatException {
-          // An unrecognized response is not evidence of a missing object.
-        }
-      }
-      final missing =
-          error.statusCode == '404' ||
-          (error.statusCode == '400' && code == 'not_found');
-      if (!missing) rethrow;
+      if (!_isMissingStorageObject(error)) rethrow;
       CrashReportingService().log('catalog gz missing: ${error.statusCode}');
       await discard();
       return false;
     }
     await discard();
     return true;
+  }
+
+  /// Storage's two definitive absence responses, shared by descriptor and gzip.
+  /// Anything else is retryable uncertainty, never evidence to spend a fallback.
+  bool _isMissingStorageObject(StorageException error) {
+    var code = error.error;
+    if (error.statusCode == '400' && code == null) {
+      // The pinned storage SDK leaves download error JSON in message.
+      try {
+        final payload = jsonDecode(error.message);
+        if (payload is Map && payload['error'] is String) {
+          code = payload['error'] as String;
+        }
+      } on FormatException {
+        // An unrecognized response is not evidence of a missing object.
+      }
+    }
+    return error.statusCode == '404' ||
+        (error.statusCode == '400' && code == 'not_found');
   }
 
   /// What an interrupted download of [file] for this [version] already holds.

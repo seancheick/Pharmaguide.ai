@@ -457,13 +457,36 @@ void main() {
           );
           if (fts) {
             await db.customStatement(
-              'CREATE VIRTUAL TABLE products_fts USING fts5(product_name)',
+              'ALTER TABLE products_core ADD COLUMN brand_name_raw TEXT',
             );
             await db.customStatement(
-              'INSERT INTO products_fts(rowid, product_name) SELECT rowid, product_name FROM products_core',
+              "UPDATE products_core SET ingredients_text = 'shared ftsneedle'",
+            );
+            await db.customStatement(
+              "CREATE VIRTUAL TABLE products_fts USING fts5("
+              "product_name, brand_name, brand_name_raw, ingredients_text, "
+              "content='products_core', content_rowid='rowid', "
+              "tokenize='porter unicode61')",
+            );
+            await db.customStatement(
+              "INSERT INTO products_fts(products_fts) VALUES ('rebuild')",
             );
           }
-          final results = await db.searchProducts('Vitamin');
+          // A non-prefix ingredient hit cannot come from the LIKE fallback.
+          if (fts) {
+            final witness = await db
+                .customSelect(
+                  "SELECT count(*) AS hits FROM products_core WHERE "
+                  "product_name LIKE 'ftsneedle%' OR brand_name LIKE 'ftsneedle%' "
+                  "OR ingredients_text LIKE 'ftsneedle%'",
+                )
+                .getSingle();
+            expect(witness.read<int>('hits'), 0);
+          }
+          final query = fts ? 'ftsneedle' : 'Vitamin';
+          final limited = await db.searchProducts(query, limit: 2);
+          expect(limited.map((p) => p.dsldId), ['complete', 'zero']);
+          final results = await db.searchProducts(query);
           expect(results.map((p) => p.dsldId).take(2), ['complete', 'zero']);
           expect(
             results.map((p) => p.dsldId),
