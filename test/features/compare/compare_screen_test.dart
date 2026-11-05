@@ -579,9 +579,10 @@ void main() {
 
     await pumpCompare(tester);
 
-    // Hero scores still render.
-    expect(find.text('90/100'), findsOneWidget);
-    expect(find.text('88/100'), findsOneWidget);
+    // An unresolved declared blob cannot qualify a public score.
+    expect(find.text('90/100'), findsNothing);
+    expect(find.text('88/100'), findsNothing);
+    expect(find.text('Quality assessment incomplete'), findsNWidgets(2));
     expect(find.byKey(const Key('compare-connection-hedge')), findsOneWidget);
     expect(find.textContaining('needs a connection'), findsOneWidget);
     expect(find.text('Pillar by pillar'), findsNothing);

@@ -197,6 +197,8 @@ Future<void> _pumpConnectedScreen(
   WidgetTester tester, {
   required Map<String, dynamic>? detailBlob,
   String? initialSection = 'ingredients',
+  bool detailBlobFails = false,
+  Completer<Map<String, dynamic>?>? detailBlobGate,
   bool fitFails = false,
   Completer<void>? fitGate,
   List<int>? fitCalls,
@@ -271,12 +273,18 @@ Future<void> _pumpConnectedScreen(
           connectionStatusProvider.overrideWith((ref) => connection),
         detailBlobProvider.overrideWith((ref, dsldId) async {
           if (productRoute == null) expect(dsldId, _connectedDsldId);
-          return detailBlob;
+          if (detailBlobFails) throw StateError('offline blob');
+          return detailBlobGate == null
+              ? detailBlob
+              : await detailBlobGate.future;
         }),
         detailBlobForRowProvider.overrideWith((ref, key) async {
           if (productRoute == null) expect(key.dsldId, _connectedDsldId);
           observedBlobKeys?.add(key);
-          return detailBlob;
+          if (detailBlobFails) throw StateError('offline blob');
+          return detailBlobGate == null
+              ? detailBlob
+              : await detailBlobGate.future;
         }),
         if (profiled)
           profileProvider.overrideWith(
@@ -2148,6 +2156,63 @@ void main() {
       );
     }
 
+    for (final surface in ['detail', 'share']) {
+      for (final state in ['loading', 'failed', 'resolved_null', 'no_hash']) {
+        testWidgets('$surface qualification respects blob $state', (
+          tester,
+        ) async {
+          final gate = Completer<Map<String, dynamic>?>();
+          String? sharedText;
+          const channel = MethodChannel('dev.fluttercommunity.plus/share');
+          tester.binding.defaultBinaryMessenger.setMockMethodCallHandler(
+            channel,
+            (call) async {
+              sharedText = (call.arguments as Map)['text'] as String?;
+              return 'done';
+            },
+          );
+          addTearDown(
+            () => tester.binding.defaultBinaryMessenger
+                .setMockMethodCallHandler(channel, null),
+          );
+          await _pumpConnectedScreen(
+            tester,
+            initialSection: null,
+            initialProductSha: state == 'no_hash' ? null : 'a' * 64,
+            detailBlob: null,
+            detailBlobFails: state == 'failed',
+            detailBlobGate: state == 'loading' ? gate : null,
+            settle: state != 'loading',
+          );
+          final qualified = state == 'resolved_null' || state == 'no_hash';
+          final hero = tester.widget<PGHeroSection>(find.byType(PGHeroSection));
+          if (surface == 'detail') {
+            expect(hero.assessmentIncomplete, !qualified);
+            expect(
+              (hero.imageWidget as ProductImage).score,
+              qualified ? 88 : null,
+            );
+            if (!qualified) expect(hero.qualityTier, isNull);
+          }
+          await tester.tap(find.byTooltip('Share product'));
+          for (var i = 0; i < 5; i++) {
+            await tester.pump(const Duration(milliseconds: 100));
+          }
+          expect(sharedText, isNotNull);
+          expect(sharedText!.contains('88/100'), qualified);
+          if (state == 'loading') {
+            gate.complete({'quality_assessment_status': 'partial'});
+            await tester.pumpAndSettle();
+            expect(
+              tester
+                  .widget<PGHeroSection>(find.byType(PGHeroSection))
+                  .assessmentIncomplete,
+              isTrue,
+            );
+          }
+        });
+      }
+    }
     for (final blobStatus in [null, 'complete']) {
       testWidgets(
         'complete core with nonrestrictive blob $blobStatus retains its total',

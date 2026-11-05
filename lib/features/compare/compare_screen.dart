@@ -174,10 +174,12 @@ class _CompareBody extends StatelessWidget {
     final totalA = catalogProductHasCompletePublicScore(
       productA,
       assessmentOverride: a.blob?['quality_assessment_status'],
+      assessmentResolved: !a.blobFailed,
     );
     final totalB = catalogProductHasCompletePublicScore(
       productB,
       assessmentOverride: b.blob?['quality_assessment_status'],
+      assessmentResolved: !b.blobFailed,
     );
 
     final delta = _largestPillarGap(
@@ -208,6 +210,7 @@ class _CompareBody extends StatelessWidget {
               child: _ProductHeader(
                 product: productA,
                 assessmentOverride: a.blob?['quality_assessment_status'],
+                assessmentResolved: !a.blobFailed,
                 isBlocked: blockedA,
                 isNotScored: notScoredA,
               ),
@@ -217,6 +220,7 @@ class _CompareBody extends StatelessWidget {
               child: _ProductHeader(
                 product: productB,
                 assessmentOverride: b.blob?['quality_assessment_status'],
+                assessmentResolved: !b.blobFailed,
                 isBlocked: blockedB,
                 isNotScored: notScoredB,
               ),
@@ -356,12 +360,14 @@ class _ProductHeader extends StatelessWidget {
   final bool isBlocked;
   final bool isNotScored;
   final Object? assessmentOverride;
+  final bool assessmentResolved;
 
   const _ProductHeader({
     required this.product,
     required this.isBlocked,
     required this.isNotScored,
     this.assessmentOverride,
+    this.assessmentResolved = true,
   });
 
   @override
@@ -372,6 +378,7 @@ class _ProductHeader extends StatelessWidget {
         catalogProductHasCompletePublicScore(
           product,
           assessmentOverride: assessmentOverride,
+          assessmentResolved: assessmentResolved,
         )
         ? product.qualityScoreV4100!.round()
         : null;
@@ -416,6 +423,7 @@ class _ProductHeader extends StatelessWidget {
         else if (!catalogProductHasCompletePublicScore(
           product,
           assessmentOverride: assessmentOverride,
+          assessmentResolved: assessmentResolved,
         ))
           Text(
             kQualityAssessmentIncompleteTitle,

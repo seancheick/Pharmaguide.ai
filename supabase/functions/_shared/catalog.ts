@@ -143,7 +143,7 @@ export function catalogAssessmentStatus(
 /// the limitation explaining why.
 export function publicQuality(row: Pick<
   CatalogRow,
-  "quality_tier" | "quality_score_status" | "quality_score_confidence" | "quality_assessment_status" | "quality_score_v4_100"
+  "quality_tier" | "quality_score_status" | "quality_score_confidence" | "quality_assessment_status" | "quality_score_v4_100" | "product_safety_status"
 >, assessmentOverride?: unknown): { quality: Json; limitations: string[] } {
   const limitations: string[] = [];
   const scoreStatus = lower(row.quality_score_status);
@@ -156,9 +156,12 @@ export function publicQuality(row: Pick<
     rowCompletion === "partial" || detailCompletion === "partial" ? "partial" : "complete";
   const publishedScore = finiteNumber(row.quality_score_v4_100);
   const validScore = publishedScore !== null && publishedScore >= 0 && publishedScore <= 100;
-  const canPublish = completion === "complete" && scoreStatus === "scored" && validScore;
+  const blocked = ["blocked", "unsafe"].includes(catalogSafetyStatus(row.product_safety_status));
+  const canPublish = !blocked && completion === "complete" && scoreStatus === "scored" && validScore;
   let tier = canPublish ? capText(row.quality_tier, 60) : null;
-  if (completion === "failed" || scoreStatus === "not_scored" ||
+  if (blocked) {
+    limitations.push("Quality score withheld because of a catalog safety finding.");
+  } else if (completion === "failed" || scoreStatus === "not_scored" ||
       (scoreStatus && !["scored", "suppressed_safety"].includes(scoreStatus)) ||
       (!scoreStatus && !tier)) {
     tier = null;

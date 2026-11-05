@@ -258,13 +258,14 @@ class _ProductDetailV2ConnectedState
         return;
       }
       final isBlocked = catalogProductIsBlocked(product);
-      final cachedBlob = ref
-          .read(detailBlobForRowProvider(blobIdentity))
-          .asData
-          ?.value;
+      final blobState = ref.read(detailBlobForRowProvider(blobIdentity));
+      final cachedBlob = blobState.asData?.value;
       final canShareScore = catalogProductHasCompletePublicScore(
         product,
         assessmentOverride: cachedBlob?['quality_assessment_status'],
+        assessmentResolved:
+            product.detailBlobSha256?.isNotEmpty != true ||
+            (!blobState.isLoading && !blobState.hasError),
       );
       // Trust tags are gated on `isBlocked`, NOT on `canShareScore`.
       //
@@ -493,6 +494,9 @@ class _ProductDetailV2ConnectedState
     final assessmentIncomplete = !catalogProductHasCompletePublicScore(
       _product,
       assessmentOverride: detailBlob?['quality_assessment_status'],
+      assessmentResolved:
+          _product?.detailBlobSha256?.isNotEmpty != true ||
+          (!blobAsync.isLoading && !blobAsync.hasError),
     );
     final ingredientSources = productDetailIngredientSourcesFromBlob(
       detailBlob,

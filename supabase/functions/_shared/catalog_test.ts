@@ -14,6 +14,22 @@ import {
   toProductFacts,
 } from "./catalog.ts";
 
+Deno.test("blocked and unsafe catalog rows never publish numeric quality or tier", () => {
+  for (const safety of ["blocked", "unsafe", " BLOCKED ", "\tUNSAFE\n", "caution", "no_known_catalog_concern", "not_assessed", null, "future"]) {
+    const product = row({ product_safety_status: safety });
+    const blocked = ["blocked", "unsafe"].includes(String(safety).trim().toLowerCase());
+    const direct = publicQuality(product);
+    const match = toMatch(product);
+    const facts = toProductFacts(blob(), product);
+    for (const quality of [direct.quality, match, facts.quality as Json]) {
+      assertEquals(quality.quality_score_v4_100, blocked ? null : 80, String(safety));
+      assertEquals(quality.quality_tier, blocked ? null : "Good", String(safety));
+    }
+    if (blocked) assert(direct.limitations.some(value => value.includes("safety finding")), "safety limitation retained");
+    assert((facts.warnings as Json[]).some(w => w.title === "Contains Titanium Dioxide"), "warning retained");
+  }
+});
+
 Deno.test("public quality needs explicit completion and a valid scored total for both number and tier", () => {
   for (const assessment of [undefined, null, "", "partial", "failed", "new_status", "complete"]) {
     for (const scoreStatus of [undefined, null, "", "not_scored", "suppressed_safety", "future", "scored"]) {

@@ -196,6 +196,7 @@ Widget buildHeroSection({
 }) {
   final canPublish = catalogProductHasCompletePublicScore(
     product,
+    assessmentResolved: !assessmentIncomplete,
     assessmentOverride: assessmentOverride,
   );
   return PGHeroSection(

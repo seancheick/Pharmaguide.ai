@@ -149,7 +149,9 @@ bool catalogProductAssessmentIncomplete(ProductsCoreData? product) {
 bool catalogProductHasCompletePublicScore(
   ProductsCoreData? product, {
   Object? assessmentOverride,
+  bool assessmentResolved = true,
 }) {
+  if (!assessmentResolved) return false;
   final score = product?.qualityScoreV4100;
   if (product == null ||
       score == null ||

@@ -16,8 +16,8 @@ import 'package:pharmaguide/features/stack/providers/active_stack_provider.dart'
 
 /// One side of the comparison: the local catalog row plus its detail
 /// blob. [blobFailed] is true when the blob fetch errored (offline /
-/// network) — the screen then shows hero scores with a calm hedge
-/// instead of pillar rows. A null [blob] with [blobFailed] false means
+/// network) — the screen then withholds unqualified totals with a calm
+/// connection message instead of pillar rows. A null [blob] with [blobFailed] false means
 /// the product genuinely has no detail blob.
 class CompareEntry {
   final ProductsCoreData? product;
