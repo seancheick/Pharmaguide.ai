@@ -2,6 +2,7 @@ import 'dart:io';
 
 import 'package:drift/drift.dart';
 import 'package:drift/native.dart';
+import 'package:pharmaguide/core/scoring/catalog_product_semantics.dart';
 import 'package:pharmaguide/data/database/tables/products_core_table.dart';
 import 'package:pharmaguide/services/crash_reporting_service.dart';
 import 'package:pharmaguide/services/gtin.dart';
@@ -98,10 +99,13 @@ class CoreDatabase extends _$CoreDatabase {
   @override
   int get schemaVersion => 3;
 
-  /// SQL for the v4 /100 quality score. `quality_score_v4_100` is NULL for
-  /// safety-suppressed rows, so those rows sort last and never outrank a real
-  /// score.
-  static const String effectiveScoreSql = 'quality_score_v4_100';
+  /// Public scores alone may influence quality ordering. NULL sorts after
+  /// completed scores, including a valid zero; discoverability is unchanged.
+  static final String effectiveScoreSql = _effectiveScoreSql();
+
+  static String _effectiveScoreSql({String prefix = ''}) =>
+      'CASE WHEN ${catalogCompletePublicScoreSql(prefix: prefix)} '
+      'THEN ${prefix}quality_score_v4_100 ELSE NULL END';
 
   /// SQL expression that normalizes a stored UPC to digits-only form.
   ///
@@ -530,7 +534,7 @@ class CoreDatabase extends _$CoreDatabase {
         'JOIN products_core p ON p.rowid = f.rowid '
         'WHERE products_fts MATCH ? '
         'ORDER BY rank, '
-        '         COALESCE(p.quality_score_v4_100, 0) DESC '
+        '         ${_effectiveScoreSql(prefix: 'p.')} DESC '
         'LIMIT ? OFFSET ?',
         variables: [
           Variable.withString(ftsQuery),
@@ -586,7 +590,7 @@ class CoreDatabase extends _$CoreDatabase {
     final rows = await customSelect(
       'SELECT * FROM products_core '
       'WHERE $whereClause '
-      'ORDER BY COALESCE(quality_score_v4_100, 0) DESC '
+      'ORDER BY $effectiveScoreSql DESC '
       'LIMIT ? OFFSET ?',
       variables: [
         for (final p in patterns) Variable.withString(p),
@@ -659,7 +663,9 @@ class CoreDatabase extends _$CoreDatabase {
     ProductsCoreData current, {
     int poolSize = 50,
   }) async {
-    if (poolSize <= 0) return const [];
+    if (poolSize <= 0 || !catalogProductHasCompletePublicScore(current)) {
+      return const [];
+    }
 
     final currentCategory = current.primaryCategory?.trim().toLowerCase() ?? '';
     final currentType = current.supplementType?.trim().toLowerCase() ?? '';
@@ -710,7 +716,7 @@ class CoreDatabase extends _$CoreDatabase {
         FROM products_core AS p, current_context AS c
         WHERE p.dsld_id <> c.dsld_id
           AND p.quality_score_status = 'scored'
-          AND p.$effectiveScoreSql > c.score
+          AND ${_effectiveScoreSql(prefix: 'p.')} > c.score
           AND trim(COALESCE(p.discontinued_date, '')) = ''
           AND COALESCE(p.has_banned_substance, 0) = 0
           AND COALESCE(p.has_recalled_ingredient, 0) = 0
@@ -812,7 +818,7 @@ class CoreDatabase extends _$CoreDatabase {
     if (sortBy == 'score') {
       query.orderBy([
         (t) => OrderingTerm(
-          expression: const CustomExpression<double>(effectiveScoreSql),
+          expression: CustomExpression<double>(effectiveScoreSql),
           mode: OrderingMode.desc,
         ),
       ]);

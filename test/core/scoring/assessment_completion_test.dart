@@ -120,12 +120,15 @@ void main() {
   });
 
   group('older catalogs keep working', () {
-    test('a row with no assessment status falls back to score status', () {
-      final p = _p(qualityScoreStatus: 'scored', qualityScoreV4100: 80);
-      expect(catalogProductIsNotScored(p), isFalse);
-      expect(catalogProductAssessmentIncomplete(p), isFalse);
-      expect(catalogProductHasCompletePublicScore(p), isTrue);
-    });
+    test(
+      'legacy score metadata remains readable without public qualification',
+      () {
+        final p = _p(qualityScoreStatus: 'scored', qualityScoreV4100: 80);
+        expect(catalogProductIsNotScored(p), isFalse);
+        expect(catalogProductAssessmentIncomplete(p), isFalse);
+        expect(catalogProductHasCompletePublicScore(p), isFalse);
+      },
+    );
 
     test('a blocked product never has a completed public score', () {
       final p = _p(

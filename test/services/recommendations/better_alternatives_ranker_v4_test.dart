@@ -19,7 +19,7 @@ ProductsCoreData _p({
   double? qualityScoreV4100,
   String? qualityScoreStatus = 'scored',
   String? productSafetyStatus,
-  String? qualityAssessmentStatus,
+  String? qualityAssessmentStatus = 'complete',
   String? discontinuedDate,
   int hasBannedSubstance = 0,
 }) {

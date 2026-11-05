@@ -147,10 +147,27 @@ bool catalogProductAssessmentIncomplete(ProductsCoreData? product) {
 /// qualifies only when it is not blocked, has a usable number, AND the
 /// assessment behind that number actually finished.
 bool catalogProductHasCompletePublicScore(ProductsCoreData? product) {
-  if (product == null) return false;
+  if (product == null || product.qualityScoreV4100 == null) return false;
   if (catalogProductIsBlocked(product)) return false;
   if (catalogProductIsNotScored(product)) return false;
-  return catalogAssessmentStatus(product) == CatalogAssessmentStatus.complete;
+  if (product.qualityScoreStatus?.trim().toLowerCase() == 'suppressed_safety') {
+    return false;
+  }
+  return product.qualityAssessmentStatus?.trim().toLowerCase() == 'complete';
+}
+
+/// SQLite projection of [catalogProductHasCompletePublicScore]. Keep parity
+/// verified against the Dart predicate, including legacy safety fallback.
+String catalogCompletePublicScoreSql({String prefix = ''}) {
+  String normalized(String field) => "lower(trim(COALESCE($prefix$field, '')))";
+  final safety = normalized('product_safety_status');
+  final verdict = normalized('verdict');
+  final status = normalized('quality_score_status');
+  return "(${prefix}quality_score_v4_100 IS NOT NULL "
+      "AND ${normalized('quality_assessment_status')} = 'complete' "
+      "AND $status IN ('', 'scored') "
+      "AND $safety NOT IN ('blocked', 'unsafe') "
+      "AND ($safety <> '' OR $verdict NOT IN ('blocked', 'unsafe')))";
 }
 
 /// Whether a check that found nothing may be reported as "no known concerns".

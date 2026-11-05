@@ -20,6 +20,7 @@
 // recommendation surface.
 
 import 'package:drift/drift.dart' show Value;
+import 'package:pharmaguide/core/scoring/catalog_product_semantics.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:pharmaguide/data/database/core_database.dart';
 import 'package:pharmaguide/services/recommendations/better_alternatives_ranker.dart';
@@ -63,6 +64,7 @@ ProductsCoreData _product({
     qualityScoreV4100: qualityScoreV4100,
     qualityTier: qualityTier,
     qualityScoreStatus: qualityScoreStatus,
+    qualityAssessmentStatus: 'complete',
     discontinuedDate: discontinuedDate,
     keyIngredientTags: keyIngredientTags,
     goalMatches: goalMatches,
@@ -110,12 +112,196 @@ Future<void> _insertPoolProduct(
           primaryCategory: Value(supplementType),
           qualityScoreV4100: Value(score),
           qualityScoreStatus: const Value('scored'),
+          qualityAssessmentStatus: const Value('complete'),
           keyIngredientTags: Value(keyIngredientTags),
         ),
       );
 }
 
 void main() {
+  group('public rating SQL eligibility', () {
+    Future<void> seed(
+      CoreDatabase db,
+      String id,
+      double? score, {
+      String? assessment = 'complete',
+      String? status = 'scored',
+      String? safety = 'no_known_catalog_concern',
+      String? verdict,
+      String type = 'vitamin',
+      String tags = '["vitamin"]',
+    }) => db.customStatement(
+      'INSERT INTO products_core (dsld_id, product_name, export_version, exported_at, '
+      'quality_score_v4_100, quality_assessment_status, quality_score_status, '
+      'product_safety_status, verdict, supplement_type, primary_category, key_ingredient_tags) '
+      'VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
+      [
+        id,
+        'Vitamin',
+        'test',
+        '2026-11-05',
+        score,
+        assessment,
+        status,
+        safety,
+        verdict,
+        type,
+        'vitamin',
+        tags,
+      ],
+    );
+
+    test(
+      'SQLite eligibility matches canonical semantics across malformed and legacy rows',
+      () async {
+        final db = CoreDatabase.memory();
+        addTearDown(db.close);
+        var i = 0;
+        for (final assessment in [
+          null,
+          '',
+          'partial',
+          'failed',
+          'future',
+          ' Complete ',
+        ]) {
+          for (final status in [
+            null,
+            '',
+            'scored',
+            'not_scored',
+            'suppressed_safety',
+            'future',
+          ]) {
+            for (final safety in [
+              null,
+              'blocked',
+              'unsafe',
+              'caution',
+              'future',
+            ]) {
+              for (final score in [null, 0.0, 95.0]) {
+                final id = 'parity-${i++}';
+                await seed(
+                  db,
+                  id,
+                  score,
+                  assessment: assessment,
+                  status: status,
+                  safety: safety,
+                  verdict: safety == null ? 'BLOCKED' : 'SAFE',
+                );
+              }
+            }
+          }
+        }
+        final products = await db.select(db.productsCore).get();
+        final rows = await db
+            .customSelect(
+              'SELECT dsld_id, ${CoreDatabase.effectiveScoreSql} AS public_score FROM products_core',
+            )
+            .get();
+        final byId = {for (final p in products) p.dsldId: p};
+        for (final row in rows) {
+          final product = byId[row.read<String>('dsld_id')]!;
+          expect(
+            row.readNullable<double>('public_score'),
+            catalogProductHasCompletePublicScore(product)
+                ? product.qualityScoreV4100
+                : null,
+            reason: product.toString(),
+          );
+        }
+      },
+    );
+    for (final fts in [false, true]) {
+      test(
+        'search preserves discovery but excludes provisional ordering FTS=$fts',
+        () async {
+          final db = CoreDatabase.memory();
+          addTearDown(db.close);
+          await seed(db, 'partial', 95, assessment: 'partial');
+          await seed(db, 'complete', 80);
+          await seed(db, 'zero', 0);
+          await seed(
+            db,
+            'warning',
+            99,
+            assessment: 'partial',
+            safety: 'blocked',
+          );
+          if (fts) {
+            await db.customStatement(
+              'CREATE VIRTUAL TABLE products_fts USING fts5(product_name)',
+            );
+            await db.customStatement(
+              'INSERT INTO products_fts(rowid, product_name) SELECT rowid, product_name FROM products_core',
+            );
+          }
+          final results = await db.searchProducts('Vitamin');
+          expect(results.map((p) => p.dsldId).take(2), ['complete', 'zero']);
+          expect(
+            results.map((p) => p.dsldId),
+            containsAll(['partial', 'warning']),
+          );
+          expect(
+            results
+                .singleWhere((p) => p.dsldId == 'warning')
+                .productSafetyStatus,
+            'blocked',
+          );
+          final filtered = await db.filterProducts(sortBy: 'score');
+          expect(filtered.map((p) => p.dsldId).take(2), ['complete', 'zero']);
+        },
+      );
+    }
+    test(
+      'provisional current total cannot define a better-alternative threshold',
+      () async {
+        final db = CoreDatabase.memory();
+        addTearDown(db.close);
+        await seed(db, 'current', 20, assessment: 'partial');
+        await seed(db, 'complete', 80);
+        expect(
+          await db.fetchBetterAlternativesPool((await db.findById('current'))!),
+          isEmpty,
+        );
+      },
+    );
+    for (final family in [false, true]) {
+      test(
+        'partial rows cannot exhaust alternatives channel family=$family',
+        () async {
+          final db = CoreDatabase.memory();
+          addTearDown(db.close);
+          await seed(db, 'current', 30);
+          for (var i = 0; i < 3; i++) {
+            await seed(
+              db,
+              'partial-$i',
+              95,
+              assessment: 'partial',
+              type: family ? 'herb' : 'vitamin',
+              tags: family ? '["vitamin"]' : '[]',
+            );
+          }
+          await seed(
+            db,
+            'complete',
+            80,
+            type: family ? 'herb' : 'vitamin',
+            tags: family ? '["vitamin"]' : '[]',
+          );
+          final pool = await db.fetchBetterAlternativesPool(
+            (await db.findById('current'))!,
+            poolSize: 2,
+          );
+          expect(pool.map((p) => p.dsldId), ['complete']);
+        },
+      );
+    }
+  });
+
   group('Hard filters', () {
     test('drops self-recommendations', () {
       final cur = _product(
