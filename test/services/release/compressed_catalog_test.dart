@@ -45,11 +45,22 @@ class _FakeStorage extends http.BaseClient {
   final Map<String, int> dropAfter = {};
   final List<String?> ranges = [];
   final Map<String, (int, String)> failures = {};
+  final Map<String, (int, String)> publicFailures = {};
+  final Map<String, Object> errors = {};
 
   @override
   Future<http.StreamedResponse> send(http.BaseRequest request) async {
     final key = request.url.path.split('/pharmaguide/').last;
     requested.add(key);
+    final error = errors[key];
+    if (error != null) throw error;
+    final direct = publicFailures[key];
+    if (direct != null) {
+      return http.StreamedResponse(
+        Stream.value(utf8.encode(direct.$2)),
+        direct.$1,
+      );
+    }
     final failure = failures[key];
     if (failure != null) {
       // Denied public access exercises the real authenticated SDK fallback.
@@ -65,7 +76,10 @@ class _FakeStorage extends http.BaseClient {
     ranges.add(range);
     final bytes = objects[key];
     if (bytes == null) {
-      return http.StreamedResponse(const Stream.empty(), 400);
+      return http.StreamedResponse(
+        Stream.value(utf8.encode('{"error":"not_found"}')),
+        400,
+      );
     }
     final drop = dropAfter.remove(key);
     if (drop != null) {
@@ -369,6 +383,158 @@ void main() {
       open.add((result as ReleaseActivated).generation);
       expect(result.generation.record.catalogVersion, _version);
     }, timeout: const Timeout(Duration(minutes: 2)));
+
+    for (final failure in ['server', 'timeout']) {
+      test(
+        'descriptor $failure is retryable and keeps both partials',
+        () async {
+          publish();
+          final phone = await launch();
+          phone.store.downloads.createSync(recursive: true);
+          final plain = File(stagingPath(phone.store, 'catalog.staging'))
+            ..writeAsBytesSync(
+              catalogBytes.sublist(0, catalogBytes.length ~/ 2),
+            );
+          final gz = File(stagingPath(phone.store, 'catalog.gz.staging'))
+            ..writeAsBytesSync(gzBytes.sublist(0, gzBytes.length ~/ 2));
+          for (final file in [plain, gz]) {
+            File('${file.path}.version').writeAsStringSync(_version);
+          }
+          if (failure == 'server') {
+            storage.publicFailures[descriptorPath] = (
+              503,
+              '{"error":"internal_server_error"}',
+            );
+          } else {
+            storage.errors[descriptorPath] = TimeoutException(
+              'descriptor timed out',
+            );
+          }
+          await expectLater(
+            service().stageCatalog(
+              downloads: phone.store.downloads,
+              version: _version,
+              expectedSha256: catalogSha,
+            ),
+            throwsA(
+              failure == 'server'
+                  ? isA<StorageException>()
+                  : isA<TimeoutException>(),
+            ),
+          );
+          expect(storage.requested, [descriptorPath]);
+          expect(
+            plain.readAsBytesSync(),
+            catalogBytes.sublist(0, catalogBytes.length ~/ 2),
+          );
+          expect(gz.readAsBytesSync(), gzBytes.sublist(0, gzBytes.length ~/ 2));
+          expect(File('${plain.path}.version').readAsStringSync(), _version);
+          expect(File('${gz.path}.version').readAsStringSync(), _version);
+          await expectLastGoodActive(phone.store);
+          storage.publicFailures.clear();
+          storage.errors.clear();
+          final staged = await service().stageCatalog(
+            downloads: phone.store.downloads,
+            version: _version,
+            expectedSha256: catalogSha,
+          );
+          expect(storage.ranges, contains('bytes=${gzBytes.length ~/ 2}-'));
+          final activated = await phone.store.activate(candidateFrom(staged));
+          open.add((activated as ReleaseActivated).generation);
+          expect(
+            await activated.generation.core.validateCatalogSnapshot(),
+            _version,
+          );
+        },
+      );
+    }
+
+    test(
+      'same-version stale plain bytes fail checksum before activation then recover',
+      () async {
+        publish();
+        storage.failures[gzPath] = (404, '{"error":"not_found"}');
+        final phone = await launch();
+        phone.store.downloads.createSync(recursive: true);
+        final half = catalogBytes.length ~/ 2;
+        final stale = Uint8List.fromList(catalogBytes.sublist(0, half));
+        stale[32] ^= 0xff;
+        final plain = File(stagingPath(phone.store, 'catalog.staging'))
+          ..writeAsBytesSync(stale);
+        File('${plain.path}.version').writeAsStringSync(_version);
+        await expectLater(
+          service().stageCatalog(
+            downloads: phone.store.downloads,
+            version: _version,
+            expectedSha256: catalogSha,
+          ),
+          throwsA(
+            isA<StateError>().having(
+              (error) => error.message,
+              'reason',
+              contains('hash check'),
+            ),
+          ),
+        );
+        expect(storage.ranges, contains('bytes=$half-'));
+        expect(plain.existsSync(), isFalse);
+        expect(File('${plain.path}.version').existsSync(), isFalse);
+        await expectLastGoodActive(phone.store);
+        storage.ranges.clear();
+        final staged = await service().stageCatalog(
+          downloads: phone.store.downloads,
+          version: _version,
+          expectedSha256: catalogSha,
+        );
+        expect(storage.ranges, everyElement(isNull));
+        final activated = await phone.store.activate(candidateFrom(staged));
+        open.add((activated as ReleaseActivated).generation);
+        expect(
+          await activated.generation.core.validateCatalogSnapshot(),
+          _version,
+        );
+      },
+    );
+
+    for (final unavailable in ['404', 'not_found', 'bad_hash', 'bad_gzip']) {
+      for (final marker in [_version, '2026.01.01.000000']) {
+        test(
+          'compressed $unavailable preserves plain resume for marker $marker',
+          () async {
+            publish();
+            final phone = await launch();
+            phone.store.downloads.createSync(recursive: true);
+            final half = catalogBytes.length ~/ 2;
+            final plain = File(stagingPath(phone.store, 'catalog.staging'))
+              ..writeAsBytesSync(catalogBytes.sublist(0, half));
+            File('${plain.path}.version').writeAsStringSync(marker);
+            if (unavailable == '404') {
+              storage.failures[gzPath] = (404, '{"error":"not_found"}');
+            } else if (unavailable == 'not_found') {
+              storage.failures[gzPath] = (400, '{"error":"not_found"}');
+            } else if (unavailable == 'bad_hash') {
+              storage.objects[gzPath] = [1, 2, 3];
+            } else {
+              publish(
+                gz: [1, 2, 3],
+                described: descriptor(sha: _shaOf([1, 2, 3]), size: 3),
+              );
+            }
+            final staged = await service().stageCatalog(
+              downloads: phone.store.downloads,
+              version: _version,
+              expectedSha256: catalogSha,
+            );
+            expect(storage.requested, contains(rawPath));
+            expect(storage.ranges.contains('bytes=$half-'), marker == _version);
+            expect(File('${plain.path}.version').existsSync(), isFalse);
+            final activated = await phone.store.activate(candidateFrom(staged));
+            open.add((activated as ReleaseActivated).generation);
+            expect(activated.generation.record.catalogVersion, _version);
+          },
+        );
+      }
+    }
 
     test(
       'a storage server failure keeps compressed download retryable',

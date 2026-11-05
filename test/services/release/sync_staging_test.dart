@@ -26,7 +26,7 @@ class _FakeHttpClient extends http.BaseClient {
   Future<http.StreamedResponse> send(http.BaseRequest request) async {
     // These tests are about the plain file, so no catalog has a compressed form.
     if (request.url.path.endsWith('.gz.json')) {
-      return http.StreamedResponse(const Stream.empty(), 400);
+      return http.StreamedResponse(const Stream.empty(), 404);
     }
     ranges.add(request.headers['range']);
     return respond(request);
