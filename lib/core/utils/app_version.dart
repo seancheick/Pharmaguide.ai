@@ -11,7 +11,7 @@
 // constant is deterministic, testable, and cannot fail at runtime.
 
 /// Current app semver. Keep in sync with pubspec.yaml `version:`.
-const String kAppVersion = '1.0.0';
+const String kAppVersion = '1.0.1';
 
 /// Current build number. Keep in sync with pubspec.yaml `version:` (the
 /// part after `+`). Display-only — the catalog gate uses [kAppVersion].
