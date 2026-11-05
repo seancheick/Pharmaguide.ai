@@ -64,7 +64,7 @@ void main() {
       expect(stackCatalogScoreDisplayFor(_product(coverage: null)), isNull);
     });
 
-    test('preserves the old-catalog compatibility path', () {
+    test('old-catalog metadata does not prove a public score', () {
       expect(
         stackCatalogScoreDisplayFor(
           _product(
@@ -75,7 +75,7 @@ void main() {
             verdict: 'SAFE',
           ),
         ),
-        (score: 82, qualityTier: 'Strong', confidence: null),
+        isNull,
       );
     });
 

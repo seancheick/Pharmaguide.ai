@@ -62,7 +62,7 @@ void main() {
       expect(QuickCheckItem.supplement(product(coverage: null)).score, isNull);
     });
 
-    test('preserves old-catalog score compatibility', () {
+    test('old-catalog metadata does not prove a public score', () {
       final item = QuickCheckItem.supplement(
         product(
           safetyStatus: null,
@@ -72,7 +72,7 @@ void main() {
           verdict: 'SAFE',
         ),
       );
-      expect(item.score, 82);
+      expect(item.score, isNull);
       expect(item.scoreConfidenceLabel, isNull);
     });
   });
