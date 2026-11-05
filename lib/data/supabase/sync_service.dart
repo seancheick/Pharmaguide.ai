@@ -364,7 +364,13 @@ class SyncService {
           response.body,
           statusCode: response.statusCode.toString(),
         );
-        if (_isMissingStorageObject(error)) return null;
+        // Public auth denial is not a missing artifact, but the established
+        // plain path can still deliver it through authenticated Storage access.
+        if (response.statusCode == 401 ||
+            response.statusCode == 403 ||
+            _isMissingStorageObject(error)) {
+          return null;
+        }
         throw error;
       }
       final decoded = jsonDecode(response.body);
@@ -402,6 +408,11 @@ class SyncService {
     // and their version marker until the verified gzip atomically replaces them;
     // a missing/rejected gzip must not erase the plain fallback's Range resume.
     await _deleteQuietly(File('${stagingFile.path}.decompressing'));
+    // Free an unusable older plain partial before measuring room. Fresh attempts
+    // create no marker here; matching-version bytes remain available for resume.
+    if (await stagingFile.exists()) {
+      await _prepareStagingForVersion(stagingFile, version);
+    }
 
     await _requireRoom(
       stagingFile.parent.path,
