@@ -146,7 +146,10 @@ bool catalogProductAssessmentIncomplete(ProductsCoreData? product) {
 /// recommendations, sharing, "high quality" filters, stack scoring. A product
 /// qualifies only when it is not blocked, has a usable number, AND the
 /// assessment behind that number actually finished.
-bool catalogProductHasCompletePublicScore(ProductsCoreData? product) {
+bool catalogProductHasCompletePublicScore(
+  ProductsCoreData? product, {
+  Object? assessmentOverride,
+}) {
   final score = product?.qualityScoreV4100;
   if (product == null ||
       score == null ||
@@ -160,13 +163,41 @@ bool catalogProductHasCompletePublicScore(ProductsCoreData? product) {
   if (product.qualityScoreStatus?.trim().toLowerCase() == 'suppressed_safety') {
     return false;
   }
+  // Detail data can restrict row proof, never supply a missing completion.
+  if (assessmentOverride != null &&
+      (assessmentOverride is! String ||
+          assessmentOverride.trim().toLowerCase() != 'complete')) {
+    return false;
+  }
   return product.qualityAssessmentStatus?.trim().toLowerCase() == 'complete';
 }
 
 /// SQLite projection of [catalogProductHasCompletePublicScore]. Keep parity
 /// verified against the Dart predicate, including legacy safety fallback.
 String catalogCompletePublicScoreSql({String prefix = ''}) {
-  String normalized(String field) => "lower(trim(COALESCE($prefix$field, '')))";
+  // Match String.trim's Unicode White_Space + BOM, not SQLite's space-only
+  // default. U+0085 varies by runtime: use the same SDK decision as Dart.
+  // https://api.dart.dev/dart-core/String/trim.html
+  final trimCodes = [
+    9,
+    10,
+    11,
+    12,
+    13,
+    32,
+    0x85,
+    0xa0,
+    0x1680,
+    ...List.generate(11, (i) => 0x2000 + i),
+    0x2028,
+    0x2029,
+    0x202f,
+    0x205f,
+    0x3000,
+    0xfeff,
+  ].where((code) => String.fromCharCode(code).trim().isEmpty).join(',');
+  String normalized(String field) =>
+      "lower(trim(COALESCE($prefix$field, ''), char($trimCodes)))";
   final safety = normalized('product_safety_status');
   final verdict = normalized('verdict');
   final status = normalized('quality_score_status');

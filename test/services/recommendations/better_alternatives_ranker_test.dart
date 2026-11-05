@@ -259,6 +259,108 @@ void main() {
         }
       },
     );
+    test(
+      'SQLite qualification matches Dart.trim across all SDK whitespace',
+      () async {
+        final db = CoreDatabase.memory();
+        addTearDown(db.close);
+        final codes = [
+          9,
+          10,
+          11,
+          12,
+          13,
+          32,
+          0x85,
+          0xa0,
+          0x1680,
+          ...List.generate(11, (i) => 0x2000 + i),
+          0x2028,
+          0x2029,
+          0x202f,
+          0x205f,
+          0x3000,
+          0xfeff,
+          0x180e,
+          0x200b,
+        ];
+        for (final code in codes) {
+          final ws = String.fromCharCode(code);
+          await seed(
+            db,
+            'positive-$code',
+            80,
+            assessment: '${ws}complete$ws',
+            status: '${ws}scored$ws',
+          );
+          await seed(db, 'blocked-$code', 95, safety: '${ws}BLOCKED$ws');
+          await seed(
+            db,
+            'legacy-$code',
+            95,
+            safety: null,
+            verdict: '${ws}BLOCKED$ws',
+          );
+          await seed(
+            db,
+            'suppressed-$code',
+            95,
+            status: '${ws}suppressed_safety$ws',
+          );
+          await seed(db, 'partial-$code', 95, assessment: '${ws}partial$ws');
+          await seed(db, 'not-scored-$code', 95, status: '${ws}not_scored$ws');
+          await seed(
+            db,
+            'blank-safety-$code',
+            95,
+            safety: ws,
+            verdict: 'BLOCKED',
+          );
+          await seed(db, 'blank-status-$code', 80, status: ws);
+        }
+        for (final product in await db.select(db.productsCore).get()) {
+          final row = await db
+              .customSelect(
+                'SELECT ${CoreDatabase.effectiveScoreSql} AS public_score FROM products_core WHERE dsld_id = ?',
+                variables: [Variable.withString(product.dsldId)],
+              )
+              .getSingle();
+          expect(
+            row.readNullable<double>('public_score'),
+            catalogProductHasCompletePublicScore(product)
+                ? product.qualityScoreV4100
+                : null,
+            reason: product.toString(),
+          );
+        }
+      },
+    );
+
+    test(
+      'whitespace-wrapped blocked rows cannot exhaust a bounded pool',
+      () async {
+        final db = CoreDatabase.memory();
+        addTearDown(db.close);
+        await seed(db, 'current', 30);
+        await seed(db, 'valid', 80);
+        for (var i = 0; i < 3; i++) {
+          await seed(db, 'blocked-$i', 95, safety: '\tBLOCKED\n');
+          await seed(
+            db,
+            'legacy-$i',
+            96,
+            safety: null,
+            verdict: '\u00a0BLOCKED\u00a0',
+          );
+        }
+        final pool = await db.fetchBetterAlternativesPool(
+          (await db.findById('current'))!,
+          poolSize: 2,
+        );
+        expect(pool.map((p) => p.dsldId), ['valid']);
+      },
+    );
+
     for (final fts in [false, true]) {
       test(
         'search preserves discovery but excludes provisional ordering FTS=$fts',

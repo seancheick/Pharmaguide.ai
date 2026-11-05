@@ -6,6 +6,9 @@ import 'package:crypto/crypto.dart';
 import 'package:drift/drift.dart' show Value;
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
+import 'package:pharmaguide/core/components/pg_hero_section.dart';
+import 'package:pharmaguide/core/widgets/product_image.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:http/http.dart' as http;
@@ -2114,6 +2117,104 @@ void main() {
             findsOneWidget,
           );
           expect(find.text('Why this scored 88'), findsNothing);
+        },
+      );
+    }
+
+    for (final blobStatus in [null, 'complete']) {
+      testWidgets(
+        'complete core with nonrestrictive blob $blobStatus retains its total',
+        (tester) async {
+          await _pumpConnectedScreen(
+            tester,
+            initialSection: null,
+            detailBlob: {
+              'quality_assessment_status': blobStatus,
+              'quality_pillars_v4': _connectedV4Pillars(),
+            },
+          );
+          final hero = tester.widget<PGHeroSection>(find.byType(PGHeroSection));
+          expect(hero.assessmentIncomplete, isFalse);
+          expect((hero.imageWidget as ProductImage).score, 88);
+          final headline = find.text('Why this scored 88');
+          await _scrollConnectedTowardBottomUntil(tester, headline);
+          expect(headline, findsOneWidget);
+        },
+      );
+    }
+    testWidgets('complete blob cannot upgrade a partial core', (tester) async {
+      await _pumpConnectedScreen(
+        tester,
+        initialSection: null,
+        qualityAssessmentStatus: 'partial',
+        detailBlob: {
+          'quality_assessment_status': 'complete',
+          'quality_pillars_v4': _connectedV4Pillars(),
+        },
+      );
+      final hero = tester.widget<PGHeroSection>(find.byType(PGHeroSection));
+      expect(hero.assessmentIncomplete, isTrue);
+      expect((hero.imageWidget as ProductImage).score, isNull);
+    });
+    for (final status in ['partial', 'complete']) {
+      testWidgets(
+        'local share respects the cached blob $status qualification',
+        (tester) async {
+          String? sharedText;
+          const channel = MethodChannel('dev.fluttercommunity.plus/share');
+          tester.binding.defaultBinaryMessenger.setMockMethodCallHandler(
+            channel,
+            (call) async {
+              sharedText = (call.arguments as Map)['text'] as String?;
+              return 'done';
+            },
+          );
+          addTearDown(
+            () => tester.binding.defaultBinaryMessenger
+                .setMockMethodCallHandler(channel, null),
+          );
+          await _pumpConnectedScreen(
+            tester,
+            initialSection: null,
+            detailBlob: {
+              'quality_assessment_status': status,
+              'quality_pillars_v4': _connectedV4Pillars(),
+            },
+          );
+          await tester.tap(find.byTooltip('Share product'));
+          await tester.pumpAndSettle();
+          expect(sharedText, isNotNull);
+          expect(sharedText!.contains('88/100'), status == 'complete');
+        },
+      );
+    }
+
+    for (final status in [
+      'partial',
+      'failed',
+      'unknown',
+      <String>[],
+      {'invalid': true},
+    ]) {
+      testWidgets(
+        'restrictive blob $status withholds detail total with complete core',
+        (tester) async {
+          await _pumpConnectedScreen(
+            tester,
+            initialSection: null,
+            detailBlob: {
+              'quality_assessment_status': status,
+              'quality_pillars_v4': _connectedV4Pillars(),
+            },
+          );
+          final hero = tester.widget<PGHeroSection>(find.byType(PGHeroSection));
+          expect((hero.imageWidget as ProductImage).score, isNull);
+          expect(find.text('Quality assessment incomplete'), findsOneWidget);
+          final breakdown = find.byType(PGScoreBreakdownCard);
+          await _scrollConnectedTowardBottomUntil(tester, breakdown);
+          expect(breakdown, findsOneWidget);
+          expect(find.text('Why this scored 88'), findsNothing);
+          expect(find.text('Quality score breakdown'), findsOneWidget);
         },
       );
     }

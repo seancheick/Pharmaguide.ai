@@ -33,6 +33,47 @@ ProductsCoreData _p({
 );
 
 void main() {
+  test(
+    'detail assessment restricts explicit row proof and never upgrades it',
+    () {
+      for (final rowStatus in [
+        null,
+        '',
+        'partial',
+        'failed',
+        'unknown',
+        'complete',
+      ]) {
+        for (final blobStatus in [
+          null,
+          '',
+          'partial',
+          'failed',
+          'unknown',
+          'complete',
+          42,
+          <Object>[],
+          {'bad': true},
+        ]) {
+          final row = _p(
+            qualityScoreStatus: 'scored',
+            qualityAssessmentStatus: rowStatus,
+            qualityScoreV4100: 80,
+          );
+          expect(
+            catalogProductHasCompletePublicScore(
+              row,
+              assessmentOverride: blobStatus,
+            ),
+            rowStatus == 'complete' &&
+                (blobStatus == null || blobStatus == 'complete'),
+            reason: '$rowStatus / $blobStatus',
+          );
+        }
+      }
+    },
+  );
+
   group('scored + partial is its own state', () {
     final partial = _p(
       qualityScoreStatus: 'scored',

@@ -171,8 +171,14 @@ class _CompareBody extends StatelessWidget {
         isLowCoverage(productB.mappedCoverage);
 
     // An unfinished total isn't shown, so nothing here may compare it either.
-    final totalA = catalogProductHasCompletePublicScore(productA);
-    final totalB = catalogProductHasCompletePublicScore(productB);
+    final totalA = catalogProductHasCompletePublicScore(
+      productA,
+      assessmentOverride: a.blob?['quality_assessment_status'],
+    );
+    final totalB = catalogProductHasCompletePublicScore(
+      productB,
+      assessmentOverride: b.blob?['quality_assessment_status'],
+    );
 
     final delta = _largestPillarGap(
       pillarsA: pillarsA,
@@ -201,6 +207,7 @@ class _CompareBody extends StatelessWidget {
             Expanded(
               child: _ProductHeader(
                 product: productA,
+                assessmentOverride: a.blob?['quality_assessment_status'],
                 isBlocked: blockedA,
                 isNotScored: notScoredA,
               ),
@@ -209,6 +216,7 @@ class _CompareBody extends StatelessWidget {
             Expanded(
               child: _ProductHeader(
                 product: productB,
+                assessmentOverride: b.blob?['quality_assessment_status'],
                 isBlocked: blockedB,
                 isNotScored: notScoredB,
               ),
@@ -347,18 +355,24 @@ class _ProductHeader extends StatelessWidget {
   final ProductsCoreData product;
   final bool isBlocked;
   final bool isNotScored;
+  final Object? assessmentOverride;
 
   const _ProductHeader({
     required this.product,
     required this.isBlocked,
     required this.isNotScored,
+    this.assessmentOverride,
   });
 
   @override
   Widget build(BuildContext context) {
     final brand = product.brandName ?? '';
     final name = product.productName;
-    final score = catalogProductHasCompletePublicScore(product)
+    final score =
+        catalogProductHasCompletePublicScore(
+          product,
+          assessmentOverride: assessmentOverride,
+        )
         ? product.qualityScoreV4100!.round()
         : null;
 
@@ -391,9 +405,18 @@ class _ProductHeader extends StatelessWidget {
             'Not scored yet',
             style: V2Typography.caption(color: context.v2.fgMuted),
           )
+        else if (product.qualityScoreStatus?.trim().toLowerCase() ==
+            'suppressed_safety')
+          Text(
+            'Quality score withheld',
+            style: V2Typography.caption(color: context.v2.fgMuted),
+          )
         // Same rule as the detail hero: an unfinished assessment publishes no
         // tier, because the unassessed pillar could still move it.
-        else if (!catalogProductHasCompletePublicScore(product))
+        else if (!catalogProductHasCompletePublicScore(
+          product,
+          assessmentOverride: assessmentOverride,
+        ))
           Text(
             kQualityAssessmentIncompleteTitle,
             style: V2Typography.caption(color: context.v2.fgMuted),

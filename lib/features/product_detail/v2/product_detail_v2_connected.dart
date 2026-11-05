@@ -243,7 +243,19 @@ class _ProductDetailV2ConnectedState
         catalogVersion = null;
       }
       final isBlocked = catalogProductIsBlocked(product);
-      final canShareScore = catalogProductHasCompletePublicScore(product);
+      final cachedBlob = ref
+          .read(
+            detailBlobForRowProvider((
+              dsldId: widget.dsldId,
+              expectedSha: product.detailBlobSha256,
+            )),
+          )
+          .asData
+          ?.value;
+      final canShareScore = catalogProductHasCompletePublicScore(
+        product,
+        assessmentOverride: cachedBlob?['quality_assessment_status'],
+      );
       // Trust tags are gated on `isBlocked`, NOT on `canShareScore`.
       //
       // The two guards protect different things. A not-scored product still
@@ -457,12 +469,6 @@ class _ProductDetailV2ConnectedState
     final trustTags = buildHeroTrustTags(_product);
     final isBlocked = productIsBlocked(_product);
     final isNotScored = productIsNotScored(_product);
-    // scored + partial: a number exists, but a pillar the rubric requires was
-    // never assessed. The pillars can explain the inputs while the total is withheld.
-    final assessmentIncomplete = !catalogProductHasCompletePublicScore(
-      _product,
-    );
-
     // -------------------------------------------------------------
     // Async detail blob (same provider production uses)
     // -------------------------------------------------------------
@@ -473,6 +479,11 @@ class _ProductDetailV2ConnectedState
       )),
     );
     final detailBlob = blobAsync.asData?.value;
+    // Preserve source pillar explanations while withholding an unqualified total.
+    final assessmentIncomplete = !catalogProductHasCompletePublicScore(
+      _product,
+      assessmentOverride: detailBlob?['quality_assessment_status'],
+    );
     final ingredientSources = productDetailIngredientSourcesFromBlob(
       detailBlob,
     );
@@ -856,6 +867,8 @@ class _ProductDetailV2ConnectedState
                         isBlocked: isBlocked,
                         isNotScored: isNotScored,
                         assessmentIncomplete: assessmentIncomplete,
+                        assessmentOverride:
+                            detailBlob?['quality_assessment_status'],
                         trustTags: trustTags,
                         scoreConfidenceDetail: _blobMap(
                           detailBlob,
