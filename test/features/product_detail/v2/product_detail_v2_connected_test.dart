@@ -217,10 +217,15 @@ Future<void> _pumpConnectedScreen(
   UserDatabase? profileDatabase,
   List<SafetyAlert> liveAlerts = const [],
   bool qualityWithheld = false,
+  CoreDatabase? catalogDb,
+  String? initialProductSha,
+  ValueListenable<String>? productRoute,
+  List<({String dsldId, String? expectedSha})>? observedBlobKeys,
   SafetyAlertRepository Function()? buildAlertFeed,
   Stream<ConnectionStatus>? connection,
 }) async {
-  final coreDb = CoreDatabase.memory(qualityWithheld: qualityWithheld);
+  final coreDb =
+      catalogDb ?? CoreDatabase.memory(qualityWithheld: qualityWithheld);
   final userDb = profileDatabase ?? UserDatabase.memory();
   final interactionDb = InteractionDatabase.memory();
   await _seedConnectedProduct(
@@ -230,6 +235,12 @@ Future<void> _pumpConnectedScreen(
     catalogScore: catalogScore,
     qualityAssessmentStatus: qualityAssessmentStatus,
   );
+  if (initialProductSha != null) {
+    await coreDb.customStatement(
+      'UPDATE products_core SET detail_blob_sha256 = ? WHERE dsld_id = ?',
+      [initialProductSha, _connectedDsldId],
+    );
+  }
   if (qualityWithheld) await coreDb.withholdQualityScores();
   addTearDown(() async {
     await tester.pumpWidget(const SizedBox.shrink());
@@ -259,11 +270,12 @@ Future<void> _pumpConnectedScreen(
         if (connection != null)
           connectionStatusProvider.overrideWith((ref) => connection),
         detailBlobProvider.overrideWith((ref, dsldId) async {
-          expect(dsldId, _connectedDsldId);
+          if (productRoute == null) expect(dsldId, _connectedDsldId);
           return detailBlob;
         }),
         detailBlobForRowProvider.overrideWith((ref, key) async {
-          expect(key.dsldId, _connectedDsldId);
+          if (productRoute == null) expect(key.dsldId, _connectedDsldId);
+          observedBlobKeys?.add(key);
           return detailBlob;
         }),
         if (profiled)
@@ -309,10 +321,18 @@ Future<void> _pumpConnectedScreen(
           return child!;
         },
         child: MaterialApp(
-          home: ProductDetailV2ConnectedScreen(
-            dsldId: _connectedDsldId,
-            initialSection: initialSection,
-          ),
+          home: productRoute == null
+              ? ProductDetailV2ConnectedScreen(
+                  dsldId: _connectedDsldId,
+                  initialSection: initialSection,
+                )
+              : ValueListenableBuilder<String>(
+                  valueListenable: productRoute,
+                  builder: (_, id, _) => ProductDetailV2ConnectedScreen(
+                    dsldId: id,
+                    initialSection: initialSection,
+                  ),
+                ),
         ),
       ),
     ),
@@ -324,6 +344,13 @@ Future<void> _pumpConnectedScreen(
       await tester.pump(const Duration(milliseconds: 100));
     }
   }
+}
+
+class _DelayedVersionCoreDatabase extends CoreDatabase {
+  _DelayedVersionCoreDatabase() : super.memory();
+  final versionGate = Completer<String?>();
+  @override
+  Future<String?> readDbVersion() => versionGate.future;
 }
 
 class _RetryProfileDatabase extends UserDatabase {
@@ -2156,6 +2183,93 @@ void main() {
       expect(hero.assessmentIncomplete, isTrue);
       expect((hero.imageWidget as ProductImage).score, isNull);
     });
+    for (final transition in [
+      'disposed',
+      'other_product',
+      'same_id_new_hash',
+    ]) {
+      testWidgets('delayed share is abandoned after $transition', (
+        tester,
+      ) async {
+        final db = _DelayedVersionCoreDatabase();
+        final route = ValueNotifier(_connectedDsldId);
+        addTearDown(route.dispose);
+        final requests = <({String dsldId, String? expectedSha})>[];
+        final shares = <String>[];
+        const channel = MethodChannel('dev.fluttercommunity.plus/share');
+        tester.binding.defaultBinaryMessenger.setMockMethodCallHandler(
+          channel,
+          (call) async {
+            shares.add((call.arguments as Map)['text'] as String);
+            return 'done';
+          },
+        );
+        addTearDown(
+          () => tester.binding.defaultBinaryMessenger.setMockMethodCallHandler(
+            channel,
+            null,
+          ),
+        );
+        final shaA = 'a' * 64;
+        final shaB = 'b' * 64;
+        final shaNew = 'c' * 64;
+        await _seedProduct(db, dsldId: 'route-b', productName: 'Product B');
+        await db.customStatement(
+          'UPDATE products_core SET detail_blob_sha256 = ? WHERE dsld_id = ?',
+          [shaB, 'route-b'],
+        );
+        await _pumpConnectedScreen(
+          tester,
+          catalogDb: db,
+          initialProductSha: shaA,
+          productRoute: route,
+          observedBlobKeys: requests,
+          initialSection: null,
+          detailBlob: {'quality_assessment_status': 'partial'},
+        );
+        await tester.tap(find.byTooltip('Share product'));
+        await tester.pump();
+        if (transition == 'disposed') {
+          await tester.pumpWidget(const SizedBox.shrink());
+        } else {
+          route.value = 'route-b';
+          for (var i = 0; i < 5; i++) {
+            await tester.pump(const Duration(milliseconds: 100));
+          }
+          expect(
+            tester
+                .widget<PGHeroSection>(find.byType(PGHeroSection))
+                .productName,
+            'Product B',
+          );
+          if (transition == 'same_id_new_hash') {
+            await db.customStatement(
+              'UPDATE products_core SET detail_blob_sha256 = ? WHERE dsld_id = ?',
+              [shaNew, _connectedDsldId],
+            );
+            route.value = _connectedDsldId;
+            for (var i = 0; i < 5; i++) {
+              await tester.pump(const Duration(milliseconds: 100));
+            }
+          }
+        }
+        db.versionGate.complete(null);
+        await tester.pumpAndSettle();
+        expect(tester.takeException(), isNull);
+        expect(shares, isEmpty);
+        expect(
+          requests,
+          isNot(contains((dsldId: 'route-b', expectedSha: shaA))),
+        );
+        if (transition == 'same_id_new_hash') {
+          expect(
+            requests,
+            contains((dsldId: _connectedDsldId, expectedSha: shaNew)),
+          );
+        }
+      });
+    }
+
     for (final status in ['partial', 'complete']) {
       testWidgets(
         'local share respects the cached blob $status qualification',

@@ -230,26 +230,36 @@ class _ProductDetailV2ConnectedState
 
   Future<void> _shareProduct() async {
     final product = _product;
-    if (product == null || _isSharing) return;
+    final requestedDsldId = widget.dsldId;
+    if (product == null || _isSharing || product.dsldId != requestedDsldId) {
+      return;
+    }
+    final blobIdentity = (
+      dsldId: requestedDsldId,
+      expectedSha: product.detailBlobSha256,
+    );
     setState(() => _isSharing = true);
     try {
+      final coreDb = ref.read(coreDatabaseProvider);
       String? catalogVersion;
       try {
         // This reads the active SQLite manifest locally. If an old or damaged
         // catalog lacks the stamp, ShareService deliberately falls back to a
         // text-only share instead of minting an undated public result.
-        catalogVersion = await ref.read(coreDatabaseProvider).readDbVersion();
+        catalogVersion = await coreDb.readDbVersion();
       } on Exception {
         catalogVersion = null;
       }
+      // The load owner replaces immutable rows, including a same-id/new-hash
+      // reload. Never resume a share for a disposed or superseded screen row.
+      if (!mounted ||
+          widget.dsldId != requestedDsldId ||
+          !identical(_product, product)) {
+        return;
+      }
       final isBlocked = catalogProductIsBlocked(product);
       final cachedBlob = ref
-          .read(
-            detailBlobForRowProvider((
-              dsldId: widget.dsldId,
-              expectedSha: product.detailBlobSha256,
-            )),
-          )
+          .read(detailBlobForRowProvider(blobIdentity))
           .asData
           ?.value;
       final canShareScore = catalogProductHasCompletePublicScore(
@@ -289,7 +299,7 @@ class _ProductDetailV2ConnectedState
             : buildHeroTrustTags(
                 product,
               ).map((tag) => tag.label).toList(growable: false),
-        dsldId: widget.dsldId,
+        dsldId: requestedDsldId,
         catalogVersion: catalogVersion,
       );
     } on Exception {
