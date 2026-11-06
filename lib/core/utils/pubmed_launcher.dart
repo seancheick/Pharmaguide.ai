@@ -7,7 +7,7 @@ import 'package:url_launcher/url_launcher.dart';
 /// Canonical numeric PMID identity shared by citation rows and study counts.
 String? evidencePmidIdentity(Object? value) {
   final identifier = value?.toString().trim() ?? '';
-  return RegExp(r'^\d+$').hasMatch(identifier) ? identifier : null;
+  return RegExp(r'^[1-9]\d*$').hasMatch(identifier) ? identifier : null;
 }
 
 /// Opens `https://pubmed.ncbi.nlm.nih.gov/<pmid>` externally.

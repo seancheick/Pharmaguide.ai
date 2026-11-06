@@ -407,6 +407,7 @@ List<PGCitation> evidenceCitations(
   List<Map<String, dynamic>> sourceReferences = const [],
 }) {
   final seen = <String>{};
+  final identityPmids = <String, Set<String>>{};
   final citations = <PGCitation>[];
   void add(Map<String, dynamic> ref, String ingredient) {
     final pmid = evidencePmidIdentity(ref['pmid']) ?? '';
@@ -417,21 +418,37 @@ List<PGCitation> evidenceCitations(
     if (pmid.isEmpty && (uri == null || title.isEmpty)) return;
     final sourceDoi = evidenceSourceDoi(uri);
     final rawDoi = evidenceDoiIdentity(doi);
+    final urlPmid =
+        uri?.host == 'pubmed.ncbi.nlm.nih.gov' &&
+            RegExp(r'^/\d+/?$').hasMatch(uri!.path)
+        ? evidencePmidIdentity(uri.path.replaceAll('/', ''))
+        : null;
+    final identityPmid = pmid.isNotEmpty ? pmid : urlPmid;
     final identities = <String>{
       if (pmid.isNotEmpty) 'pmid:$pmid',
       if (uri != null) 'url:$uri',
       if (rawDoi != null) 'doi:$rawDoi',
       if (sourceDoi != null) 'doi:$sourceDoi',
-      if (uri != null &&
-          uri.host == 'pubmed.ncbi.nlm.nih.gov' &&
-          RegExp(r'^/\d+/?$').hasMatch(uri.path))
-        'pmid:${uri.path.replaceAll('/', '')}',
+      if (pmid.isEmpty && urlPmid != null) 'pmid:$urlPmid',
     };
-    // Distinct PubMed records remain inspectable even with shared link metadata.
-    final duplicate = pmid.isNotEmpty
-        ? seen.contains('pmid:$pmid')
+    // Link-only aliases still collapse with a PMID source in either order.
+    // Only an actually distinct known PMID defeats a shared link identity.
+    final duplicate = identityPmid != null
+        ? seen.contains('pmid:$identityPmid') ||
+              identities.any(
+                (identity) =>
+                    seen.contains(identity) &&
+                    (identityPmids[identity]?.isEmpty ?? true),
+              )
         : identities.any(seen.contains);
     seen.addAll(identities);
+    final linkedPmids = <String>{
+      if (identityPmid != null) identityPmid,
+      for (final identity in identities) ...?identityPmids[identity],
+    };
+    for (final identity in identities) {
+      (identityPmids[identity] ??= <String>{}).addAll(linkedPmids);
+    }
     if (duplicate) return;
     final authority = ref['authority']?.toString().trim() ?? '';
     citations.add(
