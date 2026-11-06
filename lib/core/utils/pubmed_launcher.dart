@@ -4,13 +4,20 @@
 
 import 'package:url_launcher/url_launcher.dart';
 
+/// Canonical numeric PMID identity shared by citation rows and study counts.
+String? evidencePmidIdentity(Object? value) {
+  final identifier = value?.toString().trim() ?? '';
+  return RegExp(r'^\d+$').hasMatch(identifier) ? identifier : null;
+}
+
 /// Opens `https://pubmed.ncbi.nlm.nih.gov/<pmid>` externally.
 ///
 /// No-op when [pmid] is not a pure digit string — PMIDs come from blob
 /// JSON and must never be interpolated into a URL unvalidated.
 Future<void> launchPubmed(String pmid) async {
-  if (!RegExp(r'^\d+$').hasMatch(pmid)) return;
-  final uri = Uri.parse('https://pubmed.ncbi.nlm.nih.gov/$pmid');
+  final identifier = evidencePmidIdentity(pmid);
+  if (identifier == null) return;
+  final uri = Uri.parse('https://pubmed.ncbi.nlm.nih.gov/$identifier');
   await launchUrl(uri, mode: LaunchMode.externalApplication);
 }
 
@@ -43,7 +50,9 @@ Uri? evidenceSourceUri({String? url, String? doi}) {
 
 /// Optional DOI deduplication identity; a valid HTTPS source need not have one.
 String? evidenceSourceDoi(Uri? uri) {
-  if (uri == null || uri.host != 'doi.org' || uri.path.length <= 1) {
+  if (uri == null ||
+      (uri.host != 'doi.org' && uri.host != 'dx.doi.org') ||
+      uri.path.length <= 1) {
     return null;
   }
   try {

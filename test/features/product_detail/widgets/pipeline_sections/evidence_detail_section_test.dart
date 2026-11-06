@@ -45,6 +45,53 @@ Future<void> _pump(WidgetTester tester, {Map<String, dynamic>? evidenceData}) {
 }
 
 void main() {
+  test('malformed PMIDs never count as human studies', () {
+    expect(
+      evidenceTotalStudies([
+        _match(
+          refs: [
+            _ref('123'),
+            _ref(' 123 '),
+            _ref('PMID:456'),
+            _ref('12x'),
+            _ref('-1'),
+            _ref(''),
+            _ref('456'),
+          ],
+        ),
+      ]),
+      2,
+    );
+  });
+
+  test('legacy DOI resolver dedupes against the DOI identity', () {
+    final citations = evidenceCitations(
+      [],
+      sourceReferences: [
+        {'title': 'Legacy URL', 'url': 'https://dx.doi.org/10.1234/example'},
+        {'title': 'Same DOI', 'doi': '10.1234/example'},
+      ],
+    );
+    expect(citations, hasLength(1));
+  });
+
+  test('distinct PMIDs survive shared DOI and URL identities', () {
+    for (final shared in [
+      {'doi': '10.1234/shared'},
+      {'url': 'https://example.org/shared'},
+    ]) {
+      final citations = evidenceCitations(
+        [],
+        sourceReferences: [
+          {'pmid': '12345', 'title': 'First study', ...shared},
+          {'pmid': '67890', 'title': 'Second study', ...shared},
+          {'pmid': '12345', 'title': 'Duplicate first study', ...shared},
+        ],
+      );
+      expect(citations.map((citation) => citation.pmid), ['12345', '67890']);
+    }
+  });
+
   test('source links reject unsafe schemes, credentials and malformed DOI', () {
     for (final url in [
       'javascript:alert(1)',

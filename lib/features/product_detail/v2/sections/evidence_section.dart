@@ -273,8 +273,8 @@ int evidenceTotalStudies(List<Map<String, dynamic>> matches) {
   for (final m in matches) {
     if (!_isHumanLevel(m)) continue;
     for (final ref in m.safeMapList('references_structured')) {
-      final pmid = ref['pmid']?.toString().trim() ?? '';
-      if (pmid.isEmpty) continue;
+      final pmid = evidencePmidIdentity(ref['pmid']);
+      if (pmid == null) continue;
       unique.add(pmid);
     }
   }
@@ -409,8 +409,7 @@ List<PGCitation> evidenceCitations(
   final seen = <String>{};
   final citations = <PGCitation>[];
   void add(Map<String, dynamic> ref, String ingredient) {
-    final rawPmid = ref['pmid']?.toString().trim() ?? '';
-    final pmid = RegExp(r'^\d+$').hasMatch(rawPmid) ? rawPmid : '';
+    final pmid = evidencePmidIdentity(ref['pmid']) ?? '';
     final doi = ref['doi']?.toString().trim() ?? '';
     final uri = evidenceSourceUri(url: ref['url']?.toString(), doi: doi);
     final title = ref['title']?.toString().trim() ?? '';
@@ -428,7 +427,10 @@ List<PGCitation> evidenceCitations(
           RegExp(r'^/\d+/?$').hasMatch(uri.path))
         'pmid:${uri.path.replaceAll('/', '')}',
     };
-    final duplicate = identities.any(seen.contains);
+    // Distinct PubMed records remain inspectable even with shared link metadata.
+    final duplicate = pmid.isNotEmpty
+        ? seen.contains('pmid:$pmid')
+        : identities.any(seen.contains);
     seen.addAll(identities);
     if (duplicate) return;
     final authority = ref['authority']?.toString().trim() ?? '';
