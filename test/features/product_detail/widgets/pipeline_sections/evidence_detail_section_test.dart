@@ -158,6 +158,28 @@ void main() {
     },
   );
 
+  test(
+    'DOI case variants share identity while source destinations retain case',
+    () {
+      const original = 'https://doi.org/10.1234/MixedCase';
+      expect(evidenceSourceUri(url: original).toString(), original);
+      expect(evidenceSourceUri(doi: '10.1234/MixedCase').toString(), original);
+      expect(evidenceDoiIdentity('10.1234/MixedCase'), '10.1234/mixedcase');
+      final citations = evidenceCitations(
+        [],
+        sourceReferences: [
+          {'title': 'Original', 'url': original},
+          {'title': 'Duplicate raw DOI', 'doi': '10.1234/mixedcase'},
+          {
+            'title': 'Duplicate URL',
+            'url': 'https://doi.org/10.1234/MIXEDCASE',
+          },
+        ],
+      );
+      expect(citations.single.title, 'Original');
+    },
+  );
+
   test('authority and DOI references use the shared citation collector', () {
     final citations = evidenceCitations([
       _match(

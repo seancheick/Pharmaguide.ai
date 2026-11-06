@@ -417,11 +417,11 @@ List<PGCitation> evidenceCitations(
     // Non-PubMed sources require an actual title and a safe destination.
     if (pmid.isEmpty && (uri == null || title.isEmpty)) return;
     final sourceDoi = evidenceSourceDoi(uri);
+    final rawDoi = evidenceDoiIdentity(doi);
     final identities = <String>{
       if (pmid.isNotEmpty) 'pmid:$pmid',
       if (uri != null) 'url:$uri',
-      if (RegExp(r'^10\.\d{4,9}/\S+$').hasMatch(doi))
-        'doi:${doi.toLowerCase()}',
+      if (rawDoi != null) 'doi:$rawDoi',
       if (sourceDoi != null) 'doi:$sourceDoi',
       if (uri != null &&
           uri.host == 'pubmed.ncbi.nlm.nih.gov' &&

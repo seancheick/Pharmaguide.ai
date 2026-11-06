@@ -14,6 +14,14 @@ Future<void> launchPubmed(String pmid) async {
   await launchUrl(uri, mode: LaunchMode.externalApplication);
 }
 
+/// Canonical DOI identity used for validation and citation deduplication.
+String? evidenceDoiIdentity(String? doi) {
+  final identifier = doi?.trim() ?? '';
+  return RegExp(r'^10\.\d{4,9}/\S+$').hasMatch(identifier)
+      ? identifier.toLowerCase()
+      : null;
+}
+
 /// Only absolute HTTPS source links may leave the app. Citation data is untrusted.
 Uri? evidenceSourceUri({String? url, String? doi}) {
   final value = url?.trim() ?? '';
@@ -29,7 +37,7 @@ Uri? evidenceSourceUri({String? url, String? doi}) {
     return null;
   }
   final identifier = doi?.trim() ?? '';
-  if (!RegExp(r'^10\.\d{4,9}/\S+$').hasMatch(identifier)) return null;
+  if (evidenceDoiIdentity(identifier) == null) return null;
   return Uri.https('doi.org', '/$identifier');
 }
 
@@ -40,9 +48,7 @@ String? evidenceSourceDoi(Uri? uri) {
   }
   try {
     final identifier = Uri.decodeComponent(uri.path.substring(1));
-    return RegExp(r'^10\.\d{4,9}/\S+$').hasMatch(identifier)
-        ? identifier.toLowerCase()
-        : null;
+    return evidenceDoiIdentity(identifier);
   } on FormatException {
     return null;
   }
