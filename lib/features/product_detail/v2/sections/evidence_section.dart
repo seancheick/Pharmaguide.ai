@@ -70,12 +70,16 @@ enum EvidenceScope { product, brandedIngredient, ingredient, indirect }
 const Set<String> _strongLevels = {'branded-rct', 'product-human'};
 const Set<String> _moderateLevels = {'ingredient-human', 'strain-clinical'};
 
-/// Whether the clinical-evidence destination can render real rows. A numeric
+/// Whether the shared Evidence destination can render real rows or sources. A numeric
 /// `match_count` alone is not enough; stale blobs can report a count while the
 /// parsed match list is empty.
 bool hasRenderableClinicalEvidence(Map<String, dynamic>? evidenceData) {
   if (evidenceData == null) return false;
-  return evidenceData.safeMapList('clinical_matches').isNotEmpty;
+  return evidenceData.safeMapList('clinical_matches').isNotEmpty ||
+      evidenceCitations(
+        [],
+        sourceReferences: evidenceData.safeMapList('source_references'),
+      ).isNotEmpty;
 }
 
 /// Dedupe clinical matches by study identity (`study_id`, falling back
@@ -269,8 +273,8 @@ int evidenceTotalStudies(List<Map<String, dynamic>> matches) {
   for (final m in matches) {
     if (!_isHumanLevel(m)) continue;
     for (final ref in m.safeMapList('references_structured')) {
-      final pmid = ref['pmid']?.toString().trim() ?? '';
-      if (pmid.isEmpty) continue;
+      final pmid = evidencePmidIdentity(ref['pmid']);
+      if (pmid == null) continue;
       unique.add(pmid);
     }
   }
@@ -395,30 +399,81 @@ String _ingredientLabel(Map<String, dynamic> match) {
   return match['standard_name']?.toString().trim() ?? '';
 }
 
-/// Build the citation rows from `references_structured`, deduped by
-/// PMID across matches, using the real paper title when present.
-List<PGCitation> evidenceCitations(List<Map<String, dynamic>> matches) {
-  final seenPmids = <String>{};
+/// Collect clinical and optional Evidence authority sources through one renderer.
+/// Source identity is deduped across PMID, DOI, and URL; authority sources never
+/// enter clinical match tier or study-count calculations.
+List<PGCitation> evidenceCitations(
+  List<Map<String, dynamic>> matches, {
+  List<Map<String, dynamic>> sourceReferences = const [],
+}) {
+  final seen = <String>{};
+  final identityPmids = <String, Set<String>>{};
   final citations = <PGCitation>[];
-  for (final match in matches) {
-    final ingredient = match['ingredient']?.toString().trim() ?? '';
-    for (final ref in match.safeMapList('references_structured')) {
-      final pmid = ref['pmid']?.toString().trim() ?? '';
-      if (pmid.isEmpty) continue;
-      if (!seenPmids.add(pmid)) continue;
-      final title = ref['title']?.toString().trim() ?? '';
-      citations.add(
-        PGCitation(
-          pmid: pmid,
-          title: title.isNotEmpty
-              ? title
-              : (ingredient.isEmpty
-                    ? 'PMID $pmid'
-                    : 'PMID $pmid · $ingredient'),
-          onTap: () => launchPubmed(pmid),
-        ),
-      );
+  void add(Map<String, dynamic> ref, String ingredient) {
+    final pmid = evidencePmidIdentity(ref['pmid']) ?? '';
+    final doi = ref['doi']?.toString().trim() ?? '';
+    final uri = evidenceSourceUri(url: ref['url']?.toString(), doi: doi);
+    final title = ref['title']?.toString().trim() ?? '';
+    // Non-PubMed sources require an actual title and a safe destination.
+    if (pmid.isEmpty && (uri == null || title.isEmpty)) return;
+    final sourceDoi = evidenceSourceDoi(uri);
+    final rawDoi = evidenceDoiIdentity(doi);
+    final urlPmid =
+        uri?.host == 'pubmed.ncbi.nlm.nih.gov' &&
+            RegExp(r'^/\d+/?$').hasMatch(uri!.path)
+        ? evidencePmidIdentity(uri.path.replaceAll('/', ''))
+        : null;
+    final identityPmid = pmid.isNotEmpty ? pmid : urlPmid;
+    final identities = <String>{
+      if (pmid.isNotEmpty) 'pmid:$pmid',
+      if (uri != null) 'url:$uri',
+      if (rawDoi != null) 'doi:$rawDoi',
+      if (sourceDoi != null) 'doi:$sourceDoi',
+      if (pmid.isEmpty && urlPmid != null) 'pmid:$urlPmid',
+    };
+    // Link-only aliases still collapse with a PMID source in either order.
+    // Only an actually distinct known PMID defeats a shared link identity.
+    final duplicate = identityPmid != null
+        ? seen.contains('pmid:$identityPmid') ||
+              identities.any(
+                (identity) =>
+                    seen.contains(identity) &&
+                    (identityPmids[identity]?.isEmpty ?? true),
+              )
+        : identities.any(seen.contains);
+    seen.addAll(identities);
+    final linkedPmids = <String>{
+      if (identityPmid != null) identityPmid,
+      for (final identity in identities) ...?identityPmids[identity],
+    };
+    for (final identity in identities) {
+      (identityPmids[identity] ??= <String>{}).addAll(linkedPmids);
     }
+    if (duplicate) return;
+    final authority = ref['authority']?.toString().trim() ?? '';
+    citations.add(
+      PGCitation(
+        pmid: pmid,
+        title: title.isNotEmpty
+            ? title
+            : (ingredient.isEmpty ? 'PMID $pmid' : 'PMID $pmid · $ingredient'),
+        sourceLabel: pmid.isNotEmpty
+            ? null
+            : (authority.isNotEmpty ? authority : uri!.host),
+        onTap: pmid.isNotEmpty
+            ? () => launchPubmed(pmid)
+            : () => launchEvidenceSource(uri!),
+      ),
+    );
+  }
+
+  for (final match in matches) {
+    for (final ref in match.safeMapList('references_structured')) {
+      add(ref, match['ingredient']?.toString().trim() ?? '');
+    }
+  }
+  for (final ref in sourceReferences) {
+    add(ref, '');
   }
   return citations;
 }
@@ -448,8 +503,22 @@ Widget buildEvidenceSection({
   // Suppress when nothing parsed — including the malformed case where
   // match_count > 0 but no clinical_matches survived parsing. A LIMITED
   // badge built from zero matches would be invented signal.
+  final citations = evidenceCitations(
+    clinicalMatches,
+    sourceReferences: evidenceData.safeMapList('source_references'),
+  );
   if (clinicalMatches.isEmpty) {
-    return const SizedBox.shrink();
+    if (citations.isEmpty) return const SizedBox.shrink();
+    return PGEvidenceSection(
+      title: 'Evidence',
+      tier: presentationTier ?? PGEvidenceTier.none,
+      summaryLine: summaryLine ?? 'Sources',
+      helperLine: helperLine,
+      deriveHelperFromTier: false,
+      citations: citations,
+      sheetExtra: relatedResearch,
+      cardExtra: cardExtra,
+    );
   }
 
   final rankedMatches = evidenceDisplayMatches(clinicalMatches);
@@ -461,7 +530,6 @@ Widget buildEvidenceSection({
   final productionTier = evidenceTier(displayMatches);
   final totalStudies = evidenceTotalStudies(displayMatches);
   final hasMeta = evidenceHasMetaQuality(displayMatches);
-  final citations = evidenceCitations(clinicalMatches);
   final exactProductMatches = clinicalMatches
       .where((match) => _matchEvidenceScope(match) == EvidenceScope.product)
       .toList(growable: false);

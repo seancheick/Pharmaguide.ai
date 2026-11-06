@@ -34,6 +34,9 @@ class PGCitation {
   final String pmid;
   final String title;
 
+  /// Authority name or source host; absent for existing PMID citations.
+  final String? sourceLabel;
+
   /// Optional publication year ("2023").
   final String? year;
 
@@ -45,6 +48,7 @@ class PGCitation {
     required this.pmid,
     required this.title,
     this.year,
+    this.sourceLabel,
     this.onTap,
   });
 }
@@ -61,6 +65,7 @@ class PGEvidenceSection extends StatelessWidget {
   final String? summaryPrefix;
   final String? summaryLine;
   final String? helperLine;
+  final bool deriveHelperFromTier;
 
   /// Optional factual enrichment line beneath the tier summary, e.g.
   /// "Backed by 4 human studies · ~620 participants".
@@ -91,6 +96,7 @@ class PGEvidenceSection extends StatelessWidget {
     this.summaryPrefix,
     this.summaryLine,
     this.helperLine,
+    this.deriveHelperFromTier = true,
     this.subtitle,
     this.footnote,
     this.sheetExtra,
@@ -166,6 +172,7 @@ class PGEvidenceSection extends StatelessWidget {
     final override = helperLine?.trim();
     if (override != null && override.isNotEmpty) return override;
 
+    if (!deriveHelperFromTier) return null;
     switch (tier) {
       case PGEvidenceTier.strong:
         return 'High-quality human research is available.';
@@ -352,8 +359,8 @@ class _CitationRow extends StatelessWidget {
                 const SizedBox(height: 2),
                 Text(
                   citation.year != null
-                      ? 'PMID ${citation.pmid} · ${citation.year}'
-                      : 'PMID ${citation.pmid}',
+                      ? '${citation.sourceLabel ?? 'PMID ${citation.pmid}'} · ${citation.year}'
+                      : (citation.sourceLabel ?? 'PMID ${citation.pmid}'),
                   style: V2Typography.caption(color: context.v2.fgMuted),
                 ),
               ],
