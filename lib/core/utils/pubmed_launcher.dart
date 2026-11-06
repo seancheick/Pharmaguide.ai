@@ -13,3 +13,28 @@ Future<void> launchPubmed(String pmid) async {
   final uri = Uri.parse('https://pubmed.ncbi.nlm.nih.gov/$pmid');
   await launchUrl(uri, mode: LaunchMode.externalApplication);
 }
+
+/// Only absolute HTTPS source links may leave the app. Citation data is untrusted.
+Uri? evidenceSourceUri({String? url, String? doi}) {
+  final value = url?.trim() ?? '';
+  if (value.isNotEmpty) {
+    final uri = Uri.tryParse(value);
+    if (uri != null &&
+        uri.scheme == 'https' &&
+        uri.host.isNotEmpty &&
+        uri.userInfo.isEmpty &&
+        !RegExp(r'\s').hasMatch(value)) {
+      return uri;
+    }
+    return null;
+  }
+  final identifier = doi?.trim() ?? '';
+  if (!RegExp(r'^10\.\d{4,9}/\S+$').hasMatch(identifier)) return null;
+  return Uri.https('doi.org', '/$identifier');
+}
+
+Future<void> launchEvidenceSource(Uri uri) async {
+  final safe = evidenceSourceUri(url: uri.toString());
+  if (safe == null) return;
+  await launchUrl(safe, mode: LaunchMode.externalApplication);
+}

@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:pharmaguide/core/utils/pubmed_launcher.dart';
 import 'package:pharmaguide/core/components/pg_evidence_section.dart';
 import 'package:pharmaguide/features/product_detail/v2/sections/evidence_section.dart';
 
@@ -44,6 +45,111 @@ Future<void> _pump(WidgetTester tester, {Map<String, dynamic>? evidenceData}) {
 }
 
 void main() {
+  test('source links reject unsafe schemes, credentials and malformed DOI', () {
+    for (final url in [
+      'javascript:alert(1)',
+      'data:text/html,x',
+      'file:///private/x',
+      '//example.org/x',
+      'https://user@example.org/x',
+      'https://example.org/a b',
+      'http://example.org',
+    ]) {
+      expect(evidenceSourceUri(url: url), isNull, reason: url);
+    }
+    expect(evidenceSourceUri(doi: 'not-a-doi'), isNull);
+    expect(
+      evidenceSourceUri(doi: '10.17226/10490').toString(),
+      'https://doi.org/10.17226/10490',
+    );
+  });
+
+  test('mixed sources dedupe identities without creating clinical studies', () {
+    final matches = [
+      _match(refs: [_ref('123', title: 'Human study')]),
+    ];
+    final citations = evidenceCitations(
+      matches,
+      sourceReferences: [
+        {'title': 'Duplicate', 'url': 'https://pubmed.ncbi.nlm.nih.gov/123/'},
+        {'title': 'DRI', 'doi': '10.17226/10490'},
+        {'title': 'Duplicate DRI', 'url': 'https://doi.org/10.17226/10490'},
+        {'title': 'Unsafe', 'url': 'javascript:alert(1)'},
+        {'url': 'https://example.org'},
+        {'title': 'Invalid PMID', 'pmid': '123/evil'},
+      ],
+    );
+    expect(citations, hasLength(2));
+    expect(evidenceTotalStudies(matches), 1);
+    expect(evidenceTier(matches), EvidenceTier.moderate);
+  });
+
+  testWidgets('authority-only metadata uses sources without clinical claims', (
+    tester,
+  ) async {
+    await _pump(
+      tester,
+      evidenceData: {
+        'source_references': [
+          {
+            'title': 'Dietary Reference Intakes',
+            'authority': 'National Academies',
+            'doi': '10.17226/10490',
+          },
+        ],
+      },
+    );
+    final section = tester.widget<PGEvidenceSection>(
+      find.byType(PGEvidenceSection),
+    );
+    expect(section.totalStudies, 0);
+    expect(section.hasMetaAnalysis, isFalse);
+    expect(find.text('Clinical evidence'), findsNothing);
+    expect(find.text('No direct evidence'), findsNothing);
+    await tester.tap(find.text('View sources (1)'));
+    await tester.pumpAndSettle();
+    expect(find.text('National Academies'), findsOneWidget);
+    expect(find.textContaining('PMID'), findsNothing);
+  });
+
+  test('missing sources do not borrow unrelated Dose citations', () {
+    expect(
+      hasRenderableClinicalEvidence({
+        'dose': {
+          'source_references': [
+            {'title': 'Dose', 'url': 'https://example.org'},
+          ],
+        },
+        'source_references': ['malformed', null],
+      }),
+      isFalse,
+    );
+    expect(evidenceCitations([]), isEmpty);
+  });
+
+  test('authority and DOI references use the shared citation collector', () {
+    final citations = evidenceCitations([
+      _match(
+        refs: [
+          {
+            'title': 'Vitamin A and Carotenoids',
+            'authority': 'NIH ODS',
+            'url':
+                'https://ods.od.nih.gov/factsheets/VitaminA-HealthProfessional/',
+          },
+          {
+            'title': 'Dietary Reference Intakes',
+            'authority': 'National Academies',
+            'doi': '10.17226/10490',
+          },
+        ],
+      ),
+    ]);
+    expect(citations, hasLength(2));
+    expect(citations.first.title, 'Vitamin A and Carotenoids');
+    expect(citations.every((citation) => citation.pmid.isEmpty), isTrue);
+  });
+
   group('hasRenderableClinicalEvidence', () {
     test('requires parsed clinical match rows, not match_count alone', () {
       expect(

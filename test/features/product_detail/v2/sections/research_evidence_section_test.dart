@@ -247,6 +247,50 @@ void main() {
     };
 
     testWidgets(
+      'authority sources retain pipeline verdict without human-research copy',
+      (tester) async {
+        await tester.pumpWidget(
+          _supportHarness(
+            evidenceData: const {
+              'source_references': [
+                {
+                  'title': 'Dietary Reference Intakes',
+                  'authority': 'Institute of Medicine, National Academies',
+                  'doi': '10.17226/10490',
+                  'url':
+                      'https://www.nationalacademies.org/read/10490/chapter/12',
+                },
+              ],
+            },
+            evidence: const [],
+            qualityPillarsV4: const {
+              'evidence': {
+                'score': 20,
+                'max': 20,
+                'reason': 'Established nutritional role.',
+              },
+            },
+          ),
+        );
+        await tester.pumpAndSettle();
+        expect(find.text('Evidence pillar: Strong · 20/20'), findsOneWidget);
+        expect(find.text('Established nutritional role.'), findsOneWidget);
+        expect(
+          find.text('High-quality human research is available.'),
+          findsNothing,
+        );
+        expect(find.textContaining('studies ('), findsNothing);
+        await tester.tap(find.text('View sources (1)'));
+        await tester.pumpAndSettle();
+        expect(find.text('Dietary Reference Intakes'), findsOneWidget);
+        expect(
+          find.text('Institute of Medicine, National Academies'),
+          findsOneWidget,
+        );
+      },
+    );
+
+    testWidgets(
       'pipeline Evidence pillar owns the card verdict while ingredient support remains visible',
       (tester) async {
         await tester.pumpWidget(

@@ -70,12 +70,16 @@ enum EvidenceScope { product, brandedIngredient, ingredient, indirect }
 const Set<String> _strongLevels = {'branded-rct', 'product-human'};
 const Set<String> _moderateLevels = {'ingredient-human', 'strain-clinical'};
 
-/// Whether the clinical-evidence destination can render real rows. A numeric
+/// Whether the shared Evidence destination can render real rows or sources. A numeric
 /// `match_count` alone is not enough; stale blobs can report a count while the
 /// parsed match list is empty.
 bool hasRenderableClinicalEvidence(Map<String, dynamic>? evidenceData) {
   if (evidenceData == null) return false;
-  return evidenceData.safeMapList('clinical_matches').isNotEmpty;
+  return evidenceData.safeMapList('clinical_matches').isNotEmpty ||
+      evidenceCitations(
+        [],
+        sourceReferences: evidenceData.safeMapList('source_references'),
+      ).isNotEmpty;
 }
 
 /// Dedupe clinical matches by study identity (`study_id`, falling back
@@ -395,30 +399,62 @@ String _ingredientLabel(Map<String, dynamic> match) {
   return match['standard_name']?.toString().trim() ?? '';
 }
 
-/// Build the citation rows from `references_structured`, deduped by
-/// PMID across matches, using the real paper title when present.
-List<PGCitation> evidenceCitations(List<Map<String, dynamic>> matches) {
-  final seenPmids = <String>{};
+/// Collect clinical and optional Evidence authority sources through one renderer.
+/// Source identity is deduped across PMID, DOI, and URL; authority sources never
+/// enter clinical match tier or study-count calculations.
+List<PGCitation> evidenceCitations(
+  List<Map<String, dynamic>> matches, {
+  List<Map<String, dynamic>> sourceReferences = const [],
+}) {
+  final seen = <String>{};
   final citations = <PGCitation>[];
+  void add(Map<String, dynamic> ref, String ingredient) {
+    final rawPmid = ref['pmid']?.toString().trim() ?? '';
+    final pmid = RegExp(r'^\d+$').hasMatch(rawPmid) ? rawPmid : '';
+    final doi = ref['doi']?.toString().trim() ?? '';
+    final uri = evidenceSourceUri(url: ref['url']?.toString(), doi: doi);
+    final title = ref['title']?.toString().trim() ?? '';
+    // Non-PubMed sources require an actual title and a safe destination.
+    if (pmid.isEmpty && (uri == null || title.isEmpty)) return;
+    final identities = <String>{
+      if (pmid.isNotEmpty) 'pmid:$pmid',
+      if (uri != null) 'url:$uri',
+      if (RegExp(r'^10\.\d{4,9}/\S+$').hasMatch(doi))
+        'doi:${doi.toLowerCase()}',
+      if (uri != null && uri.host == 'doi.org')
+        'doi:${Uri.decodeComponent(uri.path.substring(1)).toLowerCase()}',
+      if (uri != null &&
+          uri.host == 'pubmed.ncbi.nlm.nih.gov' &&
+          RegExp(r'^/\d+/?$').hasMatch(uri.path))
+        'pmid:${uri.path.replaceAll('/', '')}',
+    };
+    final duplicate = identities.any(seen.contains);
+    seen.addAll(identities);
+    if (duplicate) return;
+    final authority = ref['authority']?.toString().trim() ?? '';
+    citations.add(
+      PGCitation(
+        pmid: pmid,
+        title: title.isNotEmpty
+            ? title
+            : (ingredient.isEmpty ? 'PMID $pmid' : 'PMID $pmid · $ingredient'),
+        sourceLabel: pmid.isNotEmpty
+            ? null
+            : (authority.isNotEmpty ? authority : uri!.host),
+        onTap: pmid.isNotEmpty
+            ? () => launchPubmed(pmid)
+            : () => launchEvidenceSource(uri!),
+      ),
+    );
+  }
+
   for (final match in matches) {
-    final ingredient = match['ingredient']?.toString().trim() ?? '';
     for (final ref in match.safeMapList('references_structured')) {
-      final pmid = ref['pmid']?.toString().trim() ?? '';
-      if (pmid.isEmpty) continue;
-      if (!seenPmids.add(pmid)) continue;
-      final title = ref['title']?.toString().trim() ?? '';
-      citations.add(
-        PGCitation(
-          pmid: pmid,
-          title: title.isNotEmpty
-              ? title
-              : (ingredient.isEmpty
-                    ? 'PMID $pmid'
-                    : 'PMID $pmid · $ingredient'),
-          onTap: () => launchPubmed(pmid),
-        ),
-      );
+      add(ref, match['ingredient']?.toString().trim() ?? '');
     }
+  }
+  for (final ref in sourceReferences) {
+    add(ref, '');
   }
   return citations;
 }
@@ -448,8 +484,22 @@ Widget buildEvidenceSection({
   // Suppress when nothing parsed — including the malformed case where
   // match_count > 0 but no clinical_matches survived parsing. A LIMITED
   // badge built from zero matches would be invented signal.
+  final citations = evidenceCitations(
+    clinicalMatches,
+    sourceReferences: evidenceData.safeMapList('source_references'),
+  );
   if (clinicalMatches.isEmpty) {
-    return const SizedBox.shrink();
+    if (citations.isEmpty) return const SizedBox.shrink();
+    return PGEvidenceSection(
+      title: 'Evidence',
+      tier: presentationTier ?? PGEvidenceTier.none,
+      summaryLine: summaryLine ?? 'Sources',
+      helperLine: helperLine,
+      deriveHelperFromTier: false,
+      citations: citations,
+      sheetExtra: relatedResearch,
+      cardExtra: cardExtra,
+    );
   }
 
   final rankedMatches = evidenceDisplayMatches(clinicalMatches);
@@ -461,7 +511,6 @@ Widget buildEvidenceSection({
   final productionTier = evidenceTier(displayMatches);
   final totalStudies = evidenceTotalStudies(displayMatches);
   final hasMeta = evidenceHasMetaQuality(displayMatches);
-  final citations = evidenceCitations(clinicalMatches);
   final exactProductMatches = clinicalMatches
       .where((match) => _matchEvidenceScope(match) == EvidenceScope.product)
       .toList(growable: false);
