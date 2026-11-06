@@ -127,6 +127,37 @@ void main() {
     expect(evidenceCitations([]), isEmpty);
   });
 
+  test(
+    'HTTPS DOI-host sources with absent or malformed identity do not crash',
+    () {
+      final citations = evidenceCitations(
+        [],
+        sourceReferences: [
+          {'title': 'Authority landing page', 'url': 'https://doi.org'},
+          {'title': 'Malformed DOI identity', 'url': 'https://doi.org/%FF'},
+        ],
+      );
+      expect(citations.map((citation) => citation.title), [
+        'Authority landing page',
+        'Malformed DOI identity',
+      ]);
+      expect(citations.every((citation) => citation.pmid.isEmpty), isTrue);
+    },
+  );
+
+  test(
+    'malformed UTF8 DOI path remains a source without decoded DOI identity',
+    () {
+      final citations = evidenceCitations(
+        [],
+        sourceReferences: [
+          {'title': 'Malformed identity', 'url': 'https://doi.org/%FF'},
+        ],
+      );
+      expect(citations.single.title, 'Malformed identity');
+    },
+  );
+
   test('authority and DOI references use the shared citation collector', () {
     final citations = evidenceCitations([
       _match(

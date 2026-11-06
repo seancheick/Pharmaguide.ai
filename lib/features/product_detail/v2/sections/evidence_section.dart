@@ -416,13 +416,13 @@ List<PGCitation> evidenceCitations(
     final title = ref['title']?.toString().trim() ?? '';
     // Non-PubMed sources require an actual title and a safe destination.
     if (pmid.isEmpty && (uri == null || title.isEmpty)) return;
+    final sourceDoi = evidenceSourceDoi(uri);
     final identities = <String>{
       if (pmid.isNotEmpty) 'pmid:$pmid',
       if (uri != null) 'url:$uri',
       if (RegExp(r'^10\.\d{4,9}/\S+$').hasMatch(doi))
         'doi:${doi.toLowerCase()}',
-      if (uri != null && uri.host == 'doi.org')
-        'doi:${Uri.decodeComponent(uri.path.substring(1)).toLowerCase()}',
+      if (sourceDoi != null) 'doi:$sourceDoi',
       if (uri != null &&
           uri.host == 'pubmed.ncbi.nlm.nih.gov' &&
           RegExp(r'^/\d+/?$').hasMatch(uri.path))

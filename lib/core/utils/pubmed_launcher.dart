@@ -33,6 +33,21 @@ Uri? evidenceSourceUri({String? url, String? doi}) {
   return Uri.https('doi.org', '/$identifier');
 }
 
+/// Optional DOI deduplication identity; a valid HTTPS source need not have one.
+String? evidenceSourceDoi(Uri? uri) {
+  if (uri == null || uri.host != 'doi.org' || uri.path.length <= 1) {
+    return null;
+  }
+  try {
+    final identifier = Uri.decodeComponent(uri.path.substring(1));
+    return RegExp(r'^10\.\d{4,9}/\S+$').hasMatch(identifier)
+        ? identifier.toLowerCase()
+        : null;
+  } on FormatException {
+    return null;
+  }
+}
+
 Future<void> launchEvidenceSource(Uri uri) async {
   final safe = evidenceSourceUri(url: uri.toString());
   if (safe == null) return;
