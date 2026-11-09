@@ -63,9 +63,30 @@ class CrashReportingService {
   List<RecordedCrashError> get recordedErrors =>
       List.unmodifiable(_errorBuffer);
 
+  /// VM-service evaluations can add locationless Eval frames. Flutter's
+  /// diagnostic renderer cannot parse them and throws a second exception while
+  /// presenting the original error. Exclude only those tooling frames from
+  /// framework diagnostics; recordError still receives the original stack.
+  void _configureFrameworkDiagnostics() {
+    if (!kDebugMode || _initialized) return;
+    final previous = FlutterError.demangleStackTrace;
+    final locationlessEval = RegExp(
+      r'^#\d+\s+Eval(?:\.<anonymous closure>)? \(\)\s*$',
+    );
+    FlutterError.demangleStackTrace = (stack) {
+      final demangled = previous(stack);
+      final lines = demangled.toString().split('\n');
+      if (!lines.any(locationlessEval.hasMatch)) return demangled;
+      return StackTrace.fromString(
+        lines.where((line) => !locationlessEval.hasMatch(line)).join('\n'),
+      );
+    };
+  }
+
   /// Buffer-only init — used by tests and code paths that skip [bootstrap].
   Future<void> initialize() async {
     if (_initialized) return;
+    _configureFrameworkDiagnostics();
     _initialized = true;
     if (kDebugMode) {
       debugPrint('CrashReportingService initialized (buffer-only)');
@@ -86,6 +107,7 @@ class CrashReportingService {
       return;
     }
 
+    _configureFrameworkDiagnostics();
     await SentryFlutter.init((options) {
       options.dsn = dsn;
       options.environment = environment.isEmpty ? 'production' : environment;

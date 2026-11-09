@@ -11,10 +11,12 @@ import 'package:drift/drift.dart' show Variable;
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:go_router/go_router.dart';
 import 'package:path/path.dart' as p;
 import 'package:pharmaguide/app.dart' show scaffoldMessengerKey;
 import 'package:pharmaguide/core/components/pg_settings_tile.dart';
 import 'package:pharmaguide/core/navigation/launch_link_buffer.dart';
+import 'package:pharmaguide/core/navigation/root_navigator_key.dart';
 import 'package:pharmaguide/core/widgets/withheld_checks_notice.dart';
 import 'package:pharmaguide/data/database/core_database.dart';
 import 'package:pharmaguide/data/database/interaction_database.dart';
@@ -22,6 +24,7 @@ import 'package:pharmaguide/data/database/user_database.dart';
 import 'package:pharmaguide/data/providers/database_providers.dart';
 import 'package:pharmaguide/features/settings/providers/notification_settings_provider.dart';
 import 'package:pharmaguide/features/settings/v2/settings_v2_connected.dart';
+import 'package:pharmaguide/features/settings/v2/user_data_unavailable_screen.dart';
 import 'package:pharmaguide/main.dart';
 import 'package:pharmaguide/services/auth/account_storage.dart';
 import 'package:pharmaguide/services/auth/pg_auth_service.dart';
@@ -201,7 +204,9 @@ void main() {
   late InteractionDatabase? rules;
 
   /// A launch's own guard. The last one's database closed with its app.
-  Future<AccountSwitchGuard> openAccount() async {
+  Future<AccountSwitchGuard> openAccount({
+    Future<UserDatabase> Function(String)? openDatabase,
+  }) async {
     final root = Directory(p.join(workspace.path, 'account'))
       ..createSync(recursive: true);
     final opened = AccountSwitchGuard(
@@ -210,7 +215,7 @@ void main() {
         supportDirectory: () async => root,
         documentsDirectory: () async => root,
       ),
-      openDatabase: (path) async => UserDatabase.open(path),
+      openDatabase: openDatabase ?? (path) async => UserDatabase.open(path),
     );
     await opened.boot(sessionUid: null);
     return opened;
@@ -265,6 +270,7 @@ void main() {
     WidgetTester tester, {
     bool supabaseReady = true,
     Widget? app,
+    LaunchLinkBuffer? launchLinks,
     ReleaseStore? relaunchedStore,
   }) async {
     // Settings is a long list; the tile has to be built to be tapped.
@@ -278,7 +284,7 @@ void main() {
         appPreferencesController: AppPreferencesController(
           repository: AppPreferencesRepository(_MemoryStore()),
         ),
-        launchLinks: LaunchLinkBuffer(),
+        launchLinks: launchLinks ?? LaunchLinkBuffer(),
         releaseStoreForTesting: relaunchedStore ?? store,
         appForTesting:
             app ??
@@ -296,6 +302,93 @@ void main() {
       await settleReal(tester, () => tester.any(find.text('Offline mode')));
     }
   }
+
+  testWidgets('reminder tap survives the account router handoff', (
+    tester,
+  ) async {
+    final links = LaunchLinkBuffer()..attach();
+    final router = GoRouter(
+      navigatorKey: rootNavigatorKey,
+      initialLocation: '/home',
+      routes: [
+        GoRoute(path: '/home', builder: (_, _) => const Text('Reminder home')),
+        GoRoute(
+          path: '/stack',
+          builder: (_, _) => const Text('Reminder stack'),
+        ),
+      ],
+    );
+    addTearDown(router.dispose);
+    addTearDown(links.detach);
+    await boot(
+      tester,
+      app: MaterialApp.router(routerConfig: router),
+      launchLinks: links,
+    );
+    await settleReal(tester, () => tester.any(find.text('Reminder home')));
+    await tester.runAsync(() => guard.releaseConsumers!());
+    await tester.pump();
+    expect(rootNavigatorKey.currentContext, isNull);
+    LaunchLinkBuffer.openLocation('/stack');
+    guard.onChanged!();
+    await tester.pump();
+    await tester.pump();
+    expect(find.text('Reminder stack'), findsOneWidget);
+    expect(links.takeLocation(), isNull);
+    router.go('/home');
+    guard.onChanged!();
+    await tester.pump();
+    await tester.pump();
+    expect(find.text('Reminder home'), findsOneWidget);
+    await tester.pumpWidget(const SizedBox());
+  });
+
+  testWidgets('reminder tap waits for unavailable account data to recover', (
+    tester,
+  ) async {
+    var unavailable = true;
+    await tester.runAsync(() async {
+      await guard.close();
+      guard = await openAccount(
+        openDatabase: (path) async {
+          if (unavailable) throw StateError('Fixture account unavailable');
+          return UserDatabase.open(path);
+        },
+      );
+    });
+    final links = LaunchLinkBuffer()..attach();
+    final router = GoRouter(
+      navigatorKey: rootNavigatorKey,
+      initialLocation: '/home',
+      routes: [
+        GoRoute(path: '/home', builder: (_, _) => const Text('Reminder home')),
+        GoRoute(
+          path: '/stack',
+          builder: (_, _) => const Text('Reminder stack'),
+        ),
+      ],
+    );
+    addTearDown(router.dispose);
+    addTearDown(links.detach);
+    await boot(
+      tester,
+      app: MaterialApp.router(routerConfig: router),
+      launchLinks: links,
+    );
+    await settleReal(
+      tester,
+      () => tester.any(find.byType(UserDataUnavailableScreen)),
+    );
+    LaunchLinkBuffer.openLocation('/stack');
+    expect(find.text('Reminder stack'), findsNothing);
+    unavailable = false;
+    await tester.runAsync(guard.retry);
+    await tester.pump();
+    await tester.pump();
+    expect(find.text('Reminder stack'), findsOneWidget);
+    expect(links.takeLocation(), isNull);
+    await tester.pumpWidget(const SizedBox());
+  });
 
   /// Taps the real tile on the real event loop, and waits for its line.
   Future<void> checkForUpdates(WidgetTester tester) async {

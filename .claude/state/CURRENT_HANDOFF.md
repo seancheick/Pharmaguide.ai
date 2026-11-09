@@ -1,3 +1,55 @@
+# Six remaining Sentry reports — November 8, 2026
+
+Two verified and resolved in Sentry: PHARMAGUIDE-2X and PHARMAGUIDE-2Z. Four remain open:2B,2D,2J,2W. User confirmed no current phone/simulator freeze. Do not bulk-close the four unexplained historical native hangs from absence of recurrence.
+
+2X root established from contemporaneous original incident, not a corrupt file: plain-SQLite release was installed over an encrypted iPhone account DB on November4 01:43UTC. Recovery build restored startup; user confirmed retained data returned. Encryption PR179 merged03:00:29UTC at1aeefc9b, live verified and ancestor of current source. Current native hook is SQLCipher, key preparation is canonical, real-library migration/key/account-isolation tests pass. Today's owned simulator reopened its encrypted single-supplement synthetic fixture with data retained. No original phone data changed or physical build installed today.
+
+Additional opener bug reproduced and fixed in6b794f95: lazy Drift handle returned before actual opening failed, allowing housekeeping to race validation. Existing openUserDatabase now awaits SELECT1, closes/rethrows on failure, then schedules non-blocking housekeeping. Real invalid-file regression RED before fix; bytes preserved after rejection. Healthy close/reopen preserves stack row. Account guard's independent validation retained. Owner: lib/data/providers/database_providers.dart::openUserDatabase; rg UserDatabase.open/openUserDatabase/purgeExpiredCaches. Will NOT create another opener, recovery store, clinical rule or encryption contract.
+
+2Z root verified by Dart/native CPU profile: path_provider_foundation folder lookup -> objective_c9.4.1 debug object validation -> objc_copyClassList/realizeAllClasses/Swift metadata, matching original startup native trace. Supported upstream fix objective_c9.6.3 applied in294155a7, with required code_assets2.2.0/native_toolchain_c0.19.6; sqlite3 unchanged3.8.0. No assertions/monitoring disabled, hang threshold changed, engine fork or dependency cache patch. Before: lookup967 / class validation963 / realizeAllClasses948 inclusive samples; after:lookup2 / class enumeration0. Captures are diagnostic, not a controlled speed benchmark. Newest Sentry event remained the original01:42UTC event before closure.
+
+Verification: 172 focused DB/recovery tests passed with each dependency state. Full make check after factory fix: analysis clean,5552 passed/2skipped; repeated after dependency update: analysis clean,5552 passed/2skipped,exit0. Diff reviewed/clean. Native normal main launched via make run-ios on owned0CFED67B-8AB4-454F-B7F7-9E139A2EBF16 with --start-paused diagnostic wrapper; main/background isolates resumed via VM service. CUA observed Home -> native Stack -> existing synthetic Thorne5-MTHF1mg detail -> drag to lower citations/sources; reviewed rendering. App1.0.1/build23. Doctor's copied historical journey receipt is not evidence of today's actions. Owned simulator shut down; originals and historical clone untouched.
+
+Evidence: /Users/seancheick/pg_quality/sentry-six-20261108/verification-notes.md, native-actions.json, profile-comparison.json, CPU/timeline captures, fail-first/green/full-gate logs, identity captures and closure-receipts.json. Prior matching engine symbols retained/uploaded. Four older native traces are font/typeface/display/IOSurface waits with no verified current reproduction; no speculative SDK upgrade/filter added. Next useful step requires reproducible hang/new diagnostic event rather than another blanket test rerun. Changes local; no push, merge, catalog publication or release.
+
+---
+
+# Reminder notification tap — native verification complete
+
+User unlocked Mac and authorized continuation. Normal app source a47e57ae verified on owned iOS 26.5 simulator 0CFED67B-8AB4-454F-B7F7-9E139A2EBF16, app 1.0.1/build 23. Ordinary UI added an isolated test item, saved daily reminder at 9:43 PM, enabled notifications via app settings. Actual generic reminder delivered to Notification Center; app explicitly terminated before tapping it. Native notification tap cold-launched directly to My stack with Stack selected. Reviewed screenshot: /Users/seancheick/pg_quality/reminder-navigation-20261108/native-cold-tap-stack.png. Native identity, launch log and action record in same directory. No provider override, route injection, physical-phone install, upload or deployment. Warm/app-running path and Android path covered by prior plugin/router tests; 5550 tests and analysis remain green, source unchanged. Mac-lock blocker resolved. Test fixture exists only in this owned signed-out simulator; preserve actual user data. Shut down only owned device after evidence capture.
+
+---
+
+# Pill-reminder tap routing — November 8, 2026
+
+User reports tapping a take-a-pill reminder opens Home instead of Stack. Reported phone build not identified; source defect reproduced via real plugin MethodChannel response (expected /stack, actual null). Source a47e57ae fixes foreground/background response handling plus notification-launched startup. Existing queued payload stack-reminder unchanged; no rescheduling or user-data change needed. No deployment/publication.
+
+Owner: LaunchLinkBuffer::attach/detach/openLocation, rootNavigatorKey, Routes.stack; existing three plugin initializers in stack_reminder_providers.dart, local_health_reminder_service.dart, notification_authorization_service.dart. Evidence rg onDidReceiveNotificationResponse/getNotificationAppLaunchDetails/payload/Routes.stack in lib: payload existed, all three initializers had no callback and no cold-launch reader. No existing notification navigation owner; new local_notification_navigation.dart registers one shared handler/settings, reusing the existing route buffer/router. Will NOT create another route queue/router, reminder store, persisted/synced field, clinical logic or payload containing health details. Existing authorization settings moved to the shared owner; no permission prompt added at boot.
+
+Verification: fail-first reminder-navigation-red.log; 6 new iOS/Android tests cover warm route, startup buffering, terminated-app launch, subsequent initializer preservation (all three clients), no launch replay, unknown/null/non-reminder/action payloads. Focused six-file owner sweep 65 passed. Final named analysis clean. Full make check passed: analysis clean, 5550 passed / 2 skipped. Logs under /Users/seancheick/pg_quality/reminder-navigation-20261108 (red initial log also under sentry-20261108/reminder-navigation-red.log). Normal iOS source built on owned simulator 0CFED67B-8AB4-454F-B7F7-9E139A2EBF16, then hot restarted with the fix. Native notification tap verification blocked because Mac locked; user asked asynchronously to unlock. Do not claim actual OS tap/native acceptance until unlocked and tested. Runner stopped with q and only the owned simulator was shut down, preserving its data. Resume with make run-ios on that UUID after unlock. No new package, native-platform code or catalog changes.
+
+Prior Sentry task still has 6 unresolved incidents; do not bulk-close them. History preserved below.
+
+---
+
+# Remaining Sentry fixes and verification — November 8, 2026
+
+User requested all remaining 15 fixed and individually verified. Closed 10 after reproduction/native verification: 29 (missing PKCE verifier recovery; fb593c4d), 2K/2M/2P/2R (debug diagnostic Eval parser; ee9c6648 preserves original recorded stacks), 2N/2Q/2S (proven invalid VM-injected input incidents; normal native/standard driver verified), 2C (normal native startup/Home/search/detail journey), 2G (ordinary bootstrap provides real rules: schema 4.0.0 / 131 curated rows). Test additions cf2124ba protect real corrupt-file containment and 96edf709 checks native paired-rules provision. No clinical/score/catalog/sync changes, no publication or deployment. No monitoring disabled.
+
+Verification: 230 focused owner tests pass; make check analysis clean, 5544 passed / 2 skipped. Standard and paired-rules native journeys pass with exit 0 and reviewed screenshots; targeted native-test analysis clean. Full source/dirty-test-only receipts and logs: /Users/seancheick/pg_quality/sentry-20261108/remaining-verification.md. Owner: app.dart::authStreamErrorResponse/_AuthEventListenerState; crash_reporting_service.dart::initialize/bootstrap; native_catalog_journey_test.dart::main. Evidence rg authStreamErrorResponse/_isExpiredOrUsedLink/demangleStackTrace/Eval/interactionDatabaseProvider in existing owners. Will NOT create a parallel auth/scoring owner, persist/sync fields, rewrite invalid inputs, erase corrupt data or suppress real hang reports.
+
+Still open: 2X corrupt user DB (real unreadable-file test proves withholding and byte preservation, not restoration); 2B/2D/2J/2W native hangs (matched engine symbolication retained, root fix unverified). Newly observed 2Z startup hang on the fresh simulator also remains open. Uploaded matching Flutter engine and Runner native symbols to Sentry. Final count expected 6 unresolved including new 2Z. User asked for current reproduction/device asynchronously; no answer yet. Need a reproducible/native sampled workload and original affected-data context before safe repair/closure. No hang-causing dependency or upstream bug established; do not speculate or bulk-close.
+
+Owned fresh simulator 0CFED67B-8AB4-454F-B7F7-9E139A2EBF16; historical inspection clone C7D48265-4FE7-4E51-80AE-3A8818E6EB61. Originals never launched/modified. Clone remains shutdown; contains copied stack data, so the old unsanitized app was not launched. Fresh device to be shut down after final identity capture; no devices erased/deleted.
+
+---
+
+# Sentry re-verification — November 8, 2026
+
+The six source-fixed issues remain resolved. Closed 2F/2H as recovered historical service incidents after live production manifest HTTP 200 and public/authenticated current-catalog Range GET HTTP 206 with valid SQLite headers. No source repair or deployment claimed for these two incidents. Final live Sentry list: 15 unresolved; no newer occurrences since the previous inspection, which alone is not proof of repair. Other hangs/framework/native/provider/database/auth issues stay open. Evidence and exact remaining IDs: /Users/seancheick/pg_quality/sentry-20261108/TRIAGE.md and remaining-issues.json. No executable code changed or tests repeated in this verification pass.
+
+---
+
 # Warning contracts and Sentry source fixes — November 8, 2026
 
 Goal: close verified warning-contract defects, preserve existing clinical policy and source attribution. Owner: `lib/services/warnings/warning_rule_ref_resolver.dart::_candidateSubentries/_subentryCopy/_resolvedWarning`; evidence: real212473 compact dose ref fails despite exact current threshold text. Pipeline companions: `build_final_db.py` citation projection, `enrich_supplements_v3.py::_collect_interaction_profile`, `export_schema.py` resolver. Will NOT create another warning owner, public field/status, threshold, grade inference or registry.

@@ -4,12 +4,14 @@ import 'dart:math' as math;
 import 'dart:ui';
 
 import 'package:drift/drift.dart' show driftRuntimeOptions;
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:pharmaguide/app.dart';
+import 'package:pharmaguide/services/notifications/local_notification_navigation.dart';
 import 'package:pharmaguide/core/components/pg_toast.dart';
 import 'package:pharmaguide/core/data/vocab_registry.dart';
 import 'package:pharmaguide/core/navigation/root_navigator_key.dart';
@@ -124,6 +126,25 @@ Future<void> _runApp() async {
     );
   });
   Isolate.current.addErrorListener(isolateErrorPort.sendPort);
+
+  // Capture notification launches while the existing startup route buffer is
+  // attached. Initialization requests no notification permissions.
+  if (!kIsWeb &&
+      (defaultTargetPlatform == TargetPlatform.iOS ||
+          defaultTargetPlatform == TargetPlatform.android)) {
+    try {
+      await initializeLocalNotifications(
+        FlutterLocalNotificationsPlugin(),
+        captureLaunch: true,
+      );
+    } on Object catch (error, stackTrace) {
+      CrashReportingService().recordError(
+        error,
+        stackTrace,
+        hint: 'notification_navigation:initialize',
+      );
+    }
+  }
 
   // Initialize Supabase (will use placeholders if no env vars set)
   bool supabaseReady = false;
@@ -301,6 +322,7 @@ class _PharmaGuideBootstrapState extends State<PharmaGuideBootstrap> {
   /// stop in the background, and the switch must not wait for the next launch.
   Future<void> _releaseAccountConsumers() async {
     if (!mounted) return;
+    _launchLinks.attach();
     setState(() => _accountSwitching = true);
     await WidgetsBinding.instance.endOfFrame.timeout(
       const Duration(seconds: 2),
@@ -316,11 +338,24 @@ class _PharmaGuideBootstrapState extends State<PharmaGuideBootstrap> {
 
   void _onAccountChanged() {
     if (!mounted) return;
+    _launchLinks.attach();
     setState(() {
       _accountSwitching = false;
       _scopeVersion++;
     });
     returnHomeAfterAccountChange();
+    WidgetsBinding.instance.addPostFrameCallback((_) => _handoffLaunchLinks());
+  }
+
+  void _handoffLaunchLinks() {
+    if (!mounted || _accountSwitching || widget.accountGuard.database == null) {
+      return;
+    }
+    final routerContext = rootNavigatorKey.currentContext;
+    if (routerContext == null || !routerContext.mounted) return;
+    _launchLinks.detach();
+    final location = _launchLinks.takeLocation();
+    if (location != null) GoRouter.of(routerContext).go(location);
   }
 
   void _onGuestDataQuestion() {
@@ -368,20 +403,15 @@ class _PharmaGuideBootstrapState extends State<PharmaGuideBootstrap> {
       _catalogUnavailableReason = initial == null
           ? _unavailableReason(includeRetryHint: widget.supabaseReady)
           : null;
-      _launchLocation = _launchLinks.takeLocation();
+      _launchLocation = widget.accountGuard.database == null
+          ? null
+          : _launchLinks.takeLocation();
       _bootstrapped = true;
       _scopeVersion++;
     });
     // The app router mounts on this frame. Keep claiming links until it has,
     // then hand it any link that landed in between.
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      _launchLinks.detach();
-      final late = _launchLinks.takeLocation();
-      final routerContext = rootNavigatorKey.currentContext;
-      if (late != null && routerContext != null) {
-        GoRouter.of(routerContext).go(late);
-      }
-    });
+    WidgetsBinding.instance.addPostFrameCallback((_) => _handoffLaunchLinks());
 
     if (initial != null) {
       unawaited(_persistActiveCatalogVersion(initial.record.catalogVersion));

@@ -1,8 +1,58 @@
 import 'package:flutter_test/flutter_test.dart';
+import 'package:flutter/foundation.dart';
 import 'package:pharmaguide/services/crash_reporting_service.dart';
 import 'package:sentry_flutter/sentry_flutter.dart';
 
 void main() {
+  test(
+    'framework diagnostics tolerate locationless VM evaluation frames',
+    () async {
+      await CrashReportingService().initialize();
+      final original = StackTrace.fromString(
+        '#0      example (package:pharmaguide/main.dart:10:2)\n'
+        '#1      Eval.<anonymous closure> ()\n'
+        '#2      Eval ()\n'
+        '#3      other (package:pharmaguide/app.dart:20:3)',
+      );
+      final diagnostic = FlutterError.demangleStackTrace(original);
+      expect(() => StackFrame.fromStackTrace(diagnostic), returnsNormally);
+      expect(
+        diagnostic.toString(),
+        contains('package:pharmaguide/main.dart:10:2'),
+      );
+      expect(
+        diagnostic.toString(),
+        contains('package:pharmaguide/app.dart:20:3'),
+      );
+      CrashReportingService().clearBuffersForTest();
+      CrashReportingService().recordError(StateError('original'), original);
+      expect(
+        CrashReportingService().recordedErrors.single.stackTrace.toString(),
+        original.toString(),
+      );
+    },
+  );
+
+  test(
+    'framework diagnostics preserve located Eval frames and normal stacks',
+    () async {
+      await CrashReportingService().initialize();
+      final normal = StackTrace.fromString(
+        '#0      Eval (package:pharmaguide/tool.dart:10:2)',
+      );
+      final diagnostic = FlutterError.demangleStackTrace(normal);
+      expect(diagnostic.toString(), normal.toString());
+      expect(StackFrame.fromStackTrace(diagnostic).single.method, 'Eval');
+      final unknown = StackTrace.fromString(
+        '#0      unexpected malformed frame',
+      );
+      expect(
+        FlutterError.demangleStackTrace(unknown).toString(),
+        unknown.toString(),
+      );
+    },
+  );
+
   group('CrashReportingService — buffer-only mode', () {
     setUp(() async {
       await CrashReportingService().initialize();
