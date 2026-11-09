@@ -1,3 +1,15 @@
+# Pill-reminder tap routing — November 8, 2026
+
+User reports tapping a take-a-pill reminder opens Home instead of Stack. Reported phone build not identified; source defect reproduced via real plugin MethodChannel response (expected /stack, actual null). Source a47e57ae fixes foreground/background response handling plus notification-launched startup. Existing queued payload stack-reminder unchanged; no rescheduling or user-data change needed. No deployment/publication.
+
+Owner: LaunchLinkBuffer::attach/detach/openLocation, rootNavigatorKey, Routes.stack; existing three plugin initializers in stack_reminder_providers.dart, local_health_reminder_service.dart, notification_authorization_service.dart. Evidence rg onDidReceiveNotificationResponse/getNotificationAppLaunchDetails/payload/Routes.stack in lib: payload existed, all three initializers had no callback and no cold-launch reader. No existing notification navigation owner; new local_notification_navigation.dart registers one shared handler/settings, reusing the existing route buffer/router. Will NOT create another route queue/router, reminder store, persisted/synced field, clinical logic or payload containing health details. Existing authorization settings moved to the shared owner; no permission prompt added at boot.
+
+Verification: fail-first reminder-navigation-red.log; 6 new iOS/Android tests cover warm route, startup buffering, terminated-app launch, subsequent initializer preservation (all three clients), no launch replay, unknown/null/non-reminder/action payloads. Focused six-file owner sweep 65 passed. Final named analysis clean. Full make check passed: analysis clean, 5550 passed / 2 skipped. Logs under /Users/seancheick/pg_quality/reminder-navigation-20261108 (red initial log also under sentry-20261108/reminder-navigation-red.log). Normal iOS source built on owned simulator 0CFED67B-8AB4-454F-B7F7-9E139A2EBF16, then hot restarted with the fix. Native notification tap verification blocked because Mac locked; user asked asynchronously to unlock. Do not claim actual OS tap/native acceptance until unlocked and tested. Runner stopped with q and only the owned simulator was shut down, preserving its data. Resume with make run-ios on that UUID after unlock. No new package, native-platform code or catalog changes.
+
+Prior Sentry task still has 6 unresolved incidents; do not bulk-close them. History preserved below.
+
+---
+
 # Remaining Sentry fixes and verification — November 8, 2026
 
 User requested all remaining 15 fixed and individually verified. Closed 10 after reproduction/native verification: 29 (missing PKCE verifier recovery; fb593c4d), 2K/2M/2P/2R (debug diagnostic Eval parser; ee9c6648 preserves original recorded stacks), 2N/2Q/2S (proven invalid VM-injected input incidents; normal native/standard driver verified), 2C (normal native startup/Home/search/detail journey), 2G (ordinary bootstrap provides real rules: schema 4.0.0 / 131 curated rows). Test additions cf2124ba protect real corrupt-file containment and 96edf709 checks native paired-rules provision. No clinical/score/catalog/sync changes, no publication or deployment. No monitoring disabled.
