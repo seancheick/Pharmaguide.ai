@@ -1,3 +1,9 @@
+# Sentry re-verification — November 8, 2026
+
+The six source-fixed issues remain resolved. Closed 2F/2H as recovered historical service incidents after live production manifest HTTP 200 and public/authenticated current-catalog Range GET HTTP 206 with valid SQLite headers. No source repair or deployment claimed for these two incidents. Final live Sentry list: 15 unresolved; no newer occurrences since the previous inspection, which alone is not proof of repair. Other hangs/framework/native/provider/database/auth issues stay open. Evidence and exact remaining IDs: /Users/seancheick/pg_quality/sentry-20261108/TRIAGE.md and remaining-issues.json. No executable code changed or tests repeated in this verification pass.
+
+---
+
 # Sentry source fixes — November 8, 2026
 
 User requested all Sentry errors fixed and completed. Live app project had 23 unresolved groups; latest event inspected for each. App source commits 473c68e1 (toast host lifetime), 02b89f58 (FitScore disposed ref), 93203b53 (scanner torch readiness) on codex/sentry-error-fixes-20261108. Four groups 2A/2Y/2E/28 marked resolved in Sentry after make check: analysis clean, 5540 passed / 2 skipped. No deployment/native delivery claimed.
