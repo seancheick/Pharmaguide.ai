@@ -48,6 +48,15 @@ Map<String, dynamic> _subentryCopy(
   Map<String, dynamic> subentry,
   String subentryKind,
 ) {
+  if (subentryKind == 'dose') {
+    return <String, dynamic>{
+      'detail': _pythonStringOrEmpty(subentry['alert_body']),
+      'action': null,
+      'alert_headline': subentry['alert_headline'],
+      'alert_body': subentry['alert_body'],
+      'informational_note': null,
+    };
+  }
   final actionKey = subentryKind == 'pregnancy_lactation' ? 'notes' : 'action';
   return <String, dynamic>{
     'detail': _pythonStringOrEmpty(subentry['mechanism']),
@@ -79,6 +88,21 @@ List<({Map<String, dynamic> subentry, String kind})> _candidateSubentries(
   final conditionIds = _normalizedIds(ref['condition_ids']);
   final drugClassIds = _normalizedIds(ref['drug_class_ids']);
   final candidates = <({Map<String, dynamic> subentry, String kind})>[];
+  final gate = ref['profile_gate'];
+  if ((gate is Map && gate['gate_type'] == 'dose') ||
+      (conditionIds.isEmpty && drugClassIds.isEmpty)) {
+    final thresholds = rule['dose_thresholds'];
+    if (thresholds is List) {
+      for (final threshold in thresholds) {
+        if (threshold is Map && threshold['scope'] == null) {
+          candidates.add((
+            subentry: Map<String, dynamic>.from(threshold),
+            kind: 'dose',
+          ));
+        }
+      }
+    }
+  }
   if (conditionIds.isNotEmpty) {
     final target = conditionIds.first;
     final conditionRules = rule['condition_rules'];
@@ -174,7 +198,9 @@ Map<String, dynamic> _resolvedWarning(
   final conditionIds = _normalizedIds(ref['condition_ids']);
   final drugClassIds = _normalizedIds(ref['drug_class_ids']);
   final ingredientName = _pythonStringOrEmpty(ref['ingredient_name']).trim();
-  final scopeId = conditionIds.isNotEmpty
+  final scopeId = selected.kind == 'dose'
+      ? 'dose'
+      : conditionIds.isNotEmpty
       ? conditionIds.first
       : (drugClassIds.isNotEmpty ? drugClassIds.first : '');
   final severity = _firstNonEmpty(ref['severity'], subentry['severity']);
