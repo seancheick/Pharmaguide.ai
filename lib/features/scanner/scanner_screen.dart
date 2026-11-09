@@ -461,8 +461,13 @@ class _ScannerScreenState extends ConsumerState<ScannerScreen> {
                                     Icons.flash_on_rounded,
                                     color: Colors.white,
                                   ),
-                                  onPressed: () =>
-                                      _scannerController.toggleTorch(),
+                                  onPressed:
+                                      scannerState.isInitialized &&
+                                          scannerState.isRunning &&
+                                          scannerState.torchState !=
+                                              TorchState.unavailable
+                                      ? () => _scannerController.toggleTorch()
+                                      : null,
                                 ),
                               ],
                             ),

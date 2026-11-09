@@ -229,6 +229,42 @@ void main() {
     expect(find.text('Enter code manually'), findsOneWidget);
   });
 
+  testWidgets('torch is disabled until the camera is initialized', (
+    tester,
+  ) async {
+    SharedPreferences.setMockInitialValues({});
+    final coreDb = CoreDatabase.memory();
+    final userDb = UserDatabase.memory();
+    final previousPlatform = MobileScannerPlatform.instance;
+    final startGate = Completer<void>();
+    MobileScannerPlatform.instance = _FakeMobileScannerPlatform(
+      startGate: startGate,
+    );
+    addTearDown(() async {
+      await tester.pumpWidget(const SizedBox.shrink());
+      await coreDb.close();
+      await userDb.close();
+      MobileScannerPlatform.instance = previousPlatform;
+    });
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [
+          coreDatabaseProvider.overrideWithValue(coreDb),
+          userDatabaseProvider.overrideWithValue(userDb),
+          evaluatorProfileFlagsProvider.overrideWith((ref) async => const {}),
+        ],
+        child: const MaterialApp(home: ScannerScreen()),
+      ),
+    );
+    await tester.pump();
+    final torch = find.widgetWithIcon(IconButton, Icons.flash_on_rounded);
+    expect(tester.widget<IconButton>(torch).onPressed, isNull);
+    startGate.complete();
+    await tester.pumpAndSettle();
+    // A camera with no torch must also leave the control disabled.
+    expect(tester.widget<IconButton>(torch).onPressed, isNull);
+  });
+
   testWidgets('a manual barcode miss keeps manual-entry recovery', (
     tester,
   ) async {
@@ -612,6 +648,8 @@ void main() {
 }
 
 class _FakeMobileScannerPlatform extends MobileScannerPlatform {
+  _FakeMobileScannerPlatform({this.startGate});
+  final Completer<void>? startGate;
   final _barcodes = StreamController<BarcodeCapture>.broadcast();
 
   @override
@@ -626,6 +664,7 @@ class _FakeMobileScannerPlatform extends MobileScannerPlatform {
 
   @override
   Future<MobileScannerViewAttributes> start(StartOptions startOptions) async {
+    await startGate?.future;
     return const MobileScannerViewAttributes(
       cameraDirection: CameraFacing.back,
       currentTorchMode: TorchState.unavailable,
