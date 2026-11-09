@@ -123,6 +123,14 @@ const bundledInteractionDatabaseManifestAssetPath =
 Future<UserDatabase> openUserDatabase(String dbPath) async {
   final key = await AccountDatabaseCipher.production.prepare(dbPath);
   final db = UserDatabase.open(dbPath, key: key);
+  // Drift opens lazily. Validate before publishing the handle or scheduling
+  // housekeeping so the account guard can contain an unreadable database.
+  try {
+    await db.customSelect('SELECT 1').get();
+  } catch (_) {
+    await db.close();
+    rethrow;
+  }
   // Fire-and-forget cache housekeeping — must never block or fail boot.
   unawaited(
     db.purgeExpiredCaches().catchError((Object e) {
