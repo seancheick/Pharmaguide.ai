@@ -211,6 +211,22 @@ void main() {
     });
 
     test(
+      'a real unreadable database is withheld before any screen receives it',
+      () async {
+        final path = await storage.databasePathFor(_a);
+        final file = File(path);
+        final damaged = List<int>.filled(512, 7);
+        damaged.setRange(0, 16, 'SQLite format 3\u0000'.codeUnits);
+        await file.writeAsBytes(damaged, flush: true);
+        final guard = guardWith();
+        await guard.boot(sessionUid: _a);
+        expect(guard.database, isNull);
+        expect(guard.canStartOver, isFalse);
+        expect(file.readAsBytesSync(), damaged);
+      },
+    );
+
+    test(
       'an account gets its data back after sign-out and a restart',
       () async {
         final guard = guardWith();
