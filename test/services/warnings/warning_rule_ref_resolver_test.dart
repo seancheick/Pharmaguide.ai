@@ -1,3 +1,5 @@
+import 'dart:convert';
+
 import 'package:flutter_test/flutter_test.dart';
 import 'package:pharmaguide/services/warnings/warning_rule_ref_resolver.dart';
 
@@ -84,6 +86,59 @@ const _fullWarning = <String, dynamic>{
 };
 
 void main() {
+  for (final scoped in [false, true]) {
+    test(
+      'pure dose ref preserves reviewed copy and sources (scoped=$scoped)',
+      () {
+        final fixture =
+            jsonDecode(
+                  r'''{"rule":{"id":"RULE_TEST_DOSE","condition_rules":[],"drug_class_rules":[],"dose_thresholds":[{"scope":null,"alert_headline":"Dose guidance","alert_body":"Reviewed dose context.","sources":["https://example.test/dose-source"]}]},"ref":{"rule_id":"RULE_TEST_DOSE","copy_fingerprint":"61e9a2947aa1c401c841c6e0932a95cd94fb5a8abcc3ce17cbaae3f716470fdb","type":"interaction","severity":"caution","severity_contextual":"informational","display_mode_default":"suppress","condition_ids":[],"drug_class_ids":[],"ingredient_name":"Beta-carotene","ingredient_canonical_id":"beta_carotene","dose_decision":{"clinical_severity":"caution","consumer_disposition":"review"},"profile_gate":{"gate_type":"dose"},"evidence_level":"ungraded","sources":["https://example.test/dose-source"]}}''',
+                )
+                as Map<String, dynamic>;
+        final rule = fixture['rule'] as Map<String, dynamic>;
+        final ref = fixture['ref'] as Map<String, dynamic>;
+        if (scoped) ref['condition_ids'] = ['current_smoker'];
+        final blob = {
+          'warning_rule_refs': [ref],
+        };
+        final [warning] = resolveWarningRuleRefs(blob, {
+          'RULE_TEST_DOSE': rule,
+        });
+        expect(warning['title'], 'Beta-carotene / dose');
+        expect(warning['detail'], 'Reviewed dose context.');
+        expect(warning['action'], isNull);
+        expect(warning['alert_headline'], 'Dose guidance');
+        expect(warning['alert_body'], 'Reviewed dose context.');
+        expect(warning['informational_note'], isNull);
+        expect(warning['evidence_level'], 'ungraded');
+        expect(warning['sources'], ['https://example.test/dose-source']);
+        expect(warning['condition_ids'], scoped ? ['current_smoker'] : isEmpty);
+        expect(warning['dose_decision'], ref['dose_decision']);
+        final threshold = (rule['dose_thresholds'] as List).single as Map;
+        ref.remove('evidence_level');
+        threshold['evidence_level'] = 'established';
+        expect(
+          resolveWarningRuleRefs(blob, {
+            'RULE_TEST_DOSE': rule,
+          }).single['evidence_level'],
+          'ungraded',
+        );
+        ref['evidence_level'] = 'limited';
+        expect(
+          resolveWarningRuleRefs(blob, {
+            'RULE_TEST_DOSE': rule,
+          }).single['evidence_level'],
+          'limited',
+        );
+        threshold['alert_body'] = 'Changed copy';
+        expect(
+          () => resolveWarningRuleRefs(blob, {'RULE_TEST_DOSE': rule}),
+          throwsFormatException,
+        );
+      },
+    );
+  }
+
   test('schema 3 compact ref rehydrates schema 2.4 warning exactly', () {
     const blob = <String, dynamic>{
       'warning_rule_refs': <Map<String, dynamic>>[
