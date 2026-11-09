@@ -48,7 +48,23 @@ abstract final class PGToast {
     String? actionLabel,
     VoidCallback? onAction,
   }) {
-    if (messenger == null) return;
+    if (messenger == null || !messenger.mounted) return;
+    // Async auth/bootstrap callbacks can outlive the route's Scaffold. A
+    // messenger can stay mounted while it has no registered presentation host.
+    var hasScaffold = false;
+    void findHost(Element element) {
+      if (hasScaffold) return;
+      if (element is StatefulElement &&
+          element.state is ScaffoldState &&
+          ScaffoldMessenger.maybeOf(element) == messenger) {
+        hasScaffold = true;
+        return;
+      }
+      element.visitChildren(findHost);
+    }
+
+    messenger.context.visitChildElements(findHost);
+    if (!hasScaffold) return;
     final isDark = Theme.of(messenger.context).brightness == Brightness.dark;
     final style = _style(variant, isDark, messenger.context.v2);
     messenger
