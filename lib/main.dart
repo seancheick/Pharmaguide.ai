@@ -322,6 +322,7 @@ class _PharmaGuideBootstrapState extends State<PharmaGuideBootstrap> {
   /// stop in the background, and the switch must not wait for the next launch.
   Future<void> _releaseAccountConsumers() async {
     if (!mounted) return;
+    _launchLinks.attach();
     setState(() => _accountSwitching = true);
     await WidgetsBinding.instance.endOfFrame.timeout(
       const Duration(seconds: 2),
@@ -337,11 +338,24 @@ class _PharmaGuideBootstrapState extends State<PharmaGuideBootstrap> {
 
   void _onAccountChanged() {
     if (!mounted) return;
+    _launchLinks.attach();
     setState(() {
       _accountSwitching = false;
       _scopeVersion++;
     });
     returnHomeAfterAccountChange();
+    WidgetsBinding.instance.addPostFrameCallback((_) => _handoffLaunchLinks());
+  }
+
+  void _handoffLaunchLinks() {
+    if (!mounted || _accountSwitching || widget.accountGuard.database == null) {
+      return;
+    }
+    final routerContext = rootNavigatorKey.currentContext;
+    if (routerContext == null || !routerContext.mounted) return;
+    _launchLinks.detach();
+    final location = _launchLinks.takeLocation();
+    if (location != null) GoRouter.of(routerContext).go(location);
   }
 
   void _onGuestDataQuestion() {
@@ -389,20 +403,15 @@ class _PharmaGuideBootstrapState extends State<PharmaGuideBootstrap> {
       _catalogUnavailableReason = initial == null
           ? _unavailableReason(includeRetryHint: widget.supabaseReady)
           : null;
-      _launchLocation = _launchLinks.takeLocation();
+      _launchLocation = widget.accountGuard.database == null
+          ? null
+          : _launchLinks.takeLocation();
       _bootstrapped = true;
       _scopeVersion++;
     });
     // The app router mounts on this frame. Keep claiming links until it has,
     // then hand it any link that landed in between.
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      _launchLinks.detach();
-      final late = _launchLinks.takeLocation();
-      final routerContext = rootNavigatorKey.currentContext;
-      if (late != null && routerContext != null) {
-        GoRouter.of(routerContext).go(late);
-      }
-    });
+    WidgetsBinding.instance.addPostFrameCallback((_) => _handoffLaunchLinks());
 
     if (initial != null) {
       unawaited(_persistActiveCatalogVersion(initial.record.catalogVersion));
