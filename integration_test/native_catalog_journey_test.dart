@@ -108,6 +108,16 @@ void main() {
         tester.element(find.byType(SearchV2Screen)),
       );
       final db = container.read(coreDatabaseProvider);
+      // Verify the normal bootstrap supplied the real rules database as well
+      // as the catalog. A missing override used to fail only after the person
+      // reached a personalized interaction check (Sentry PHARMAGUIDE-2G).
+      final rules = container.read(interactionDatabaseProvider);
+      final rulesMetadata = await rules.getMetadata();
+      final curatedRules = await rules.countCuratedInteractions();
+      evidence['interaction_rules_schema_version'] =
+          rulesMetadata.schemaVersion;
+      evidence['curated_interaction_count'] = curatedRules;
+      expect(curatedRules, greaterThan(0));
       final product = await db.findById(productId);
       expect(
         product,
