@@ -207,7 +207,10 @@ Map<String, dynamic> _resolvedWarning(
   final type =
       _firstNonEmpty(ref['type'], null) ??
       (drugClassIds.isNotEmpty ? 'drug_interaction' : 'interaction');
-  final evidenceLevel = _refOrRuleValue(ref, subentry, 'evidence_level');
+  final evidenceLevel =
+      selected.kind == 'dose' && !ref.containsKey('evidence_level')
+      ? 'ungraded'
+      : _refOrRuleValue(ref, subentry, 'evidence_level');
   final sourceValue = _refOrRuleValue(ref, subentry, 'sources');
 
   final resolved = <String, dynamic>{

@@ -115,6 +115,21 @@ void main() {
         expect(warning['condition_ids'], scoped ? ['current_smoker'] : isEmpty);
         expect(warning['dose_decision'], ref['dose_decision']);
         final threshold = (rule['dose_thresholds'] as List).single as Map;
+        ref.remove('evidence_level');
+        threshold['evidence_level'] = 'established';
+        expect(
+          resolveWarningRuleRefs(blob, {
+            'RULE_TEST_DOSE': rule,
+          }).single['evidence_level'],
+          'ungraded',
+        );
+        ref['evidence_level'] = 'limited';
+        expect(
+          resolveWarningRuleRefs(blob, {
+            'RULE_TEST_DOSE': rule,
+          }).single['evidence_level'],
+          'limited',
+        );
         threshold['alert_body'] = 'Changed copy';
         expect(
           () => resolveWarningRuleRefs(blob, {'RULE_TEST_DOSE': rule}),
