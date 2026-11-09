@@ -1,4 +1,6 @@
 import 'package:flutter/widgets.dart';
+import 'package:go_router/go_router.dart';
+import 'package:pharmaguide/core/navigation/root_navigator_key.dart';
 import 'package:pharmaguide/app.dart' show normalizePharmaGuideDeepLink;
 
 /// Holds a link that arrives while the startup screen is showing.
@@ -11,12 +13,27 @@ import 'package:pharmaguide/app.dart' show normalizePharmaGuideDeepLink;
 /// before the startup MaterialApp, claims the link instead; the app router
 /// then opens on it.
 class LaunchLinkBuffer with WidgetsBindingObserver {
+  static LaunchLinkBuffer? _startupBuffer;
+
+  /// Opens an app-owned destination from a notification. Reuse the startup
+  /// buffer until the router is ready, just as for an incoming app link.
+  static void openLocation(String location) {
+    final buffer = _startupBuffer;
+    if (buffer != null) {
+      buffer._location = location;
+      return;
+    }
+    final context = rootNavigatorKey.currentContext;
+    if (context != null && context.mounted) GoRouter.of(context).go(location);
+  }
+
   String? _location;
   bool _attached = false;
 
   void attach() {
     if (_attached) return;
     _attached = true;
+    _startupBuffer = this;
     WidgetsBinding.instance.addObserver(this);
   }
 
@@ -24,6 +41,7 @@ class LaunchLinkBuffer with WidgetsBindingObserver {
   void detach() {
     if (!_attached) return;
     _attached = false;
+    if (identical(_startupBuffer, this)) _startupBuffer = null;
     WidgetsBinding.instance.removeObserver(this);
   }
 

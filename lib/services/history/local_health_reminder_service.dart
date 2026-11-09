@@ -3,6 +3,7 @@ import 'dart:convert';
 import 'package:crypto/crypto.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
+import 'package:pharmaguide/services/notifications/local_notification_navigation.dart';
 import 'package:pharmaguide/data/database/user_database.dart';
 import 'package:pharmaguide/data/repositories/health_event_repository.dart';
 import 'package:pharmaguide/services/notifications/local_notification_timezone.dart';
@@ -164,16 +165,7 @@ class _FlutterHealthReminderNotificationClient
 
   Future<void> _initialize() async {
     await initializeLocalNotificationTimezone();
-    await _notifications.initialize(
-      settings: const InitializationSettings(
-        android: AndroidInitializationSettings('ic_launcher'),
-        iOS: DarwinInitializationSettings(
-          requestAlertPermission: false,
-          requestBadgePermission: false,
-          requestSoundPermission: false,
-        ),
-      ),
-    );
+    await initializeLocalNotifications(_notifications);
   }
 
   @override

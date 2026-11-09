@@ -1,6 +1,7 @@
 import 'package:app_settings/app_settings.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
+import 'package:pharmaguide/services/notifications/local_notification_navigation.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 enum NotificationAuthorizationStatus {
@@ -75,7 +76,7 @@ class FlutterLocalNotificationsAuthorizationGateway
 
   @override
   Future<void> initialize(InitializationSettings settings) async {
-    await _notifications.initialize(settings: settings);
+    await initializeLocalNotifications(_notifications, settings: settings);
   }
 
   @override
@@ -141,18 +142,6 @@ class FlutterNotificationAuthorizationService
        _platform = platform ?? defaultTargetPlatform,
        _isWeb = isWeb ?? kIsWeb;
 
-  static const _initializationSettings = InitializationSettings(
-    android: AndroidInitializationSettings('ic_launcher'),
-    iOS: DarwinInitializationSettings(
-      requestAlertPermission: false,
-      requestBadgePermission: false,
-      requestSoundPermission: false,
-      requestProvisionalPermission: false,
-      requestCriticalPermission: false,
-      requestProvidesAppNotificationSettings: false,
-    ),
-  );
-
   final NotificationAuthorizationPlatformGateway _gateway;
   final NotificationPromptHistoryStore _promptHistory;
   final TargetPlatform _platform;
@@ -176,7 +165,7 @@ class FlutterNotificationAuthorizationService
   Future<void> _initialize(int attempt) async {
     try {
       await Future<void>.sync(
-        () => _gateway.initialize(_initializationSettings),
+        () => _gateway.initialize(localNotificationInitializationSettings),
       );
     } on Object catch (_) {
       if (_initializationAttempt == attempt) _initialization = null;

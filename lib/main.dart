@@ -4,12 +4,14 @@ import 'dart:math' as math;
 import 'dart:ui';
 
 import 'package:drift/drift.dart' show driftRuntimeOptions;
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:pharmaguide/app.dart';
+import 'package:pharmaguide/services/notifications/local_notification_navigation.dart';
 import 'package:pharmaguide/core/components/pg_toast.dart';
 import 'package:pharmaguide/core/data/vocab_registry.dart';
 import 'package:pharmaguide/core/navigation/root_navigator_key.dart';
@@ -124,6 +126,25 @@ Future<void> _runApp() async {
     );
   });
   Isolate.current.addErrorListener(isolateErrorPort.sendPort);
+
+  // Capture notification launches while the existing startup route buffer is
+  // attached. Initialization requests no notification permissions.
+  if (!kIsWeb &&
+      (defaultTargetPlatform == TargetPlatform.iOS ||
+          defaultTargetPlatform == TargetPlatform.android)) {
+    try {
+      await initializeLocalNotifications(
+        FlutterLocalNotificationsPlugin(),
+        captureLaunch: true,
+      );
+    } on Object catch (error, stackTrace) {
+      CrashReportingService().recordError(
+        error,
+        stackTrace,
+        hint: 'notification_navigation:initialize',
+      );
+    }
+  }
 
   // Initialize Supabase (will use placeholders if no env vars set)
   bool supabaseReady = false;
