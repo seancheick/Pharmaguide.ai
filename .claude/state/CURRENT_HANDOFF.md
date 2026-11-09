@@ -1,3 +1,15 @@
+# Sentry source fixes — November 8, 2026
+
+User requested all Sentry errors fixed and completed. Live app project had 23 unresolved groups; latest event inspected for each. App source commits 473c68e1 (toast host lifetime), 02b89f58 (FitScore disposed ref), 93203b53 (scanner torch readiness) on codex/sentry-error-fixes-20261108. Four groups 2A/2Y/2E/28 marked resolved in Sentry after make check: analysis clean, 5540 passed / 2 skipped. No deployment/native delivery claimed.
+
+Pipeline branch codex/sentry-severity-export-20261108, bb8b9e74f: shared export owner maps clinical risk dose_dependent to warning severity caution (Sean explicitly approved preserving caution). Registry meaning/authored stronger severity/jurisdiction handling retained; 251 export tests and local checkpoint (564 passed / 24 declared skips) pass. Groups 2T/2V also marked resolved; six resolved total, 17 verified still open. No catalog rebuilt or published; no CI/merge claimed.
+
+Owner: lib/core/components/pg_toast.dart::PGToast.showWith; lib/features/product_detail/providers/fit_score_provider.dart::fitScoreForProductProvider; lib/features/scanner/scanner_screen.dart::_ScannerScreenState.build; pipeline scripts/build_final_db.py::_safety_warning_policy_projection. Evidence: rg PGToast/showWith, mounted/ref.watch, toggleTorch/isInitialized, clinical_risk_enum/dose_dependent in existing lib/test/pipeline owners. Will NOT create parallel toast/scoring/severity owners, new clinical meaning, persisted data, or silently erase corrupt user data.
+
+Full triage and fail-first/passing logs: /Users/seancheick/pg_quality/sentry-20261108/TRIAGE.md. 17 other groups remain open: unexplained simulator hangs, framework/harness assertions, native Home timeout, 503 incidents, missing rules override, corrupt user DB, missing PKCE verifier. No verified fixes for these; do not bulk-resolve. Continue from that issue register. Prior citation handoff preserved below.
+
+---
+
 # Evidence authority citation consumer — November 6, 2026
 
 Goal: render actual pipeline Evidence source references through the existing shared citation model/parser/renderer. Baseline app main5d7cb451, fetched with clean tracked checkout; pipeline8ca capture frozen. No app build, backend write, catalog change, clinical/scoring policy or publication.
