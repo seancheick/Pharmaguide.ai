@@ -97,6 +97,20 @@ void main() {
       expect(response.tellUser, isTrue);
     });
 
+    test(
+      'a link without its local verifier asks for a new link without reporting a crash',
+      () {
+        final response = authStreamErrorResponse(
+          const AuthException(
+            'Code verifier could not be found in local storage.',
+          ),
+          onMagicLinkCallback: true,
+        );
+        expect(response.report, isFalse);
+        expect(response.tellUser, isTrue);
+      },
+    );
+
     test('any other auth error is reported and shown', () {
       final response = authStreamErrorResponse(
         const AuthException('Unexpected failure'),

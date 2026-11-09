@@ -1370,13 +1370,13 @@ bool isOnMagicLinkCallback(GoRouter router) =>
   Object error, {
   required bool onMagicLinkCallback,
 }) {
-  final expiredLink =
+  final unusableLink =
       error is AuthException &&
-      _AuthEventListenerState._isExpiredOrUsedLink(error);
+      _AuthEventListenerState._isUnusableSignInLink(error);
   final retryable = error is AuthRetryableFetchException;
   final connectionDropped = retryable && error.statusCode == null;
   return (
-    report: !expiredLink && !connectionDropped,
+    report: !unusableLink && !connectionDropped,
     tellUser: onMagicLinkCallback || !retryable,
   );
 }
@@ -1445,7 +1445,8 @@ class _AuthEventListenerState extends ConsumerState<_AuthEventListener> {
       return;
     }
     if (!mounted) return;
-    final isExpiredLink = error is AuthException && _isExpiredOrUsedLink(error);
+    final isUnusableLink =
+        error is AuthException && _isUnusableSignInLink(error);
     // A build made without --dart-define points at a placeholder project, so
     // sign-in cannot succeed however many times it is retried. Release builds
     // deliberately keep running for guest mode, which means this screen is the
@@ -1456,8 +1457,9 @@ class _AuthEventListenerState extends ConsumerState<_AuthEventListener> {
       message =
           'This build has no backend configuration. Rebuild with '
           '`make run` so the Supabase keys are included.';
-    } else if (isExpiredLink) {
-      message = 'That sign-in link has expired. Request a new one.';
+    } else if (isUnusableLink) {
+      message =
+          'That sign-in link could not be used. Request a new one in this app.';
     } else {
       message = 'Sign-in could not be completed. Try again in a moment.';
     }
@@ -1473,16 +1475,17 @@ class _AuthEventListenerState extends ConsumerState<_AuthEventListener> {
     if (onCallback) router.go(Routes.authInvitation);
   }
 
-  /// True for the expired/already-consumed magic-link shape. GoTrue reports
-  /// it via `otp_expired` / `access_denied`; match the message too as a
-  /// backstop in case the status/code fields ever shift.
-  static bool _isExpiredOrUsedLink(AuthException e) {
+  /// A link cannot be exchanged after expiry, consumption, or loss of its
+  /// device-local PKCE verifier. A new link must be requested in this app;
+  /// none of these shapes can create a session by retrying the old link.
+  static bool _isUnusableSignInLink(AuthException e) {
     final status = (e.statusCode ?? '').toLowerCase();
     final code = (e.code ?? '').toLowerCase();
     final msg = e.message.toLowerCase();
     return status == 'otp_expired' ||
         code == 'access_denied' ||
-        msg.contains('invalid or has expired');
+        msg.contains('invalid or has expired') ||
+        msg == 'code verifier could not be found in local storage.';
   }
 
   void _onAuth(dynamic data) {
