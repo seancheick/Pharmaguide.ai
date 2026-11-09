@@ -1,3 +1,9 @@
+# Reminder notification tap — native verification complete
+
+User unlocked Mac and authorized continuation. Normal app source a47e57ae verified on owned iOS 26.5 simulator 0CFED67B-8AB4-454F-B7F7-9E139A2EBF16, app 1.0.1/build 23. Ordinary UI added an isolated test item, saved daily reminder at 9:43 PM, enabled notifications via app settings. Actual generic reminder delivered to Notification Center; app explicitly terminated before tapping it. Native notification tap cold-launched directly to My stack with Stack selected. Reviewed screenshot: /Users/seancheick/pg_quality/reminder-navigation-20261108/native-cold-tap-stack.png. Native identity, launch log and action record in same directory. No provider override, route injection, physical-phone install, upload or deployment. Warm/app-running path and Android path covered by prior plugin/router tests; 5550 tests and analysis remain green, source unchanged. Mac-lock blocker resolved. Test fixture exists only in this owned signed-out simulator; preserve actual user data. Shut down only owned device after evidence capture.
+
+---
+
 # Pill-reminder tap routing — November 8, 2026
 
 User reports tapping a take-a-pill reminder opens Home instead of Stack. Reported phone build not identified; source defect reproduced via real plugin MethodChannel response (expected /stack, actual null). Source a47e57ae fixes foreground/background response handling plus notification-launched startup. Existing queued payload stack-reminder unchanged; no rescheduling or user-data change needed. No deployment/publication.
