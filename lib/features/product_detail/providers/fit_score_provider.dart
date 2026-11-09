@@ -65,6 +65,7 @@ final fitScoreServiceProvider = FutureProvider<FitScoreService>((ref) async {
 final fitScoreForProductProvider = FutureProvider.family
     .autoDispose<FitScoreResult?, String>((ref, dsldId) async {
       final service = await ref.watch(fitScoreServiceProvider.future);
+      if (!ref.mounted) return null;
       final coreDb = ref.watch(coreDatabaseProvider);
 
       // Wait for the persisted profile before computing. A brief default
@@ -72,15 +73,18 @@ final fitScoreForProductProvider = FutureProvider.family
       // generic FitScore until the DB load finishes. FitScore must never be
       // persisted — it's a fresh computation every time.
       final profile = await ref.watch(loadedProfileProvider.future);
+      if (!ref.mounted) return null;
       final userProfileFlags = await ref.watch(
         evaluatorProfileFlagsProvider.future,
       );
+      if (!ref.mounted) return null;
       // Include the classes of meds the user added to their stack (same
       // resolved source stack safety uses) so medical relevance reflects
       // added medications, not just the profile picker chips.
       final stackMedicationClassIds = await ref.watch(
         currentStackMedicationClassIdsProvider.future,
       );
+      if (!ref.mounted) return null;
 
       // Product row (for quality_score_v4_100 + primary_category → cluster)
       ProductsCoreData? product;
@@ -95,7 +99,7 @@ final fitScoreForProductProvider = FutureProvider.family
         );
         rethrow;
       }
-      if (product == null) return null;
+      if (!ref.mounted || product == null) return null;
 
       // Detail blob (for ingredients nutrients + interaction_summary)
       Map<String, dynamic>? blob;
@@ -110,11 +114,12 @@ final fitScoreForProductProvider = FutureProvider.family
         );
         rethrow;
       }
-      if (blob == null) return null;
+      if (!ref.mounted || blob == null) return null;
 
       final resolvedRuleWarnings = await ref.watch(
         profileWarningRuleWarningsProvider(dsldId).future,
       );
+      if (!ref.mounted) return null;
       final healthFacts = ProductHealthFacts.fromDetailBlob(
         blob,
         resolvedRuleWarnings: resolvedRuleWarnings,

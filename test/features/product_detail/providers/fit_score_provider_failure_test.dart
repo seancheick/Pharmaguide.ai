@@ -7,6 +7,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_riverpod/legacy.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:pharmaguide/core/models/fit_score_result.dart';
+import 'package:pharmaguide/services/crash_reporting_service.dart';
 import 'package:pharmaguide/data/database/core_database.dart';
 import 'package:pharmaguide/data/database/user_database.dart';
 import 'package:pharmaguide/data/supabase/detail_blob_service.dart';
@@ -37,8 +38,65 @@ class _OfflineBlobService extends DetailBlobService {
       throw StateError('offline: the network must not be needed');
 }
 
+class _DelayedCoreDatabase extends CoreDatabase {
+  _DelayedCoreDatabase() : super.memory();
+  final entered = Completer<void>();
+  final resume = Completer<void>();
+  @override
+  Future<ProductsCoreData?> findById(String dsldId) async {
+    entered.complete();
+    await resume.future;
+    return super.findById(dsldId);
+  }
+}
+
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
+  test(
+    'leaving detail during a catalog read does not use a disposed ref',
+    () async {
+      final coreDb = _DelayedCoreDatabase();
+      addTearDown(coreDb.close);
+      await coreDb
+          .into(coreDb.productsCore)
+          .insert(
+            ProductsCoreCompanion.insert(
+              dsldId: _dsldId,
+              productName: 'Delayed product',
+              exportVersion: 'test',
+              exportedAt: '2026-11-08T00:00:00Z',
+            ),
+          );
+      final container = ProviderContainer(
+        overrides: [
+          coreDatabaseProvider.overrideWithValue(coreDb),
+          fitScoreServiceProvider.overrideWith((ref) async => _service()),
+          loadedProfileProvider.overrideWith(
+            (ref) async => const ProfileState(),
+          ),
+          evaluatorProfileFlagsProvider.overrideWith(
+            (ref) async => const <String>{},
+          ),
+          currentStackMedicationClassIdsProvider.overrideWith(
+            (ref) async => const <String>{},
+          ),
+          detailBlobProvider.overrideWith((ref, id) async => null),
+        ],
+      );
+      addTearDown(container.dispose);
+      final subscription = container.listen(
+        fitScoreForProductProvider(_dsldId),
+        (_, _) {},
+      );
+      await coreDb.entered.future;
+      subscription.close();
+      await container.pump();
+      CrashReportingService().clearBuffersForTest();
+      coreDb.resume.complete();
+      await pumpEventQueue();
+      expect(CrashReportingService().recordedErrors, isEmpty);
+    },
+  );
   for (final (id, name, amount, unit, adultUl, personalUl) in [
     ('vitamin_e', 'Vitamin E', 900, 'mg alpha-tocopherol', 1000, 800),
     ('vitamin_a', 'Vitamin A', 2900, 'mcg RAE', 3000, 2800),
