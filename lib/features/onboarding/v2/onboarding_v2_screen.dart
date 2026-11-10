@@ -116,6 +116,11 @@ class _OnboardingV2ScreenState extends State<OnboardingV2Screen>
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
+                  // Pinned above both actions so it is read before leaving,
+                  // whatever the screen size or text scale. Shown once:
+                  // onboarding is marked seen when the user leaves it.
+                  const _Disclaimer(),
+                  const SizedBox(height: V2Spacing.space12),
                   PGPillButton(
                     label: 'Start scanning',
                     icon: Icons.qr_code_scanner_rounded,
@@ -287,11 +292,9 @@ class _TrustRows extends StatelessWidget {
           eyebrow: 'Privacy',
           label:
               'Your profile, medications and allergies are saved on this '
-              'device only',
+              'device unless you choose to share them in a report or with '
+              'an AI assistant',
         ),
-        SizedBox(height: V2Spacing.space16),
-        // Shown once: onboarding is marked seen when the user leaves it.
-        _Disclaimer(),
       ],
     );
   }
