@@ -658,7 +658,10 @@ Widget buildEvidenceSection({
     subtitle: switch (scope) {
       EvidenceScope.product =>
         'Exact-product evidence: identified in this evidence record.',
-      EvidenceScope.ingredient => evidenceAttributionHeadline(displayMatches),
+      // Authored research owns its bounded strength and preparation explanation.
+      // Legacy match metadata must not contradict the canonical pillar verdict.
+      EvidenceScope.ingredient =>
+        research.isEmpty ? evidenceAttributionHeadline(displayMatches) : null,
       EvidenceScope.brandedIngredient || EvidenceScope.indirect => null,
     },
     // The studies sheet scrolls, so show every deduped citation — the

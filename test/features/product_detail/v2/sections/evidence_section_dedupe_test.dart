@@ -88,6 +88,48 @@ void main() {
       expect(tester.takeException(), isNull);
     });
 
+    testWidgets(
+      'authored research suppresses legacy ingredient strength subtitle',
+      (tester) async {
+        final match = _mgMatch(ingredient: 'Reviewed botanical');
+        Future<void> render(bool withResearch) => tester.pumpWidget(
+          MaterialApp(
+            home: Scaffold(
+              body: SingleChildScrollView(
+                child: buildEvidenceSection(
+                  evidenceData: {
+                    'clinical_matches': [match],
+                    if (withResearch) 'ingredient_research': [research],
+                  },
+                  presentationTier: PGEvidenceTier.limited,
+                  summaryLine: 'Limited · 10.4/20',
+                  helperLine: 'Qualified pipeline explanation',
+                ),
+              ),
+            ),
+          ),
+        );
+        await render(false);
+        expect(
+          tester
+              .widget<PGEvidenceSection>(find.byType(PGEvidenceSection))
+              .subtitle,
+          contains('strong ingredient evidence'),
+        );
+        await render(true);
+        final section = tester.widget<PGEvidenceSection>(
+          find.byType(PGEvidenceSection),
+        );
+        expect(section.subtitle, isNull);
+        expect(section.tier, PGEvidenceTier.limited);
+        expect(find.text('Limited · 10.4/20'), findsOneWidget);
+        expect(find.text('Qualified pipeline explanation'), findsOneWidget);
+        expect(find.textContaining('strong ingredient evidence'), findsNothing);
+        expect(find.text('Some short-term human research.'), findsOneWidget);
+        expect(tester.takeException(), isNull);
+      },
+    );
+
     testWidgets('canonical presentation and existing extra content survive', (
       tester,
     ) async {
