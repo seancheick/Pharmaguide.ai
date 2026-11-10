@@ -781,6 +781,11 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(find.textContaining('needs a PharmaGuide account'), findsOneWidget);
+    expect(
+      find.textContaining('everything stays on this device'),
+      findsNothing,
+    );
+    expect(find.textContaining('already received'), findsOneWidget);
     await tester.tap(find.text('Sign in'));
     expect(signInTaps, 1);
     expect(repo.loads, 0);

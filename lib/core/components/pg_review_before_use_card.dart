@@ -8,7 +8,7 @@ import 'package:pharmaguide/core/theme/v2/v2_typography.dart';
 /// `PGBannerTone` (lib/core/widgets/pg_severity_banner.dart) — same
 /// severity-driven palette, just consumed by v2 layout.
 enum PGReviewTone {
-  /// "Looks safe for you" — green tint, no urgency.
+  /// "No known concerns" — green tint, no urgency.
   safe,
 
   /// "Review before use" — amber, low-severity warnings or unmatched
@@ -71,7 +71,7 @@ class PGReviewRow {
 /// Intent:
 /// - One severity-toned banner block at the top of the card
 /// - Title is count-aware ("Review before use" with N count badge, or
-///   "Looks safe for you" when zero matches)
+///   "No known concerns" when zero matches)
 /// - Body line below the title (caller-supplied — production uses
 ///   `interactionHint` for the warning count summary)
 /// - Optional rows of matched allergens / free-from conflicts /
@@ -89,7 +89,7 @@ class PGReviewBeforeUseCard extends StatefulWidget {
   /// alone → caution; clean → safe).
   final PGReviewTone tone;
 
-  /// Header title — production uses "Review before use" / "Looks safe".
+  /// Header title — production uses "Review before use" / "No known concerns".
   final String title;
 
   /// Optional small section label rendered above [title].

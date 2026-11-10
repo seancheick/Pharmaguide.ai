@@ -359,19 +359,40 @@ ProfileRelevanceSummary _buildProfileRelevanceSummary({
       rows: rows,
     ),
     // FitScoreService returns notRecommended only for a hard severity, which
-    // holds even when the blob carries no warning row to explain it.
-    FitHidden() || FitNotRecommended() => ProfileRelevanceSummary(
-      status: ProfileRelevanceStatus.notRecommended,
-      tone: PGReviewTone.danger,
-      headline: 'Not recommended for your profile',
-      body: _notRecommendedBody(
-        warnings: warnings.where(_isHardWarning).toList(growable: false),
-        hasContainsAllergen: hasContainsAllergen,
-      ),
-      rows: rows,
-      profileIncomplete: profileIncomplete,
-      startExpanded: rows.isNotEmpty,
-    ),
+    // holds even when the blob carries no warning row to explain it. Then the
+    // service's own match reasons are the only explanation; show them as rows
+    // so the headline never stands without its reason.
+    FitHidden() || FitNotRecommended() => () {
+      final hardWarnings = warnings
+          .where(_isHardWarning)
+          .toList(growable: false);
+      final shownRows = hardWarnings.isNotEmpty
+          ? rows
+          : [
+              ...(fitResult?.reasons ?? const <String>[])
+                  .map(_withPeriod)
+                  .where((reason) => reason.isNotEmpty)
+                  .map(
+                    (reason) => PGReviewRow(
+                      headline: reason,
+                      rowTone: PGReviewTone.danger,
+                    ),
+                  ),
+              ...rows,
+            ];
+      return ProfileRelevanceSummary(
+        status: ProfileRelevanceStatus.notRecommended,
+        tone: PGReviewTone.danger,
+        headline: 'Not recommended for your profile',
+        body: _notRecommendedBody(
+          warnings: hardWarnings,
+          hasContainsAllergen: hasContainsAllergen,
+        ),
+        rows: shownRows,
+        profileIncomplete: profileIncomplete,
+        startExpanded: shownRows.isNotEmpty,
+      );
+    }(),
     FitIncomplete() => ProfileRelevanceSummary(
       status: ProfileRelevanceStatus.neutral,
       tone: hasCriticalGlobalNote ? PGReviewTone.info : PGReviewTone.safe,

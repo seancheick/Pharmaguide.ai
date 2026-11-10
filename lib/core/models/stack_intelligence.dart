@@ -4,7 +4,7 @@ import 'package:pharmaguide/core/constants/severity.dart';
 /// User-facing Stack Health vocabulary. This is intentionally colocated with
 /// [StackTier], the single tier engine, rather than the internal numeric score.
 enum StackHealthLabel {
-  optimized(label: 'Optimized', color: Color(0xFF0F9D7A)),
+  optimized(label: 'Strong', color: Color(0xFF0F9D7A)),
   solid(label: 'Solid', color: Color(0xFF22C55E)),
   decent(label: 'Decent', color: Color(0xFFF59E0B)),
   concerning(label: 'Concerning', color: Color(0xFFF97316)),

@@ -722,6 +722,20 @@ void main() {
         }
       }
 
+      test('a hard fit verdict with no warning row still shows its reason', () {
+        const reason = 'Pregnancy: not recommended from St. John\'s Wort.';
+        final summary = _summary(
+          fitResult: _fit(
+            state: FitAssessmentState.notRecommended,
+            reasons: const [reason],
+          ),
+        );
+
+        expect(summary.headline, 'Not recommended for your profile');
+        expect(summary.rows.map((r) => r.headline), contains(reason));
+        expect(summary.startExpanded, isTrue);
+      });
+
       test('a failed check still shows the concerns other checks found', () {
         final summary = buildProfileRelevanceSummary(
           fitResult: _fit(),

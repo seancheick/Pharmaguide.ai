@@ -81,6 +81,9 @@ void main() {
     );
     await tester.pump(const Duration(milliseconds: 1500));
 
+    expect(find.textContaining('back up'), findsNothing);
+    expect(find.textContaining('across your devices'), findsNothing);
+    expect(find.textContaining('does not restore'), findsOneWidget);
     expect(find.textContaining('first scan'), findsNothing);
     expect(find.textContaining('no AI'), findsNothing);
     expect(find.textContaining('3 scans a day'), findsOneWidget);
