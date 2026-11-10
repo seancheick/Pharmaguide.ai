@@ -4,6 +4,12 @@ import 'package:pharmaguide/core/theme/v2/v2_palette.dart';
 import 'package:pharmaguide/core/theme/v2/v2_spacing.dart';
 import 'package:pharmaguide/core/theme/v2/v2_typography.dart';
 
+/// The one educational disclaimer: the Product Detail footer and the
+/// first-run onboarding screen both show this exact text.
+const kTransparencyDisclaimer =
+    'PharmaGuide is for informational purposes only — talk to your '
+    'doctor before changing your stack.';
+
 /// Always-visible footer at the bottom of the Product Detail screen.
 /// Lists data sources, catalog freshness, and the educational
 /// disclaimer. Calm muted tone — never competes with the page content.
@@ -32,9 +38,7 @@ class PGTransparencyFooter extends StatelessWidget {
     super.key,
     this.freshnessLabel,
     this.sources = const ['NIH ODS', 'PubMed', 'FDA'],
-    this.disclaimer =
-        'PharmaGuide is for informational purposes only — talk to your '
-        'doctor before changing your stack.',
+    this.disclaimer = kTransparencyDisclaimer,
     this.center = false,
   });
 

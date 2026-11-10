@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:pharmaguide/core/components/pg_eyebrow.dart';
 import 'package:pharmaguide/core/components/pg_pill_button.dart';
+import 'package:pharmaguide/core/components/pg_transparency_footer.dart';
 import 'package:pharmaguide/core/scoring/score_tier.dart';
 import 'package:pharmaguide/core/constants/routes.dart';
 import 'package:pharmaguide/core/theme/v2/v2_palette.dart';
@@ -288,9 +289,22 @@ class _TrustRows extends StatelessWidget {
               'Your profile, medications and allergies are saved on this '
               'device only',
         ),
+        SizedBox(height: V2Spacing.space16),
+        // Shown once: onboarding is marked seen when the user leaves it.
+        _Disclaimer(),
       ],
     );
   }
+}
+
+class _Disclaimer extends StatelessWidget {
+  const _Disclaimer();
+
+  @override
+  Widget build(BuildContext context) => Text(
+    kTransparencyDisclaimer,
+    style: V2Typography.caption(color: context.v2.fgMuted),
+  );
 }
 
 class _TrustRow extends StatelessWidget {

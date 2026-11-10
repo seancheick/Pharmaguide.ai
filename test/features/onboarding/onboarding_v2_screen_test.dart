@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:go_router/go_router.dart';
+import 'package:pharmaguide/core/components/pg_transparency_footer.dart';
 import 'package:pharmaguide/core/constants/routes.dart';
 import 'package:pharmaguide/features/onboarding/v2/onboarding_v2_screen.dart';
 import 'package:pharmaguide/services/onboarding_prefs.dart';
@@ -68,6 +69,14 @@ void main() {
     // The overclaim is gone; the privacy line is accurate.
     expect(find.textContaining('Every check'), findsNothing);
     expect(find.textContaining('saved on this device only'), findsOneWidget);
+  });
+
+  // First run states the medical-information notice once, using the same
+  // locked disclaimer the Product Detail footer shows.
+  testWidgets('first run shows the educational disclaimer', (tester) async {
+    await pumpOnboarding(tester);
+
+    expect(find.text(kTransparencyDisclaimer), findsOneWidget);
   });
 
   testWidgets('Start scanning opens the scanner, not a sign-in wall', (
