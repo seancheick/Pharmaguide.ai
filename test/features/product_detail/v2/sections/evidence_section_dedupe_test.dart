@@ -76,6 +76,9 @@ void main() {
         find.byType(PGEvidenceSection),
       );
       expect(section.tier, PGEvidenceTier.none);
+      // Listed human research must never sit under a "no evidence" verdict.
+      expect(find.text('Ingredient research'), findsOneWidget);
+      expect(find.textContaining('No direct evidence'), findsNothing);
       expect(section.totalStudies, 0);
       expect(section.citations.single.pmid, '23439798');
       await tester.tap(find.text('View sources (1)'));
