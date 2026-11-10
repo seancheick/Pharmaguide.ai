@@ -5,6 +5,8 @@
 // the same study_id.
 
 import 'package:flutter_test/flutter_test.dart';
+import 'package:flutter/material.dart';
+import 'package:pharmaguide/core/components/pg_evidence_section.dart';
 import 'package:pharmaguide/features/product_detail/v2/sections/evidence_section.dart';
 
 Map<String, dynamic> _mgMatch({
@@ -32,6 +34,201 @@ Map<String, dynamic> _mgMatch({
 }
 
 void main() {
+  group('pipeline ingredient research', () {
+    final research = <String, dynamic>{
+      'ingredient': 'Reviewed botanical',
+      'summary': 'Some short-term human research.',
+      'applicability_note':
+          'This preparation is unknown; results may not apply.',
+      'studied_uses': [
+        {'outcome': 'Studied use', 'summary': 'Limited human support.'},
+      ],
+      'references_structured': [
+        {'pmid': '23439798', 'title': 'Reviewed research source'},
+      ],
+    };
+
+    testWidgets('research renders without clinical matches or inferred tier', (
+      tester,
+    ) async {
+      final data = <String, dynamic>{
+        'ingredient_research': [research],
+      };
+      expect(hasRenderableClinicalEvidence(data), isTrue);
+      await tester.pumpWidget(
+        MaterialApp(
+          home: Scaffold(
+            body: SingleChildScrollView(
+              child: buildEvidenceSection(evidenceData: data),
+            ),
+          ),
+        ),
+      );
+      expect(find.text('Reviewed botanical'), findsOneWidget);
+      expect(find.text('Some short-term human research.'), findsOneWidget);
+      expect(find.text('Studied use'), findsOneWidget);
+      expect(find.text('Limited human support.'), findsOneWidget);
+      expect(
+        find.text('This preparation is unknown; results may not apply.'),
+        findsOneWidget,
+      );
+      final section = tester.widget<PGEvidenceSection>(
+        find.byType(PGEvidenceSection),
+      );
+      expect(section.tier, PGEvidenceTier.none);
+      expect(section.totalStudies, 0);
+      expect(section.citations.single.pmid, '23439798');
+      await tester.tap(find.text('View sources (1)'));
+      await tester.pumpAndSettle();
+      expect(find.text('Reviewed research source'), findsOneWidget);
+      expect(
+        find.text('This preparation is unknown; results may not apply.'),
+        findsNWidgets(2),
+      );
+      expect(tester.takeException(), isNull);
+    });
+
+    testWidgets('canonical presentation and existing extra content survive', (
+      tester,
+    ) async {
+      await tester.pumpWidget(
+        MaterialApp(
+          home: Scaffold(
+            body: SingleChildScrollView(
+              child: buildEvidenceSection(
+                evidenceData: {
+                  'ingredient_research': [research],
+                },
+                presentationTier: PGEvidenceTier.limited,
+                summaryLine: 'Canonical evidence assessment',
+                cardExtra: const Text('Existing card content'),
+                relatedResearch: const Text('Existing sheet content'),
+              ),
+            ),
+          ),
+        ),
+      );
+      expect(find.text('Canonical evidence assessment'), findsOneWidget);
+      expect(find.text('Existing card content'), findsOneWidget);
+      expect(
+        tester.widget<PGEvidenceSection>(find.byType(PGEvidenceSection)).tier,
+        PGEvidenceTier.limited,
+      );
+      await tester.tap(find.text('View sources (1)'));
+      await tester.pumpAndSettle();
+      expect(find.text('Existing sheet content'), findsOneWidget);
+      expect(tester.takeException(), isNull);
+    });
+
+    testWidgets(
+      'clinical and research citations dedupe without extra study credit',
+      (tester) async {
+        await tester.pumpWidget(
+          MaterialApp(
+            home: Scaffold(
+              body: SingleChildScrollView(
+                child: buildEvidenceSection(
+                  evidenceData: {
+                    'clinical_matches': [
+                      _mgMatch(
+                        ingredient: 'Reviewed botanical',
+                        refs: [
+                          {
+                            'pmid': '23439798',
+                            'title': 'Reviewed research source',
+                          },
+                        ],
+                      ),
+                    ],
+                    'ingredient_research': [
+                      {
+                        ...research,
+                        'references_structured': [
+                          {
+                            'pmid': '23439798',
+                            'title': 'Reviewed research source',
+                          },
+                          {
+                            'pmid': '32021735',
+                            'title': 'Additional research source',
+                          },
+                        ],
+                      },
+                    ],
+                  },
+                ),
+              ),
+            ),
+          ),
+        );
+        final section = tester.widget<PGEvidenceSection>(
+          find.byType(PGEvidenceSection),
+        );
+        expect(section.totalStudies, 1);
+        expect(section.citations, hasLength(2));
+        expect(section.tier, PGEvidenceTier.strong);
+        expect(find.text('What the research suggests'), findsOneWidget);
+        expect(find.text('What remains uncertain'), findsOneWidget);
+        await tester.tap(find.text('View studies (1)'));
+        await tester.pumpAndSettle();
+        expect(find.text('Reviewed research source'), findsOneWidget);
+        expect(find.text('Additional research source'), findsOneWidget);
+        expect(tester.takeException(), isNull);
+      },
+    );
+
+    testWidgets(
+      'null and malformed research neither crash nor invent content',
+      (tester) async {
+        for (final data in <Map<String, dynamic>?>[
+          null,
+          {'ingredient_research': null},
+          {'ingredient_research': 'bad'},
+          {
+            'ingredient_research': [
+              null,
+              7,
+              {'ingredient': <String, dynamic>{}, 'summary': <dynamic>[]},
+            ],
+          },
+        ]) {
+          expect(hasRenderableClinicalEvidence(data), isFalse);
+          await tester.pumpWidget(
+            MaterialApp(home: buildEvidenceSection(evidenceData: data)),
+          );
+          expect(find.byType(PGEvidenceSection), findsNothing);
+          expect(tester.takeException(), isNull);
+        }
+        await tester.pumpWidget(
+          MaterialApp(
+            home: Scaffold(
+              body: SingleChildScrollView(
+                child: buildEvidenceSection(
+                  evidenceData: {
+                    'ingredient_research': [
+                      {
+                        ...research,
+                        'studied_uses': [
+                          null,
+                          'bad',
+                          {'outcome': <dynamic>[]},
+                        ],
+                        'references_structured': 'bad',
+                      },
+                    ],
+                  },
+                ),
+              ),
+            ),
+          ),
+        );
+        expect(find.text('Some short-term human research.'), findsOneWidget);
+        expect(find.text('[]'), findsNothing);
+        expect(tester.takeException(), isNull);
+      },
+    );
+  });
+
   group('dedupeClinicalMatches', () {
     test('same study via elemental + compound rows counts once', () {
       final deduped = dedupeClinicalMatches([

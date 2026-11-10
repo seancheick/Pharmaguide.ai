@@ -39,14 +39,16 @@
 // The deduped PMID count is a secondary display signal only — it never
 // downgrades a tier earned by evidence_level.
 //
-// Section suppresses when clinical_matches is empty — including the
-// malformed case where match_count > 0 but no matches parsed (never
-// render a tier badge from nothing).
+// Sources and pipeline-authored ingredient research can render without matches.
+// A match_count alone never creates evidence content or a tier.
 
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import 'package:pharmaguide/core/components/pg_evidence_section.dart';
 import 'package:pharmaguide/core/extensions/json_helpers.dart';
+import 'package:pharmaguide/core/theme/v2/v2_palette.dart';
+import 'package:pharmaguide/core/theme/v2/v2_spacing.dart';
+import 'package:pharmaguide/core/theme/v2/v2_typography.dart';
 import 'package:pharmaguide/core/utils/pubmed_launcher.dart';
 
 /// Aggregate clinical-support tier label.
@@ -75,11 +77,95 @@ const Set<String> _moderateLevels = {'ingredient-human', 'strain-clinical'};
 /// parsed match list is empty.
 bool hasRenderableClinicalEvidence(Map<String, dynamic>? evidenceData) {
   if (evidenceData == null) return false;
-  return evidenceData.safeMapList('clinical_matches').isNotEmpty ||
+  return _ingredientResearch(evidenceData).isNotEmpty ||
+      evidenceData.safeMapList('clinical_matches').isNotEmpty ||
       evidenceCitations(
         [],
         sourceReferences: evidenceData.safeMapList('source_references'),
       ).isNotEmpty;
+}
+
+// Pipeline-authored research is descriptive content, never a score or tier input.
+String _researchText(Map<String, dynamic> record, String key) {
+  final value = record[key];
+  return value is String ? value.trim() : '';
+}
+
+List<Map<String, dynamic>> _ingredientResearch(Map<String, dynamic> data) =>
+    data
+        .safeMapList('ingredient_research')
+        .where((record) {
+          return _researchText(record, 'summary').isNotEmpty ||
+              _researchText(record, 'applicability_note').isNotEmpty ||
+              record
+                  .safeMapList('studied_uses')
+                  .any((use) => _researchText(use, 'summary').isNotEmpty);
+        })
+        .toList(growable: false);
+
+Widget? _withIngredientResearch(
+  List<Map<String, dynamic>> research,
+  Widget? existing,
+) {
+  if (research.isEmpty) return existing;
+  return Builder(
+    builder: (context) => Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        for (final record in research) ...[
+          if (_researchText(record, 'ingredient').isNotEmpty) ...[
+            Text(
+              _researchText(record, 'ingredient'),
+              style: V2Typography.bodyMedium(color: context.v2.fg),
+            ),
+            const SizedBox(height: V2Spacing.space8),
+          ],
+          if (_researchText(record, 'summary').isNotEmpty ||
+              record
+                  .safeMapList('studied_uses')
+                  .any((use) => _researchText(use, 'summary').isNotEmpty)) ...[
+            Text(
+              'What the research suggests',
+              style: V2Typography.bodyMedium(color: context.v2.fg),
+            ),
+            const SizedBox(height: V2Spacing.space4),
+          ],
+          if (_researchText(record, 'summary').isNotEmpty)
+            Text(
+              _researchText(record, 'summary'),
+              style: V2Typography.bodySm(color: context.v2.fgMuted),
+            ),
+          for (final use in record.safeMapList('studied_uses'))
+            if (_researchText(use, 'summary').isNotEmpty) ...[
+              const SizedBox(height: V2Spacing.space8),
+              if (_researchText(use, 'outcome').isNotEmpty)
+                Text(
+                  _researchText(use, 'outcome'),
+                  style: V2Typography.bodyMedium(color: context.v2.fg),
+                ),
+              Text(
+                _researchText(use, 'summary'),
+                style: V2Typography.bodySm(color: context.v2.fgMuted),
+              ),
+            ],
+          if (_researchText(record, 'applicability_note').isNotEmpty) ...[
+            const SizedBox(height: V2Spacing.space8),
+            Text(
+              'What remains uncertain',
+              style: V2Typography.bodyMedium(color: context.v2.fg),
+            ),
+            const SizedBox(height: V2Spacing.space4),
+            Text(
+              _researchText(record, 'applicability_note'),
+              style: V2Typography.bodySm(color: context.v2.fgMuted),
+            ),
+          ],
+          const SizedBox(height: V2Spacing.space12),
+        ],
+        if (existing != null) existing,
+      ],
+    ),
+  );
 }
 
 /// Dedupe clinical matches by study identity (`study_id`, falling back
@@ -494,6 +580,10 @@ Widget buildEvidenceSection({
 }) {
   if (evidenceData == null) return const SizedBox.shrink();
 
+  final research = _ingredientResearch(evidenceData);
+  final researchCard = _withIngredientResearch(research, cardExtra);
+  final researchSheet = _withIngredientResearch(research, relatedResearch);
+
   // Match-level dedupe BEFORE any tier/count/citation computation —
   // see header note on the dual elemental/compound row pipeline bug.
   final clinicalMatches = dedupeClinicalMatches(
@@ -503,21 +593,22 @@ Widget buildEvidenceSection({
   // Suppress when nothing parsed — including the malformed case where
   // match_count > 0 but no clinical_matches survived parsing. A LIMITED
   // badge built from zero matches would be invented signal.
-  final citations = evidenceCitations(
-    clinicalMatches,
-    sourceReferences: evidenceData.safeMapList('source_references'),
-  );
+  final citations = evidenceCitations([
+    ...clinicalMatches,
+    ...research,
+  ], sourceReferences: evidenceData.safeMapList('source_references'));
   if (clinicalMatches.isEmpty) {
-    if (citations.isEmpty) return const SizedBox.shrink();
+    if (citations.isEmpty && research.isEmpty) return const SizedBox.shrink();
     return PGEvidenceSection(
       title: 'Evidence',
       tier: presentationTier ?? PGEvidenceTier.none,
-      summaryLine: summaryLine ?? 'Sources',
+      summaryLine:
+          summaryLine ?? (research.isEmpty ? 'Sources' : 'Ingredient research'),
       helperLine: helperLine,
       deriveHelperFromTier: false,
       citations: citations,
-      sheetExtra: relatedResearch,
-      cardExtra: cardExtra,
+      sheetExtra: researchSheet,
+      cardExtra: researchCard,
     );
   }
 
@@ -576,8 +667,8 @@ Widget buildEvidenceSection({
     // least the advertised count.
     citations: citations.toList(growable: false),
     footnote: footnoteLines.join('\n'),
-    sheetExtra: relatedResearch,
-    cardExtra: cardExtra,
+    sheetExtra: researchSheet,
+    cardExtra: researchCard,
   );
 }
 
