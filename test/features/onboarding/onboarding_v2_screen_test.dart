@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:go_router/go_router.dart';
+import 'package:pharmaguide/core/components/pg_transparency_footer.dart';
 import 'package:pharmaguide/core/constants/routes.dart';
 import 'package:pharmaguide/features/onboarding/v2/onboarding_v2_screen.dart';
 import 'package:pharmaguide/services/onboarding_prefs.dart';
@@ -67,7 +68,47 @@ void main() {
     expect(find.text('Set up my profile first'), findsOneWidget);
     // The overclaim is gone; the privacy line is accurate.
     expect(find.textContaining('Every check'), findsNothing);
-    expect(find.textContaining('saved on this device only'), findsOneWidget);
+    expect(find.textContaining('saved on this device only'), findsNothing);
+    expect(
+      find.textContaining('unless you choose to share them'),
+      findsOneWidget,
+    );
+  });
+
+  // First run states the medical-information notice once, using the same
+  // locked disclaimer the Product Detail footer shows.
+  testWidgets('first run shows the educational disclaimer', (tester) async {
+    await pumpOnboarding(tester);
+
+    expect(find.text(kTransparencyDisclaimer), findsOneWidget);
+  });
+
+  // The intro scrolls; the disclaimer must not hide below the fold on a
+  // small phone at large text, where a user could leave without seeing it.
+  testWidgets('disclaimer is visible without scrolling on a small screen', (
+    tester,
+  ) async {
+    tester.view.physicalSize = const Size(320, 568);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
+    await tester.pumpWidget(
+      ProviderScope(
+        child: MaterialApp(
+          builder: (context, child) => MediaQuery(
+            data: MediaQuery.of(
+              context,
+            ).copyWith(textScaler: const TextScaler.linear(1.3)),
+            child: child!,
+          ),
+          home: const OnboardingV2Screen(autoFinish: false),
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    expect(find.text(kTransparencyDisclaimer).hitTestable(), findsOneWidget);
+    expect(tester.takeException(), isNull);
   });
 
   testWidgets('Start scanning opens the scanner, not a sign-in wall', (

@@ -12,6 +12,16 @@ void main() {
       expect(StackTier.unsafe.healthLabel, StackHealthLabel.unsafe);
     });
 
+    test('label text: top tier implies no health outcome', () {
+      expect(StackHealthLabel.values.map((l) => l.label).toList(), [
+        'Strong',
+        'Solid',
+        'Decent',
+        'Concerning',
+        'Unsafe',
+      ]);
+    });
+
     test('incomplete tier has no healthLabel (internal fallback only)', () {
       expect(StackTier.incomplete.healthLabel, isNull);
     });

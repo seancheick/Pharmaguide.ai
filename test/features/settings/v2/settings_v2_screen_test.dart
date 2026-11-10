@@ -43,7 +43,7 @@ void main() {
     await tester.pumpWidget(MaterialApp.router(routerConfig: router));
 
     // Guests keep their stack on the device; an account adds backup + sync.
-    expect(find.text('Back up and sync your stack'), findsOneWidget);
+    expect(find.text('Keep a supplement list in your account'), findsOneWidget);
     await tester.tap(find.text('Sign in'));
     await tester.pumpAndSettle();
 
@@ -396,7 +396,10 @@ void main() {
     await tester.tap(find.text('Privacy dashboard'));
     await tester.pumpAndSettle();
 
-    expect(find.text('Health profile: on device'), findsOneWidget);
+    expect(
+      find.text('Health profile: on device unless you choose to share it'),
+      findsOneWidget,
+    );
     expect(find.text('Account email: Supabase auth'), findsOneWidget);
   });
 
@@ -417,9 +420,9 @@ void main() {
       find.text(
         'When you sign in, PharmaGuide syncs the supplements in your stack '
         '— their product identity, ingredients, and added, removed, or '
-        'updated state — to your account. Your health profile, medication '
-        'list, scan history, and supplement dosage and schedule stay on '
-        'this device.',
+        'updated state — to your account. Your health profile and medication '
+        'list stay on this device unless you choose to share them in a '
+        'report or with an AI assistant.',
       ),
       findsOneWidget,
     );
@@ -434,8 +437,63 @@ void main() {
       find.text('Supplement dosage and schedule: on device'),
       findsOneWidget,
     );
-    expect(find.text('Medication list: on device'), findsOneWidget);
+    expect(
+      find.text('Medication list: on device unless you choose to share it'),
+      findsOneWidget,
+    );
   });
+
+  for (final signedIn in [false, true]) {
+    testWidgets(
+      'privacy explains voluntary sharing and retained assistant copies '
+      '(signedIn: $signedIn)',
+      (tester) async {
+        tester.view.physicalSize = const Size(320, 640);
+        tester.view.devicePixelRatio = 1;
+        addTearDown(tester.view.resetPhysicalSize);
+        addTearDown(tester.view.resetDevicePixelRatio);
+        await tester.pumpWidget(
+          MaterialApp(
+            builder: (context, child) => MediaQuery(
+              data: MediaQuery.of(
+                context,
+              ).copyWith(textScaler: const TextScaler.linear(1.5)),
+              child: child!,
+            ),
+            home: SettingsV2Screen(signedIn: signedIn),
+          ),
+        );
+        await tester.scrollUntilVisible(
+          find.text('Privacy dashboard'),
+          240,
+          scrollable: find.byType(Scrollable).first,
+        );
+        await tester.tap(find.text('Privacy dashboard'));
+        await tester.pumpAndSettle();
+
+        expect(find.textContaining('unless you choose to share'), findsWidgets);
+        expect(
+          find.textContaining('Medication names, dose and frequency'),
+          findsOneWidget,
+        );
+        expect(find.textContaining('off by default'), findsOneWidget);
+        expect(find.textContaining('already received'), findsOneWidget);
+        expect(find.textContaining('provider’s own retention'), findsOneWidget);
+        expect(find.textContaining('syncs back'), findsNothing);
+        expect(
+          find.textContaining('not your synced supplement list'),
+          findsOneWidget,
+        );
+        await tester.ensureVisible(find.text('Account email: Supabase auth'));
+        await tester.pumpAndSettle();
+        expect(
+          find.text('Account email: Supabase auth').hitTestable(),
+          findsOneWidget,
+        );
+        expect(tester.takeException(), isNull);
+      },
+    );
+  }
 
   testWidgets('about legal and support rows open release-safe destinations', (
     tester,
@@ -611,4 +669,4 @@ class _AllowedNotificationService implements NotificationAuthorizationService {
 
 const _closingPrivacyLine =
     'Your health profile and medication list stay on this device unless '
-    'you choose to share a snapshot with a connected AI assistant.';
+    'you choose to share them in a report or with an AI assistant.';

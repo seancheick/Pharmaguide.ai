@@ -112,7 +112,7 @@ class SettingsV2Screen extends StatelessWidget {
                   caption: signedIn
                       ? accountEmail ??
                             'Unlimited early-access scans · stack saved'
-                      : 'Back up and sync your stack',
+                      : 'Keep a supplement list in your account',
                   onTap: signedIn
                       ? null
                       : () => context.push(Routes.authInvitation),
@@ -399,7 +399,7 @@ class SettingsV2Screen extends StatelessWidget {
             Center(
               child: Text(
                 'Your health profile and medication list stay on this device '
-                'unless you choose to share a snapshot with a connected AI '
+                'unless you choose to share them in a report or with an AI '
                 'assistant.',
                 textAlign: TextAlign.center,
                 style: V2Typography.caption(color: context.v2.fgSubtle),
@@ -538,22 +538,30 @@ void _showPrivacyDashboard(BuildContext context) {
       body:
           'When you sign in, PharmaGuide syncs the supplements in your stack '
           '— their product identity, ingredients, and added, removed, or '
-          'updated state — to your account. Your health profile, medication '
-          'list, scan history, and supplement dosage and schedule stay on '
-          'this device.',
+          'updated state — to your account. Your health profile and medication '
+          'list stay on this device unless you choose to share them in a '
+          'report or with an AI assistant.',
       bullets: [
-        'Health profile: on device',
+        'Health profile: on device unless you choose to share it',
         'Supplement stack: product identity, ingredients, and state sync '
             'when signed in',
         'Supplement dosage and schedule: on device',
-        'Medication list: on device',
+        'Medication list: on device unless you choose to share it',
+        'AI sharing: connected assistants can read your synced supplement '
+            'list. Medication names, dose and frequency, and health profile '
+            'are off by default for additional snapshots. You choose what '
+            'to include and preview the text uploaded to PharmaGuide.',
+        'Shared copies: expiry ends access to that snapshot, not your synced '
+            'supplement list. Disconnecting ends this assistant’s PharmaGuide '
+            'access. Neither erases copies an assistant already received. '
+            'The provider’s own retention and training settings apply.',
         'Medication name search: what you type is looked up with the U.S. '
             'National Library of Medicine (RxNorm); your saved list is not '
             'sent',
         'Recent scans: on device',
         'Backups: health data on this device is not included in iCloud or '
-            'computer backups, so a new phone starts fresh (a signed-in '
-            'supplement stack syncs back)',
+            'computer backups. On a new phone, you need to add your local '
+            'health information again.',
         'Account email: Supabase auth',
       ],
     ),

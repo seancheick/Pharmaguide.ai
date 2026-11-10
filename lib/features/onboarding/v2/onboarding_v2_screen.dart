@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:pharmaguide/core/components/pg_eyebrow.dart';
 import 'package:pharmaguide/core/components/pg_pill_button.dart';
+import 'package:pharmaguide/core/components/pg_transparency_footer.dart';
 import 'package:pharmaguide/core/scoring/score_tier.dart';
 import 'package:pharmaguide/core/constants/routes.dart';
 import 'package:pharmaguide/core/theme/v2/v2_palette.dart';
@@ -115,6 +116,11 @@ class _OnboardingV2ScreenState extends State<OnboardingV2Screen>
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
+                  // Pinned above both actions so it is read before leaving,
+                  // whatever the screen size or text scale. Shown once:
+                  // onboarding is marked seen when the user leaves it.
+                  const _Disclaimer(),
+                  const SizedBox(height: V2Spacing.space12),
                   PGPillButton(
                     label: 'Start scanning',
                     icon: Icons.qr_code_scanner_rounded,
@@ -286,11 +292,22 @@ class _TrustRows extends StatelessWidget {
           eyebrow: 'Privacy',
           label:
               'Your profile, medications and allergies are saved on this '
-              'device only',
+              'device unless you choose to share them in a report or with '
+              'an AI assistant',
         ),
       ],
     );
   }
+}
+
+class _Disclaimer extends StatelessWidget {
+  const _Disclaimer();
+
+  @override
+  Widget build(BuildContext context) => Text(
+    kTransparencyDisclaimer,
+    style: V2Typography.caption(color: context.v2.fgMuted),
+  );
 }
 
 class _TrustRow extends StatelessWidget {

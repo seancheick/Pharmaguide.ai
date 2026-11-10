@@ -117,8 +117,9 @@ class _GuestBody extends StatelessWidget {
           const SizedBox(height: V2Spacing.space16),
           Text(
             'Sharing with an AI assistant needs a PharmaGuide account, so '
-            'each share is tied to you and removed when you disconnect or '
-            'sign out. Until then, everything stays on this device.',
+            'each share is tied to you. Disconnecting ends access through '
+            'PharmaGuide, but cannot erase copies an assistant already '
+            'received. You choose which additional health details to share.',
             textAlign: TextAlign.center,
             style: V2Typography.body(color: context.v2.fgMuted),
           ),

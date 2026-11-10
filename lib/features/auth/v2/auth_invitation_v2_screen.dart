@@ -343,10 +343,10 @@ class _Subhead extends StatelessWidget {
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: V2Spacing.space8),
       child: Text(
-        'Sign in to back up your supplement stack and sync it across '
-        'your devices. Your profile, medications and allergies stay '
-        'saved on this device only, unless you choose to share a '
-        'snapshot with a connected AI assistant.',
+        'Sign in to keep a copy of your supplement list in your account. '
+        'The app does not restore that copy to a new phone. Your profile, '
+        'medications and allergies stay saved on this device unless you '
+        'choose to share them in a report or with an AI assistant.',
         // Stepped down from bodyXl (18pt) → body (16pt) per Sean
         // 2026-05-15 — 18pt felt slightly oversized against the
         // serif headline above.

@@ -25,6 +25,8 @@ import 'package:pharmaguide/core/components/pg_toast.dart';
 import 'package:pharmaguide/core/components/pg_tradeoffs_section.dart';
 import 'package:pharmaguide/core/components/pg_transparency_footer.dart';
 import 'package:pharmaguide/core/theme/v2/v2.dart';
+import 'package:pharmaguide/features/product_detail/v2/sections/review_before_use_section.dart'
+    show kNoProfileConcernsHeadline;
 import 'package:pharmaguide/features/product_detail/widgets/inactive_color.dart';
 import 'package:pharmaguide/features/product_detail/widgets/ingredient_explain_model.dart';
 import 'package:pharmaguide/services/fit_score/fit_display.dart';
@@ -281,7 +283,7 @@ class V2Gallery extends StatelessWidget {
               // expand on demand" behavior for non-danger findings.
               PGReviewBeforeUseCard(
                 tone: PGReviewTone.safe,
-                title: 'Looks safe for you',
+                title: kNoProfileConcernsHeadline,
                 body: 'No conflicts with your medications or conditions.',
                 rows: [
                   PGReviewRow(
