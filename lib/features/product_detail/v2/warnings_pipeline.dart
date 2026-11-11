@@ -21,10 +21,12 @@ import 'package:pharmaguide/core/constants/severity.dart';
 import 'package:pharmaguide/data/database/catalog_schema_bridge.dart';
 import 'package:pharmaguide/services/crash_reporting_service.dart';
 import 'package:pharmaguide/features/product_detail/product_detail_helpers.dart'
-    show filterProductDetailWarningsForProfile;
+    show
+        conditionalProductDetailNotes,
+        filterProductDetailWarningsForProfile,
+        lifeStageConditionIds;
 import 'package:pharmaguide/services/warnings/interaction_warning.dart';
 
-const _lifeStageConditionIds = {'pregnancy', 'lactation', 'ttc'};
 
 /// True only for profile-matched context that is useful to retain but should
 /// not read like a danger signal.
@@ -62,7 +64,7 @@ bool isCalmProfileNote(InteractionWarning warning) {
       .where((condition) => condition.isNotEmpty)
       .toSet();
   return conditions.isNotEmpty &&
-      conditions.every(_lifeStageConditionIds.contains);
+      conditions.every(lifeStageConditionIds.contains);
 }
 
 /// Compose the warning list every Product Detail surface renders.
@@ -95,6 +97,49 @@ List<InteractionWarning> composeGuardedWarnings({
     userDrugClasses: userDrugClasses,
     userProfileFlags: userProfileFlags,
   );
+}
+
+/// Compose the conditional notes Product Detail shows in "Good to know"
+/// ([conditionalProductDetailNotes], Dr. Pham G4). Takes the same inputs as
+/// [composeGuardedWarnings] plus the warnings already shown, so a note never
+/// repeats a warning on the page, and two rule rows with one message (such as
+/// a warfarin-type and an unidentified blood-thinner row) become one note.
+List<InteractionWarning> composeConditionalNotes({
+  required Map<String, dynamic>? detailBlob,
+  String? productStatus,
+  required List<InteractionWarning> personalizedWarnings,
+  List<InteractionWarning> resolvedRuleWarnings = const [],
+  required List<InteractionWarning> shownWarnings,
+  required Set<String> userConditions,
+  required Set<String> userDrugClasses,
+  required Set<String> userProfileFlags,
+  String? ageBracket,
+  String? sex,
+}) {
+  final merged = <InteractionWarning>[
+    ...personalizedWarnings,
+    ...resolvedRuleWarnings,
+    ...parseBlobWarnings(detailBlob, productStatus: productStatus),
+  ];
+  final candidates = conditionalProductDetailNotes(
+    detailBlob: detailBlob,
+    warnings: [for (final w in merged) w.resolvedForAge(ageBracket)],
+    userConditions: userConditions,
+    userDrugClasses: userDrugClasses,
+    userProfileFlags: userProfileFlags,
+    sex: sex,
+  );
+  final seen = <String>{
+    for (final w in shownWarnings) ..._consumerWarningIdentities(w),
+  };
+  final notes = <InteractionWarning>[];
+  for (final note in candidates) {
+    final identities = _consumerWarningIdentities(note);
+    if (identities.any(seen.contains)) continue;
+    seen.addAll(identities);
+    notes.add(note);
+  }
+  return notes;
 }
 
 /// Drain the blob's `warnings` + `warnings_profile_gated` lists, drop
@@ -337,7 +382,7 @@ Set<String> _consumerWarningIdentities(InteractionWarning warning) {
         .toSet();
     final conditions =
         rawConditions.isNotEmpty &&
-            rawConditions.every(_lifeStageConditionIds.contains)
+            rawConditions.every(lifeStageConditionIds.contains)
         ? const ['life-stage']
         : (rawConditions.toList()..sort());
     final drugClasses = [...warning.drugClassIds.map(_normalizeConsumerText)]

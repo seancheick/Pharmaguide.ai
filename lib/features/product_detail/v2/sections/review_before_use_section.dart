@@ -16,6 +16,7 @@ import 'package:flutter/material.dart';
 import 'package:pharmaguide/core/components/pg_for_you_extras.dart';
 import 'package:pharmaguide/core/components/pg_pill_button.dart';
 import 'package:pharmaguide/core/components/pg_review_before_use_card.dart';
+import 'package:pharmaguide/core/data/vocab_registry.dart';
 import 'package:pharmaguide/core/models/fit_score_result.dart';
 import 'package:pharmaguide/services/stack/stack_nutrient_models.dart';
 import 'package:pharmaguide/services/stack/stack_safety_report.dart';
@@ -513,6 +514,7 @@ bool isMaterialSafetyNote(InteractionWarning warning) =>
 /// warning cards; only actionable rows explicitly marked critical remain.
 Widget? buildGeneralNotesSection({
   required List<InteractionWarning> warnings,
+  List<InteractionWarning> conditionalNotes = const [],
   List<FreeFromClaim> freeFromClaims = const [],
   void Function(List<String> sourceUrls)? onTapCitations,
 }) {
@@ -535,6 +537,7 @@ Widget? buildGeneralNotesSection({
       .where((claim) => claim.status == FreeFromStatus.certified)
       .toList(growable: false);
   if (materialWarnings.isEmpty &&
+      conditionalNotes.isEmpty &&
       profileNotes.isEmpty &&
       reassuringClaims.isEmpty &&
       productContext.isEmpty) {
@@ -542,13 +545,17 @@ Widget? buildGeneralNotesSection({
   }
 
   final sections = <Widget>[];
-  if (profileNotes.isNotEmpty || reassuringClaims.isNotEmpty) {
+  if (conditionalNotes.isNotEmpty ||
+      profileNotes.isNotEmpty ||
+      reassuringClaims.isNotEmpty) {
     sections.add(
       PGReviewBeforeUseCard(
         tone: PGReviewTone.info,
         title: 'Good to know',
         compactWhenCollapsed: true,
         rows: [
+          for (final warning in conditionalNotes)
+            _rowForConditionalNote(warning, onTapCitations: onTapCitations),
           for (final warning in sortWarningsBySeverity(profileNotes))
             _rowForProfileNote(warning, onTapCitations: onTapCitations),
           for (final claim in reassuringClaims) rowForFreeFromClaim(claim),
@@ -595,6 +602,45 @@ Widget? buildGeneralNotesSection({
     );
   }
   return sections.length == 1 ? sections.single : Column(children: sections);
+}
+
+/// The profile qualifier of a G4 conditional note: who it is for, and how to
+/// check. Names come from the bundled vocabularies (the medication-class and
+/// condition names the profile screens use).
+String conditionalNoteScope(InteractionWarning warning) {
+  final registry = VocabRegistry.instance;
+  String names(Iterable<String> ids, String? Function(String) name) => ids
+      .map((id) => name(id) ?? id.replaceAll('_', ' '))
+      .toSet()
+      .join(' or ');
+  if (warning.drugClassIds.isNotEmpty) {
+    return 'Relevant if you take: '
+        '${names(warning.drugClassIds, (id) => registry.drugClass(id)?.name)}. '
+        'Add your medicines to check whether it applies to you.';
+  }
+  return 'Relevant to: '
+      '${names(warning.conditionIds, (id) => registry.condition(id)?.name)}. '
+      'Add your health details to check whether it applies to you.';
+}
+
+PGReviewRow _rowForConditionalNote(
+  InteractionWarning warning, {
+  void Function(List<String> sourceUrls)? onTapCitations,
+}) {
+  final citationCount = warning.sourceUrls.length;
+  return PGReviewRow(
+    headline: warning.displayHeadline,
+    caption: [
+      conditionalNoteScope(warning),
+      warning.evidenceLevel.label,
+      if (citationCount > 0)
+        '$citationCount citation${citationCount == 1 ? '' : 's'}',
+    ].join(' · '),
+    rowTone: PGReviewTone.info,
+    onTap: citationCount > 0 && onTapCitations != null
+        ? () => onTapCitations(warning.sourceUrls)
+        : null,
+  );
 }
 
 PGReviewRow _rowForProfileNote(

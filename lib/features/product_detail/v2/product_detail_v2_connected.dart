@@ -568,6 +568,21 @@ class _ProductDetailV2ConnectedState
       userDrugClasses: userDrugClassesSet,
       userProfileFlags: userProfileFlagsSet,
     );
+    // Avoid / contraindicated findings for a medicine class or condition the
+    // profile has not described yet: calm conditional notes, never a warning
+    // or a verdict (Dr. Pham G4).
+    final conditionalNotes = composeConditionalNotes(
+      detailBlob: detailBlob,
+      productStatus: _product?.productStatus,
+      personalizedWarnings: personalizedWarnings,
+      resolvedRuleWarnings: profileRuleWarnings,
+      shownWarnings: guardedWarnings,
+      ageBracket: profile.ageBracket,
+      sex: profile.sex,
+      userConditions: userConditionsSet,
+      userDrugClasses: userDrugClassesSet,
+      userProfileFlags: userProfileFlagsSet,
+    );
     final profileBenefitWarnings = InteractionWarning.dedupe([
       ...personalizedWarnings,
       ...profileRuleWarnings,
@@ -1018,6 +1033,7 @@ class _ProductDetailV2ConnectedState
                                 ...partitionedWarnings.general,
                                 ...profileBenefitNotes,
                               ],
+                              conditionalNotes: conditionalNotes,
                               freeFromClaims: freeFromClaims
                                   .where(
                                     (claim) => !freeFromConflicts.contains(
