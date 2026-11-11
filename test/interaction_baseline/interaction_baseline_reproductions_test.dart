@@ -1,7 +1,6 @@
-// Interaction audit Stage 1 (2026-11-11): reproductions of verified runtime
-// failures. Each test states the intended behaviour; each was run and seen to
-// fail before being marked `skip`, so CI stays green while behaviour is
-// unchanged. Stage 2 removes the skip together with the fix.
+// Interaction audit (2026-11-11): reproductions of verified runtime failures.
+// Each test states the intended behaviour and was seen to fail on main before
+// its Stage 2 fix (Stack delivery here; medication classes in the pipeline).
 import 'dart:convert';
 import 'dart:io';
 
@@ -22,9 +21,6 @@ import 'package:pharmaguide/features/stack/providers/stack_nutrient_providers.da
 import 'package:pharmaguide/features/stack/providers/stack_safety_providers.dart';
 import 'package:pharmaguide/services/stack/stack_nutrient_models.dart';
 import 'package:pharmaguide/services/stack/stack_safety_report.dart';
-
-const _stage2 =
-    'Stage 2 reproduction (interaction audit 2026-11-11); fails on current main';
 
 // Real export from blob 251796 (Senna Leaves 1,350 mg), build 2026.11.02.
 final Map<String, dynamic> _sennaDigoxinWarning = {
@@ -111,6 +107,14 @@ UserStacksLocalData get _digoxin => _row(
   ]),
 );
 
+/// `class:cardiac_glycosides` as the pipeline exports it to drug_class_map
+/// (dsld_clean drug_classes.json, ATC C01AA, interaction audit Stage 2).
+const _cardiacGlycosidesRow = (
+  classId: 'class:cardiac_glycosides',
+  name: 'Cardiac glycosides (digoxin, digitoxin)',
+  rxcuis: ['199', '132871', '3248', '235219', '3403', '3407', '27929', '6686'],
+);
+
 Future<ProviderContainer> _container({
   required Map<String, dynamic> blob,
   required String dsldId,
@@ -119,6 +123,7 @@ Future<ProviderContainer> _container({
   bool medicationsFirst = false,
   List<String> keyIngredientTags = const [],
   String? curatedAnticoagulantPairSeverity,
+  bool seedCardiacGlycosides = false,
 }) async {
   final user = UserDatabase.memory();
   final core = CoreDatabase.memory();
@@ -165,6 +170,19 @@ Future<ProviderContainer> _container({
             typeAuthored: 'curated',
             source: 'curated',
             provenance: 'fixture',
+          ),
+        );
+  }
+  if (seedCardiacGlycosides) {
+    await interactions
+        .into(interactions.drugClassMap)
+        .insert(
+          DrugClassMapCompanion.insert(
+            classId: _cardiacGlycosidesRow.classId,
+            className: _cardiacGlycosidesRow.name,
+            drugRxcuisJson: jsonEncode(_cardiacGlycosidesRow.rxcuis),
+            source: 'rxclass',
+            lastUpdated: '2026-11-11',
           ),
         );
   }
@@ -339,12 +357,13 @@ void main() {
         blob: senna,
         dsldId: '251796',
         medications: [_digoxin],
+        seedCardiacGlycosides: true,
       );
       final classes = await container.read(
         currentStackMedicationClassIdsProvider.future,
       );
       expect(classes, contains('cardiac_glycosides'));
-    }, skip: _stage2);
+    });
 
     test(
       'product page (medication already saved, or pre-add check) warns',
@@ -353,6 +372,7 @@ void main() {
           blob: senna,
           dsldId: '251796',
           medications: [_digoxin],
+          seedCardiacGlycosides: true,
         );
         final classes = await container.read(
           currentStackMedicationClassIdsProvider.future,
@@ -362,19 +382,19 @@ void main() {
           contains('Senna / cardiac_glycosides'),
         );
       },
-      skip: _stage2,
     );
 
     for (final medicationsFirst in [false, true]) {
       test(
         'saved Stack (medication added ${medicationsFirst ? 'first' : 'last'}) '
-        'warns or reports incomplete checks',
+        'warns',
         () async {
           final container = await _container(
             blob: senna,
             dsldId: '251796',
             medications: [_digoxin],
             medicationsFirst: medicationsFirst,
+            seedCardiacGlycosides: true,
           );
           final report = await container.read(stackSafetyReportProvider.future);
           final warned =
@@ -382,14 +402,9 @@ void main() {
               report.medicationInteractions.any(
                 (r) => r.severity.weight >= Severity.caution.weight,
               );
-          expect(
-            warned || report.checksIncomplete,
-            isTrue,
-            reason: 'silent all-clear for digoxin + senna',
-          );
+          expect(warned, isTrue, reason: 'silent all-clear for digoxin + senna');
         },
-        skip: _stage2,
-      );
+        );
     }
   });
 }
