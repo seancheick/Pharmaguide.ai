@@ -117,6 +117,8 @@ Future<ProviderContainer> _container({
   List<UserStacksLocalData> medications = const [],
   Set<String>? medicationClassesOverride,
   bool medicationsFirst = false,
+  List<String> keyIngredientTags = const [],
+  String? curatedAnticoagulantPairSeverity,
 }) async {
   final user = UserDatabase.memory();
   final core = CoreDatabase.memory();
@@ -136,8 +138,36 @@ Future<ProviderContainer> _container({
           productStatus: const Value('active'),
           productSafetyStatus: const Value('no_known_catalog_concern'),
           safetyAssessmentStatus: const Value('complete'),
+          keyIngredientTags: Value(jsonEncode(keyIngredientTags)),
         ),
       );
+  if (curatedAnticoagulantPairSeverity != null) {
+    await interactions
+        .into(interactions.interactions)
+        .insert(
+          InteractionsCompanion.insert(
+            id: 'DSI_FIXTURE_ANTICOAG_SJW',
+            agent1Type: 'drug_class',
+            agent1Name: 'Anticoagulants',
+            agent1Id: 'class:anticoagulants',
+            agent2Type: 'supplement',
+            agent2Name: "St. John's Wort",
+            agent2Id: 'C0813171',
+            agent2CanonicalId: const Value('st_john_s_wort'),
+            severity: curatedAnticoagulantPairSeverity,
+            mechanism: 'Curated pair mechanism',
+            management: 'Curated pair management',
+            sourceUrlsJson: '["https://example.org/curated"]',
+            sourcePmidsJson: '[]',
+            versionAdded: '1.0.0',
+            versionLastModified: '1.0.0',
+            lastUpdated: '2026-11-11',
+            typeAuthored: 'curated',
+            source: 'curated',
+            provenance: 'fixture',
+          ),
+        );
+  }
   final supplement = _row('stack_$dsldId', type: 'supplement', dsldId: dsldId);
   final rows = medicationsFirst
       ? [...medications, supplement]
@@ -227,8 +257,63 @@ void main() {
         reason: 'Stack drops warnings without a condition scope',
       );
     },
-    skip: _stage2,
   );
+
+  group('a class rule and a curated pair for the same hazard', () {
+    const ruleTitle = "St. John's Wort Herb Extract / anticoagulants";
+    UserStacksLocalData warfarin() => _row(
+      'warfarin',
+      type: 'medication',
+      rxcui: '11289',
+      drugClassesCol: '["class:anticoagulants"]',
+    );
+    Future<StackSafetyReport> report(String pairSeverity) async {
+      final container = await _container(
+        blob: sjw,
+        dsldId: '18219',
+        medications: [warfarin()],
+        keyIngredientTags: const ['st_john_s_wort'],
+        curatedAnticoagulantPairSeverity: pairSeverity,
+      );
+      return container.read(stackSafetyReportProvider.future);
+    }
+
+    test('an equally hard curated pair shows once, as the pair', () async {
+      final r = await report('contraindicated');
+      expect(_stackHas(r, ruleTitle), isFalse);
+      expect(
+        r.medicationInteractions.map((i) => i.id),
+        contains('DSI_FIXTURE_ANTICOAG_SJW'),
+      );
+    });
+
+    test('a harder class rule replaces a softer curated pair', () async {
+      final r = await report('caution');
+      expect(_stackHas(r, ruleTitle), isTrue);
+      expect(
+        r.medicationInteractions.map((i) => i.id),
+        isNot(contains('DSI_FIXTURE_ANTICOAG_SJW')),
+      );
+    });
+
+    test(
+      'other medication classes on the same product stay distinct',
+      () async {
+        final r = await report('contraindicated');
+        final container = await _container(
+          blob: sjw,
+          dsldId: '18219',
+          medicationClassesOverride: {'anticoagulants', 'statins'},
+        );
+        final both = await container.read(stackSafetyReportProvider.future);
+        expect(
+          _stackHas(both, "St. John's Wort Herb Extract / statins"),
+          isTrue,
+        );
+        expect(_stackHas(r, "St. John's Wort Herb Extract / statins"), isFalse);
+      },
+    );
+  });
 
   group('digoxin + senna', () {
     late Map<String, dynamic> senna;

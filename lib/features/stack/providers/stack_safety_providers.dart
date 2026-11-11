@@ -457,6 +457,9 @@ final stackSafetyReportProvider = FutureProvider<StackSafetyReport>((
   // Product Detail owns profile gating, dose suppression and deduplication.
   // Carry its ordinary condition/allergen findings into the same Stack report.
   // Cumulative dose rules and global UL/regulatory findings keep their owners.
+  // Medication-class findings wait for section 2: a curated medication pair for
+  // the same ingredient and class is the same hazard and must show once.
+  final classScopedFindings = <String, List<_ClassScopedFinding>>{};
   if (hydrated.isNotEmpty && profile != null) {
     final conditions = profile.conditionsForEvaluator.toSet();
     var flags = <String>{};
@@ -585,7 +588,13 @@ final stackSafetyReportProvider = FutureProvider<StackSafetyReport>((
                         requires[key] is List &&
                         (requires[key] as List).isNotEmpty,
                   ));
-          if (!hasConditionScope) continue;
+          final drugClassScope = {
+            ...warning.drugClassIds,
+            if (requires is Map && requires['drug_classes_any'] is List)
+              ...(requires['drug_classes_any'] as List).whereType<String>(),
+          }.map((id) => id.trim().toLowerCase()).where((id) => id.isNotEmpty);
+          final classScope = drugClassScope.toSet();
+          if (!hasConditionScope && classScope.isEmpty) continue;
           final context = resolveProfileGateProductContext(
             detailBlob: blob,
             warning: warning,
@@ -646,6 +655,18 @@ final stackSafetyReportProvider = FutureProvider<StackSafetyReport>((
             sourceUrls: warning.sourceUrls,
             source: InteractionSource.pipeline,
           );
+          if (!hasConditionScope) {
+            (classScopedFindings[h.product.dsldId] ??= []).add(
+              _ClassScopedFinding(
+                result: result,
+                subject: (warning.ingredientCanonicalId ?? '')
+                    .trim()
+                    .toLowerCase(),
+                classes: classScope,
+              ),
+            );
+            continue;
+          }
           if (seenStackIds.add(result.id)) stackInteractions.add(result);
         }
       } on Object catch (error, trace) {
@@ -667,6 +688,7 @@ final stackSafetyReportProvider = FutureProvider<StackSafetyReport>((
   // ---------------------------------------------------------------------------
   final medicationInteractions = <InteractionResult>[];
   final seenMedIds = <String>{};
+  final curatedHitsByProduct = <String, List<InteractionResult>>{};
   if (hydrated.isNotEmpty && safetyMedications.isNotEmpty) {
     for (final self in hydrated) {
       final canonicalIds = canonicalIdsForProduct(self.product);
@@ -691,8 +713,39 @@ final stackSafetyReportProvider = FutureProvider<StackSafetyReport>((
         );
         continue;
       }
+      curatedHitsByProduct[self.product.dsldId] = hits;
       for (final r in hits) {
         if (seenMedIds.add(r.id)) medicationInteractions.add(r);
+      }
+    }
+  }
+  // One hazard, one finding: where a curated pair covers the same ingredient
+  // and medication class, keep the harder of the two, as Product Detail does.
+  for (final MapEntry(key: dsldId, value: findings)
+      in classScopedFindings.entries) {
+    final curated = curatedHitsByProduct[dsldId] ?? const <InteractionResult>[];
+    for (final finding in findings) {
+      final overlap = curated
+          .where(
+            (hit) =>
+                finding.subject.isNotEmpty &&
+                (hit.matchedSupplementCanonicalId ?? '').trim().toLowerCase() ==
+                    finding.subject &&
+                MedicationClassBridge.profileGateIdsForClasses(
+                  hit.matchedMedicationClassIds,
+                ).any(finding.classes.contains),
+          )
+          .toList(growable: false);
+      final strongest = overlap.fold<int>(
+        -1,
+        (max, hit) => hit.severity.weight > max ? hit.severity.weight : max,
+      );
+      if (overlap.isNotEmpty && finding.result.severity.weight <= strongest) {
+        continue;
+      }
+      medicationInteractions.removeWhere(overlap.contains);
+      if (seenStackIds.add(finding.result.id)) {
+        stackInteractions.add(finding.result);
       }
     }
   }
@@ -1518,4 +1571,18 @@ List<String> _decodeStackStringList(String? raw) {
   } on FormatException {
     return const <String>[];
   }
+}
+
+/// A product warning scoped only to medication classes, held until the curated
+/// medication pairs for its product are known.
+class _ClassScopedFinding {
+  const _ClassScopedFinding({
+    required this.result,
+    required this.subject,
+    required this.classes,
+  });
+
+  final InteractionResult result;
+  final String subject;
+  final Set<String> classes;
 }
