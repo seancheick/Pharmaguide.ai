@@ -721,32 +721,45 @@ final stackSafetyReportProvider = FutureProvider<StackSafetyReport>((
   }
   // One hazard, one finding: where a curated pair covers the same ingredient
   // and medication class, keep the harder of the two, as Product Detail does.
-  for (final MapEntry(key: dsldId, value: findings)
-      in classScopedFindings.entries) {
-    final curated = curatedHitsByProduct[dsldId] ?? const <InteractionResult>[];
-    for (final finding in findings) {
-      final overlap = curated
-          .where(
-            (hit) =>
-                finding.subject.isNotEmpty &&
-                (hit.matchedSupplementCanonicalId ?? '').trim().toLowerCase() ==
-                    finding.subject &&
-                MedicationClassBridge.profileGateIdsForClasses(
-                  hit.matchedMedicationClassIds,
-                ).any(finding.classes.contains),
-          )
-          .toList(growable: false);
-      final strongest = overlap.fold<int>(
-        -1,
-        (max, hit) => hit.severity.weight > max ? hit.severity.weight : max,
-      );
-      if (overlap.isNotEmpty && finding.result.severity.weight <= strongest) {
-        continue;
-      }
-      medicationInteractions.removeWhere(overlap.contains);
-      if (seenStackIds.add(finding.result.id)) {
-        stackInteractions.add(finding.result);
-      }
+  // Overlaps are resolved together and by curated row id: a curated hit is
+  // dropped when any overlapping finding is stronger, and a finding is
+  // suppressed only by a curated hit that stays in the report.
+  final overlaps = <({_ClassScopedFinding finding, List<InteractionResult> hits})>[
+    for (final MapEntry(key: dsldId, value: findings)
+        in classScopedFindings.entries)
+      for (final finding in findings)
+        (
+          finding: finding,
+          hits: (curatedHitsByProduct[dsldId] ?? const <InteractionResult>[])
+              .where(
+                (hit) =>
+                    finding.subject.isNotEmpty &&
+                    (hit.matchedSupplementCanonicalId ?? '')
+                            .trim()
+                            .toLowerCase() ==
+                        finding.subject &&
+                    MedicationClassBridge.profileGateIdsForClasses(
+                      hit.matchedMedicationClassIds,
+                    ).any(finding.classes.contains),
+              )
+              .toList(growable: false),
+        ),
+  ];
+  final droppedCuratedIds = <String>{
+    for (final o in overlaps)
+      for (final hit in o.hits)
+        if (o.finding.result.severity.weight > hit.severity.weight) hit.id,
+  };
+  medicationInteractions.removeWhere((r) => droppedCuratedIds.contains(r.id));
+  for (final o in overlaps) {
+    final coveredByKeptHit = o.hits.any(
+      (hit) =>
+          !droppedCuratedIds.contains(hit.id) &&
+          hit.severity.weight >= o.finding.result.severity.weight,
+    );
+    if (coveredByKeptHit) continue;
+    if (seenStackIds.add(o.finding.result.id)) {
+      stackInteractions.add(o.finding.result);
     }
   }
   if (safetyMedications.isNotEmpty) {

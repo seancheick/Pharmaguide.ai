@@ -305,6 +305,40 @@ void main() {
       );
     });
 
+    test(
+      'a curated pair removed by a harder rule never hides a softer rule '
+      'for another class of the same medicine',
+      () async {
+        // Pair (avoid) sits between the anticoagulant rule (contraindicated)
+        // and the statin rule (caution). The pair is dropped, so the statin
+        // rule must show; before the fix neither the pair nor it appeared.
+        final container = await _container(
+          blob: sjw,
+          dsldId: '18219',
+          medications: [
+            _row(
+              'warfarin',
+              type: 'medication',
+              rxcui: '11289',
+              drugClassesCol: '["class:anticoagulants","class:statins"]',
+            ),
+          ],
+          keyIngredientTags: const ['st_john_s_wort'],
+          curatedAnticoagulantPairSeverity: 'avoid',
+        );
+        final r = await container.read(stackSafetyReportProvider.future);
+        expect(_stackHas(r, ruleTitle), isTrue);
+        expect(
+          r.medicationInteractions.map((i) => i.id),
+          isNot(contains('DSI_FIXTURE_ANTICOAG_SJW')),
+        );
+        expect(
+          _stackHas(r, "St. John's Wort Herb Extract / statins"),
+          isTrue,
+        );
+      },
+    );
+
     test('a harder class rule replaces a softer curated pair', () async {
       final r = await report('caution');
       expect(_stackHas(r, ruleTitle), isTrue);
@@ -400,7 +434,9 @@ void main() {
           final warned =
               _stackHas(report, 'Senna / cardiac_glycosides') ||
               report.medicationInteractions.any(
-                (r) => r.severity.weight >= Severity.caution.weight,
+                (r) =>
+                    r.matchedSupplementCanonicalId == 'senna' &&
+                    r.severity.weight >= Severity.caution.weight,
               );
           expect(
             warned,
