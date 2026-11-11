@@ -667,14 +667,16 @@ class StackInteractionChecker {
   /// only surfaces once. Spec §0.2.
   ///
   /// A pair matched by RxCUI on both sides is more specific than one matched
-  /// through a class. When both match the same two single-ingredient
-  /// medications, only the direct pair is shown (simvastatin + gemfibrozil is
-  /// contraindicated; the statin class pair is avoid), as
-  /// [checkMedicationInteractions] does for medication × nutrient pairs. A
-  /// class pair still reports any other medication in that class that has no
-  /// direct pair, and a combination medication keeps its class pairs, because
-  /// another ingredient may match the class (warfarin with an
-  /// acetaminophen–ibuprofen product keeps the NSAID warning).
+  /// through a class. A direct pair replaces a class pair for the same two
+  /// medications only when it covers both sides: each class side contains the
+  /// direct pair's medicine in `drug_class_map` (simvastatin is a statin, so
+  /// simvastatin + gemfibrozil, contraindicated, replaces the statin class
+  /// pair, avoid), as [checkMedicationInteractions] does for medication ×
+  /// nutrient pairs. A class the direct pair's medicine is not a member of came
+  /// from another ingredient, so it stays (warfarin with an acetaminophen–
+  /// ibuprofen product keeps the NSAID warning), whether or not the saved
+  /// ingredient list is complete; unknown membership keeps both warnings. A
+  /// class pair still reports any other medication in that class.
   Future<List<InteractionResult>> checkMedicationPairInteractions({
     required List<UserStacksLocalData> newMedications,
     required List<UserStacksLocalData> existingMedications,
@@ -691,6 +693,8 @@ class StackInteractionChecker {
             UserStacksLocalData newMed,
             List<UserStacksLocalData> others,
             bool viaClass,
+            ({String type, String id}) newSide,
+            ({String type, String id}) otherSide,
           })
         >[];
 
@@ -770,22 +774,27 @@ class StackInteractionChecker {
         // Identify the OTHER side relative to the new medication.
         final String? otherType;
         final String? otherId;
+        final bool newIsAgent1;
         var newViaClass = false;
         if (newMedRxcuis.contains(row.agent1Id)) {
           otherType = row.agent2Type;
           otherId = row.agent2Id;
+          newIsAgent1 = true;
         } else if (newMedRxcuis.contains(row.agent2Id)) {
           otherType = row.agent1Type;
           otherId = row.agent1Id;
+          newIsAgent1 = false;
         } else if (row.agent1Type == 'drug_class' &&
             newClassSet.contains(row.agent1Id)) {
           otherType = row.agent2Type;
           otherId = row.agent2Id;
+          newIsAgent1 = true;
           newViaClass = true;
         } else if (row.agent2Type == 'drug_class' &&
             newClassSet.contains(row.agent2Id)) {
           otherType = row.agent1Type;
           otherId = row.agent1Id;
+          newIsAgent1 = false;
           newViaClass = true;
         } else {
           continue;
@@ -806,29 +815,57 @@ class StackInteractionChecker {
           newMed: newMed,
           others: others,
           viaClass: newViaClass || otherType == 'drug_class',
+          newSide: newIsAgent1
+              ? (type: row.agent1Type, id: row.agent1Id)
+              : (type: row.agent2Type, id: row.agent2Id),
+          otherSide: (type: otherType, id: otherId),
         ));
       }
     }
 
     String pairKey(String a, String b) =>
         a.compareTo(b) <= 0 ? '$a\u0000$b' : '$b\u0000$a';
-    bool singleIngredient(UserStacksLocalData med) =>
-        medicationIngredientsFor(med).length <= 1;
-    final directPairs = <String>{
-      for (final c in candidates)
-        if (!c.viaClass && singleIngredient(c.newMed))
-          for (final other in c.others)
-            if (singleIngredient(other)) pairKey(c.newMed.id, other.id),
-    };
+    // The RxCUIs each direct pair names, per medication, for each pair of medications.
+    final directIds = <String, List<Map<String, String>>>{};
+    for (final c in candidates) {
+      if (c.viaClass) continue;
+      for (final other in c.others) {
+        (directIds[pairKey(c.newMed.id, other.id)] ??= []).add({
+          c.newMed.id: c.newSide.id,
+          other.id: c.otherSide.id,
+        });
+      }
+    }
+    final classesOfRxcui = <String, Set<String>>{};
+    Future<bool> covers(({String type, String id}) side, String rxcui) async {
+      if (side.type == 'drug') return side.id == rxcui;
+      if (side.type != 'drug_class') return false;
+      final classes = classesOfRxcui[rxcui] ??= (await db.drugClassesForRxcui(
+        rxcui,
+      )).toSet();
+      return classes.contains(side.id);
+    }
 
     final results = <InteractionResult>[];
     final seenRowIds = <String>{};
     for (final c in candidates) {
-      final others = c.viaClass
-          ? c.others
-                .where((o) => !directPairs.contains(pairKey(c.newMed.id, o.id)))
-                .toList()
-          : c.others;
+      var others = c.others;
+      if (c.viaClass) {
+        others = <UserStacksLocalData>[];
+        for (final other in c.others) {
+          var replaced = false;
+          for (final direct
+              in directIds[pairKey(c.newMed.id, other.id)] ??
+                  const <Map<String, String>>[]) {
+            if (await covers(c.newSide, direct[c.newMed.id]!) &&
+                await covers(c.otherSide, direct[other.id]!)) {
+              replaced = true;
+              break;
+            }
+          }
+          if (!replaced) others.add(other);
+        }
+      }
       if (others.isEmpty) continue;
       if (!seenRowIds.add(c.row.id)) continue;
       results.add(
