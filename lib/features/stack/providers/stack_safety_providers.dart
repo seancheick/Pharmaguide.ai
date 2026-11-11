@@ -724,27 +724,29 @@ final stackSafetyReportProvider = FutureProvider<StackSafetyReport>((
   // Overlaps are resolved together and by curated row id: a curated hit is
   // dropped when any overlapping finding is stronger, and a finding is
   // suppressed only by a curated hit that stays in the report.
-  final overlaps = <({_ClassScopedFinding finding, List<InteractionResult> hits})>[
-    for (final MapEntry(key: dsldId, value: findings)
-        in classScopedFindings.entries)
-      for (final finding in findings)
-        (
-          finding: finding,
-          hits: (curatedHitsByProduct[dsldId] ?? const <InteractionResult>[])
-              .where(
-                (hit) =>
-                    finding.subject.isNotEmpty &&
-                    (hit.matchedSupplementCanonicalId ?? '')
-                            .trim()
-                            .toLowerCase() ==
-                        finding.subject &&
-                    MedicationClassBridge.profileGateIdsForClasses(
-                      hit.matchedMedicationClassIds,
-                    ).any(finding.classes.contains),
-              )
-              .toList(growable: false),
-        ),
-  ];
+  final overlaps =
+      <({_ClassScopedFinding finding, List<InteractionResult> hits})>[
+        for (final MapEntry(key: dsldId, value: findings)
+            in classScopedFindings.entries)
+          for (final finding in findings)
+            (
+              finding: finding,
+              hits:
+                  (curatedHitsByProduct[dsldId] ?? const <InteractionResult>[])
+                      .where(
+                        (hit) =>
+                            finding.subject.isNotEmpty &&
+                            (hit.matchedSupplementCanonicalId ?? '')
+                                    .trim()
+                                    .toLowerCase() ==
+                                finding.subject &&
+                            MedicationClassBridge.profileGateIdsForClasses(
+                              hit.matchedMedicationClassIds,
+                            ).any(finding.classes.contains),
+                      )
+                      .toList(growable: false),
+            ),
+      ];
   final droppedCuratedIds = <String>{
     for (final o in overlaps)
       for (final hit in o.hits)
