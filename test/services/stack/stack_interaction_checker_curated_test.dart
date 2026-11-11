@@ -1311,6 +1311,128 @@ void main() {
         });
       },
     );
+
+    test(
+      'an exact pair replaces the class pair for every saved record of that medicine',
+      () async {
+        await db.batch((b) {
+          b.insert(
+            db.interactions,
+            _row(
+              id: 'DDI_STATIN_GEMFIBROZIL',
+              a1Type: 'drug_class',
+              a1Id: 'class:statins',
+              a1Name: 'Statins (class)',
+              a2Type: 'drug',
+              a2Id: '4719',
+              a2Name: 'Gemfibrozil',
+              severity: 'avoid',
+            ),
+          );
+          b.insert(
+            db.interactions,
+            _row(
+              id: 'DDI_SIMVASTATIN_GEMFIBROZIL',
+              a1Type: 'drug',
+              a1Id: '36567',
+              a1Name: 'Simvastatin',
+              a2Type: 'drug',
+              a2Id: '4719',
+              a2Name: 'Gemfibrozil',
+              severity: 'contraindicated',
+            ),
+          );
+        });
+        // Two saved records of the same medicine share its RxCUI.
+        final simvastatin = _medication(
+          id: 'simva',
+          name: 'Simvastatin',
+          rxcui: '36567',
+          drugClassesJson: '["class:statins"]',
+        );
+        final zocor = _medication(
+          id: 'zocor',
+          name: 'Zocor',
+          rxcui: '104490',
+          genericRxcui: '36567',
+          drugClassesJson: '["class:statins"]',
+        );
+        final gemfibrozil = _medication(
+          id: 'gem',
+          name: 'Gemfibrozil',
+          rxcui: '4719',
+        );
+
+        final results = await checker.checkMedicationPairInteractions(
+          newMedications: [gemfibrozil],
+          existingMedications: [simvastatin, zocor],
+          db: db,
+        );
+        expect(results.map((r) => r.id), ['DDI_SIMVASTATIN_GEMFIBROZIL']);
+      },
+    );
+
+    test(
+      'a combination medicine keeps the class warning another ingredient matches',
+      () async {
+        await db.batch((b) {
+          b.insert(
+            db.interactions,
+            _row(
+              id: 'DDI_WARFARIN_ACETAMINOPHEN',
+              a1Type: 'drug',
+              a1Id: '11289',
+              a1Name: 'Warfarin',
+              a2Type: 'drug',
+              a2Id: '161',
+              a2Name: 'Acetaminophen',
+              severity: 'caution',
+            ),
+          );
+          b.insert(
+            db.interactions,
+            _row(
+              id: 'DDI_ANTICOAGULANT_NSAID',
+              a1Type: 'drug_class',
+              a1Id: 'class:anticoagulants',
+              a1Name: 'Anticoagulants (class)',
+              a2Type: 'drug_class',
+              a2Id: 'class:nsaids',
+              a2Name: 'NSAIDs (class)',
+              severity: 'avoid',
+            ),
+          );
+        });
+        final warfarin = _medication(
+          id: 'warf',
+          name: 'Warfarin',
+          rxcui: '11289',
+          drugClassesJson: '["class:anticoagulants"]',
+        );
+        final combination = _medication(
+          id: 'combo',
+          name: 'Acetaminophen and ibuprofen',
+          rxcui: '2373261',
+          ingredientRxcuis: const ['161', '5640'],
+          drugClassesJson: '["class:nsaids"]',
+        );
+
+        for (final (newMeds, existing) in [
+          ([warfarin], [combination]),
+          ([combination], [warfarin]),
+        ]) {
+          final results = await checker.checkMedicationPairInteractions(
+            newMedications: newMeds,
+            existingMedications: existing,
+            db: db,
+          );
+          expect(results.map((r) => r.id).toSet(), {
+            'DDI_WARFARIN_ACETAMINOPHEN',
+            'DDI_ANTICOAGULANT_NSAID',
+          });
+        }
+      },
+    );
   });
 
   // -------------------------------------------------------------------------

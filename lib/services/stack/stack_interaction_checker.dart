@@ -667,11 +667,14 @@ class StackInteractionChecker {
   /// only surfaces once. Spec §0.2.
   ///
   /// A pair matched by RxCUI on both sides is more specific than one matched
-  /// through a class. When both match the same two medications, only the
-  /// direct pair is shown (simvastatin + gemfibrozil is contraindicated; the
-  /// statin class pair is avoid), as [checkMedicationInteractions] does for
-  /// medication × nutrient pairs. A class pair still reports any other
-  /// medication in that class that has no direct pair.
+  /// through a class. When both match the same two single-ingredient
+  /// medications, only the direct pair is shown (simvastatin + gemfibrozil is
+  /// contraindicated; the statin class pair is avoid), as
+  /// [checkMedicationInteractions] does for medication × nutrient pairs. A
+  /// class pair still reports any other medication in that class that has no
+  /// direct pair, and a combination medication keeps its class pairs, because
+  /// another ingredient may match the class (warfarin with an
+  /// acetaminophen–ibuprofen product keeps the NSAID warning).
   Future<List<InteractionResult>> checkMedicationPairInteractions({
     required List<UserStacksLocalData> newMedications,
     required List<UserStacksLocalData> existingMedications,
@@ -731,7 +734,7 @@ class StackInteractionChecker {
 
       // Build a set of rxcuis + classes from the existing medications
       // to match the OTHER side of each row.
-      final existingRxcuis = <String, UserStacksLocalData>{};
+      final existingRxcuis = <String, Set<UserStacksLocalData>>{};
       final existingClasses = <String, List<UserStacksLocalData>>{};
       for (final med in existingMedications) {
         final rx = med.rxcui?.trim();
@@ -740,15 +743,15 @@ class StackInteractionChecker {
           continue;
         }
         if (rx != null && rx.isNotEmpty) {
-          existingRxcuis.putIfAbsent(rx, () => med);
+          (existingRxcuis[rx] ??= <UserStacksLocalData>{}).add(med);
         }
         // Also index generic rxcui for existing meds.
         final genRx = med.genericRxcui?.trim();
         if (genRx != null && genRx.isNotEmpty) {
-          existingRxcuis.putIfAbsent(genRx, () => med);
+          (existingRxcuis[genRx] ??= <UserStacksLocalData>{}).add(med);
         }
         for (final ingRxcui in _ingredientRxcuisFor(med)) {
-          existingRxcuis.putIfAbsent(ingRxcui, () => med);
+          (existingRxcuis[ingRxcui] ??= <UserStacksLocalData>{}).add(med);
         }
         for (final cls in _drugClassesFor(med)) {
           (existingClasses[cls] ??= <UserStacksLocalData>[]).add(med);
@@ -790,8 +793,7 @@ class StackInteractionChecker {
 
         final List<UserStacksLocalData> others;
         if (otherType == 'drug') {
-          final med = existingRxcuis[otherId];
-          others = med == null ? const [] : [med];
+          others = existingRxcuis[otherId]?.toList() ?? const [];
         } else if (otherType == 'drug_class') {
           others = existingClasses[otherId] ?? const [];
         } else {
@@ -810,10 +812,13 @@ class StackInteractionChecker {
 
     String pairKey(String a, String b) =>
         a.compareTo(b) <= 0 ? '$a\u0000$b' : '$b\u0000$a';
+    bool singleIngredient(UserStacksLocalData med) =>
+        medicationIngredientsFor(med).length <= 1;
     final directPairs = <String>{
       for (final c in candidates)
-        if (!c.viaClass)
-          for (final other in c.others) pairKey(c.newMed.id, other.id),
+        if (!c.viaClass && singleIngredient(c.newMed))
+          for (final other in c.others)
+            if (singleIngredient(other)) pairKey(c.newMed.id, other.id),
     };
 
     final results = <InteractionResult>[];
