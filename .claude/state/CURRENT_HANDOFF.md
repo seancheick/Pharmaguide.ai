@@ -1,3 +1,28 @@
+# Interaction audit — Stage 1 baseline done (2026-11-11)
+
+Lane: branch `claude/interaction-baseline` in both repos (worktrees /Users/seancheick/worktrees/dsld-interaction-baseline
+and /Users/seancheick/worktrees/app-interaction-baseline). Plan: /Users/seancheick/.claude/plans/i-recieved-this-feedback-sparkling-boot.md (approved).
+Class: tests only + dated audit; no production behaviour change.
+
+Pipeline 4ed305a08: `scripts/audits/interaction_audit_20261111/` (FINDINGS.md evidence ledger, baseline.py,
+baseline.json pins, sample_ids.json) and `scripts/tests/test_interaction_baseline_reproductions.py`
+(1 pass, 8 strict xfail; each xfail checked with --runxfail to fail on its own assertion).
+App 5fef332b: `test/interaction_baseline/interaction_baseline_reproductions_test.dart` (5 reproductions seen RED,
+then `skip`; controls pass; analyze clean).
+
+Corrections to the audit: 79 unreachable sub-rules, not 81 (two SSRI sub-rules carry an authored `ssris` alias,
+and the app matches `drug_classes_any`). New: SNRIs (venlafaxine 39786, duloxetine 72625) are in no class, so the
+St. John's wort contraindication never reaches them and no curated pair covers them.
+Not done: the ginkgo + warfarin conflict reproduction and the regenerated 18-pair conflict list (moved to Stage 3); no simulator run.
+
+Owner Check: drug_classes.json / ingredient_interaction_rules.json / timing_rules.json / curated_interactions (data);
+medication_class_bridge.dart::profileGateIdsForClasses, stack_safety_providers.dart::stackSafetyReportProvider and
+_normalizeMedicationRowsForSafety (app). Will NOT create: severity, registry, status, second engine.
+Next: Stage 2 (crosswalk exported from drug_classes.json, memberships with exclusions, Stack class-only delivery,
+truthful completeness). Membership and hypoglycemic tiers need PharmD sign-off on the prepared content.
+
+---
+
 # Evidence V1 — current implementation and qualification
 
 Sean approved ingredient-first, claim-independent, preparation-aware research within the existing scan/product page, six pillars and 20-point Evidence owner. Latest clarification expressly excludes a new discovery or sexual-wellness feature.
