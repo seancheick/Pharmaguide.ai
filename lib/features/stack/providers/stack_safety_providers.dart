@@ -1043,7 +1043,12 @@ _normalizeMedicationRowsForSafety(
       runtimeClassIds: snapshot.drugClassIds,
     );
     final mergedClasses = resolution.mergedInteractionClassIds;
-    if (mergedClasses.isEmpty) {
+    // Nothing in the interaction data can match a medicine that has neither
+    // an RxCUI nor a recognised class, even when RxClass slugs were stored.
+    final unmatched =
+        resolution.rxcuis.isEmpty &&
+        resolution.curatedInteractionClassIds.isEmpty;
+    if (mergedClasses.isEmpty || unmatched) {
       // No drug class could be resolved for this medication from any source
       // (e.g. a brand RxCUI like Advil saved before its ingredient + classes
       // hydrated, then evaluated offline). Class-level interaction and

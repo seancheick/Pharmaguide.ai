@@ -402,9 +402,60 @@ void main() {
               report.medicationInteractions.any(
                 (r) => r.severity.weight >= Severity.caution.weight,
               );
-          expect(warned, isTrue, reason: 'silent all-clear for digoxin + senna');
+          expect(
+            warned,
+            isTrue,
+            reason: 'silent all-clear for digoxin + senna',
+          );
         },
-        );
+      );
     }
+  });
+
+  group('medication completeness', () {
+    test(
+      'a medicine with no RxCUI and no recognised class is not reported as checked',
+      () async {
+        // A class-only entry whose stored RxClass slug is not in the bundled
+        // class map: nothing in the interaction data can be matched to it.
+        final container = await _container(
+          blob: sjw,
+          dsldId: '18219',
+          medications: [
+            _row(
+              'unmatched',
+              type: 'medication',
+              drugClassesCol: jsonEncode(['class:digitalis_glycosides']),
+            ),
+          ],
+        );
+        final report = await container.read(stackSafetyReportProvider.future);
+        expect(report.checksIncomplete, isTrue);
+      },
+    );
+
+    test(
+      'control: an identified medicine in no tracked group stays checked',
+      () async {
+        // Amoxicillin by RxCUI: its pairs were checked, it simply belongs to no
+        // group the rules name. Flagging it would be noise, not truth.
+        final container = await _container(
+          blob: sjw,
+          dsldId: '18219',
+          medications: [
+            _row(
+              'amoxicillin',
+              type: 'medication',
+              rxcui: '723',
+              drugClassesCol: jsonEncode([
+                'class:penicillins_with_extended_spectrum',
+              ]),
+            ),
+          ],
+        );
+        final report = await container.read(stackSafetyReportProvider.future);
+        expect(report.checksIncomplete, isFalse);
+      },
+    );
   });
 }
