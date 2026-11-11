@@ -3,10 +3,10 @@
     "description": "Shared evaluator fixture for v6.0 profile_gate. Python (scripts/profile_gate_evaluator.py) and Dart (Flutter alert-rendering layer) MUST both produce the same fires/severity output for every case below. Drift between the two implementations is the failure this fixture catches.",
     "purpose": "profile_gate_evaluator_cross_runtime_fixture",
     "schema_version": "1.1.0",
-    "total_entries": 81,
+    "total_entries": 85,
     "evaluator_contract_version": "6.0",
     "last_updated": "2026-11-11",
-    "case_count": 81,
+    "case_count": 85,
     "see_also": [
       "scripts/INTERACTION_RULE_SCHEMA_V6_ADR.md",
       "scripts/profile_gate_evaluator.py"
@@ -1364,91 +1364,6 @@
       "expected": {
         "fires": true,
         "severity": "caution"
-      }
-    },
-    {
-      "name": "gold_warfarin_only_gate_skips_a_doac_user",
-      "description": "Warfarin-specific St. John's wort evidence does not fire for a DOAC user",
-      "gate": {
-        "gate_type": "drug_class",
-        "requires": {
-          "conditions_any": [],
-          "drug_classes_any": [
-            "anticoagulants"
-          ],
-          "profile_flags_any": []
-        },
-        "excludes": {
-          "conditions_any": [],
-          "drug_classes_any": [
-            "doacs"
-          ],
-          "profile_flags_any": [],
-          "product_forms_any": [],
-          "nutrient_forms_any": []
-        },
-        "dose": null
-      },
-      "user_profile": {
-        "conditions": [],
-        "drug_classes": [
-          "anticoagulants",
-          "doacs"
-        ],
-        "profile_flags": []
-      },
-      "product_context": {
-        "product_form": null,
-        "nutrient_form": null,
-        "dose_per_day": null,
-        "dose_unit": null
-      },
-      "base_severity": "avoid",
-      "expected": {
-        "fires": false,
-        "severity": null
-      }
-    },
-    {
-      "name": "gold_warfarin_only_gate_keeps_an_unknown_blood_thinner",
-      "description": "Warfarin-specific evidence still fires when the blood thinner is not identified",
-      "gate": {
-        "gate_type": "drug_class",
-        "requires": {
-          "conditions_any": [],
-          "drug_classes_any": [
-            "anticoagulants"
-          ],
-          "profile_flags_any": []
-        },
-        "excludes": {
-          "conditions_any": [],
-          "drug_classes_any": [
-            "doacs"
-          ],
-          "profile_flags_any": [],
-          "product_forms_any": [],
-          "nutrient_forms_any": []
-        },
-        "dose": null
-      },
-      "user_profile": {
-        "conditions": [],
-        "drug_classes": [
-          "anticoagulants"
-        ],
-        "profile_flags": []
-      },
-      "product_context": {
-        "product_form": null,
-        "nutrient_form": null,
-        "dose_per_day": null,
-        "dose_unit": null
-      },
-      "base_severity": "avoid",
-      "expected": {
-        "fires": true,
-        "severity": "avoid"
       }
     },
     {
@@ -3679,6 +3594,261 @@
       "expected": {
         "fires": false,
         "severity": null
+      }
+    },
+    {
+      "name": "gold_warfarin_only_vka_gate_fires_for_warfarin",
+      "description": "Warfarin-specific St. John's wort evidence fires for an identified warfarin-type medicine",
+      "gate": {
+        "gate_type": "drug_class",
+        "requires": {
+          "conditions_any": [],
+          "drug_classes_any": [
+            "vitamin_k_antagonists"
+          ],
+          "profile_flags_any": []
+        },
+        "excludes": {
+          "conditions_any": [],
+          "drug_classes_any": [],
+          "profile_flags_any": [],
+          "product_forms_any": [],
+          "nutrient_forms_any": []
+        },
+        "dose": null
+      },
+      "user_profile": {
+        "conditions": [],
+        "drug_classes": [
+          "anticoagulants",
+          "vitamin_k_antagonists"
+        ],
+        "profile_flags": []
+      },
+      "product_context": {
+        "product_form": null,
+        "nutrient_form": null,
+        "dose_per_day": null,
+        "dose_unit": null
+      },
+      "base_severity": "avoid",
+      "expected": {
+        "fires": true,
+        "severity": "avoid"
+      }
+    },
+    {
+      "name": "gold_warfarin_only_vka_gate_keeps_warfarin_with_a_doac",
+      "description": "A DOAC elsewhere in the medicine list does not veto the warfarin finding",
+      "gate": {
+        "gate_type": "drug_class",
+        "requires": {
+          "conditions_any": [],
+          "drug_classes_any": [
+            "vitamin_k_antagonists"
+          ],
+          "profile_flags_any": []
+        },
+        "excludes": {
+          "conditions_any": [],
+          "drug_classes_any": [],
+          "profile_flags_any": [],
+          "product_forms_any": [],
+          "nutrient_forms_any": []
+        },
+        "dose": null
+      },
+      "user_profile": {
+        "conditions": [],
+        "drug_classes": [
+          "anticoagulants",
+          "doacs",
+          "vitamin_k_antagonists"
+        ],
+        "profile_flags": []
+      },
+      "product_context": {
+        "product_form": null,
+        "nutrient_form": null,
+        "dose_per_day": null,
+        "dose_unit": null
+      },
+      "base_severity": "avoid",
+      "expected": {
+        "fires": true,
+        "severity": "avoid"
+      }
+    },
+    {
+      "name": "gold_warfarin_only_vka_gate_skips_a_doac_user",
+      "description": "Warfarin-specific evidence does not fire for a DOAC user",
+      "gate": {
+        "gate_type": "drug_class",
+        "requires": {
+          "conditions_any": [],
+          "drug_classes_any": [
+            "vitamin_k_antagonists"
+          ],
+          "profile_flags_any": []
+        },
+        "excludes": {
+          "conditions_any": [],
+          "drug_classes_any": [],
+          "profile_flags_any": [],
+          "product_forms_any": [],
+          "nutrient_forms_any": []
+        },
+        "dose": null
+      },
+      "user_profile": {
+        "conditions": [],
+        "drug_classes": [
+          "anticoagulants",
+          "doacs"
+        ],
+        "profile_flags": []
+      },
+      "product_context": {
+        "product_form": null,
+        "nutrient_form": null,
+        "dose_per_day": null,
+        "dose_unit": null
+      },
+      "base_severity": "avoid",
+      "expected": {
+        "fires": false,
+        "severity": null
+      }
+    },
+    {
+      "name": "gold_warfarin_only_fallback_skips_an_identified_warfarin",
+      "description": "The fallback stays quiet when the VKA sub-rule carries the finding, so it is not shown twice",
+      "gate": {
+        "gate_type": "drug_class",
+        "requires": {
+          "conditions_any": [],
+          "drug_classes_any": [
+            "anticoagulants"
+          ],
+          "profile_flags_any": []
+        },
+        "excludes": {
+          "conditions_any": [],
+          "drug_classes_any": [
+            "doacs",
+            "vitamin_k_antagonists"
+          ],
+          "profile_flags_any": [],
+          "product_forms_any": [],
+          "nutrient_forms_any": []
+        },
+        "dose": null
+      },
+      "user_profile": {
+        "conditions": [],
+        "drug_classes": [
+          "anticoagulants",
+          "vitamin_k_antagonists"
+        ],
+        "profile_flags": []
+      },
+      "product_context": {
+        "product_form": null,
+        "nutrient_form": null,
+        "dose_per_day": null,
+        "dose_unit": null
+      },
+      "base_severity": "avoid",
+      "expected": {
+        "fires": false,
+        "severity": null
+      }
+    },
+    {
+      "name": "gold_warfarin_only_fallback_skips_a_doac_user",
+      "description": "The fallback does not fire when the blood thinner is an identified DOAC (a 'Blood thinners' selection alongside an entered DOAC reads as that DOAC)",
+      "gate": {
+        "gate_type": "drug_class",
+        "requires": {
+          "conditions_any": [],
+          "drug_classes_any": [
+            "anticoagulants"
+          ],
+          "profile_flags_any": []
+        },
+        "excludes": {
+          "conditions_any": [],
+          "drug_classes_any": [
+            "doacs",
+            "vitamin_k_antagonists"
+          ],
+          "profile_flags_any": [],
+          "product_forms_any": [],
+          "nutrient_forms_any": []
+        },
+        "dose": null
+      },
+      "user_profile": {
+        "conditions": [],
+        "drug_classes": [
+          "anticoagulants",
+          "doacs"
+        ],
+        "profile_flags": []
+      },
+      "product_context": {
+        "product_form": null,
+        "nutrient_form": null,
+        "dose_per_day": null,
+        "dose_unit": null
+      },
+      "base_severity": "avoid",
+      "expected": {
+        "fires": false,
+        "severity": null
+      }
+    },
+    {
+      "name": "gold_warfarin_only_fallback_keeps_an_unknown_blood_thinner",
+      "description": "Warfarin-specific evidence still fires when the blood thinner is not identified",
+      "gate": {
+        "gate_type": "drug_class",
+        "requires": {
+          "conditions_any": [],
+          "drug_classes_any": [
+            "anticoagulants"
+          ],
+          "profile_flags_any": []
+        },
+        "excludes": {
+          "conditions_any": [],
+          "drug_classes_any": [
+            "doacs",
+            "vitamin_k_antagonists"
+          ],
+          "profile_flags_any": [],
+          "product_forms_any": [],
+          "nutrient_forms_any": []
+        },
+        "dose": null
+      },
+      "user_profile": {
+        "conditions": [],
+        "drug_classes": [
+          "anticoagulants"
+        ],
+        "profile_flags": []
+      },
+      "product_context": {
+        "product_form": null,
+        "nutrient_form": null,
+        "dose_per_day": null,
+        "dose_unit": null
+      },
+      "base_severity": "avoid",
+      "expected": {
+        "fires": true,
+        "severity": "avoid"
       }
     }
   ]
