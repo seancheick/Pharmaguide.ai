@@ -2,8 +2,10 @@
 // page-level cases are in conditional_notes_on_page_test.dart.
 
 import 'package:flutter_test/flutter_test.dart';
+import 'package:pharmaguide/core/data/drug_class_vocab.dart';
+import 'package:pharmaguide/core/data/vocab_registry.dart';
+import 'package:pharmaguide/features/product_detail/v2/sections/review_before_use_section.dart';
 import 'package:pharmaguide/features/product_detail/v2/warnings_pipeline.dart';
-import 'package:pharmaguide/services/warnings/interaction_warning.dart';
 
 Map<String, dynamic> _gate({
   List<String> drugClasses = const [],
@@ -54,7 +56,7 @@ Map<String, dynamic> _row({
   ),
 };
 
-List<InteractionWarning> _notes(
+List<ConditionalNote> _notes(
   List<Map<String, dynamic>> rows, {
   Set<String> drugClasses = const {},
   Set<String> conditions = const {},
@@ -70,6 +72,12 @@ List<InteractionWarning> _notes(
 );
 
 void main() {
+  TestWidgetsFlutterBinding.ensureInitialized();
+  setUpAll(() async {
+    VocabRegistry.instance.debugSeed(drugClasses: await loadDrugClassVocab());
+  });
+  tearDownAll(VocabRegistry.instance.debugReset);
+
   const warfarin = "Avoid St. John's wort with warfarin";
   final warfarinRows = [
     _row(headline: warfarin, drugClass: 'vitamin_k_antagonists'),
@@ -80,9 +88,43 @@ void main() {
     ),
   ];
 
-  test('the warfarin-type and unidentified blood-thinner rows make one note', () {
-    final notes = _notes(warfarinRows);
-    expect(notes.map((n) => n.displayHeadline), [warfarin]);
+  test(
+    'the warfarin-type and unidentified blood-thinner rows make one note',
+    () {
+      final notes = _notes(warfarinRows);
+      expect(notes.map((n) => n.warning.displayHeadline), [warfarin]);
+      // The merged note keeps both classes it is relevant to.
+      expect(notes.single.drugClassIds, {
+        'vitamin_k_antagonists',
+        'anticoagulants',
+      });
+      expect(
+        conditionalNoteScope(notes.single),
+        'Relevant if you take: Warfarin-type blood thinners or Blood thinners. '
+        'Add your medicines to check whether it applies to you.',
+      );
+    },
+  );
+
+  test('a medicine user whose medicines have no class is told to ask', () {
+    expect(
+      conditionalNoteScope(_notes(warfarinRows).single, medicinesEntered: true),
+      'Relevant if you take: Warfarin-type blood thinners or Blood thinners. '
+      "We couldn't match your medicines to a group; ask your pharmacist "
+      'whether this applies to you.',
+    );
+  });
+
+  test('pregnancy and breastfeeding rows with one message keep both', () {
+    const headline = 'Unresolved ingredient identity — avoid';
+    final notes = _notes([
+      _row(headline: headline, condition: 'pregnancy'),
+      _row(headline: headline, condition: 'lactation'),
+    ]);
+    expect(notes, hasLength(1));
+    expect(notes.single.conditionIds, {'pregnancy', 'lactation'});
+    expect(conditionalNoteScope(notes.single), startsWith('Relevant to: '));
+    expect(conditionalNoteScope(notes.single), contains(' or '));
   });
 
   test('a contraindicated finding is a note too (G4 covers both)', () {
@@ -137,7 +179,10 @@ void main() {
   test('a male profile still gets a non-life-stage condition note', () {
     expect(
       _notes([
-        _row(headline: 'Avoid with kidney disease', condition: 'kidney_disease'),
+        _row(
+          headline: 'Avoid with kidney disease',
+          condition: 'kidney_disease',
+        ),
       ], sex: 'Male'),
       hasLength(1),
     );

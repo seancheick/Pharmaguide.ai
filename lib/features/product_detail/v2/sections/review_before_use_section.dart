@@ -514,7 +514,8 @@ bool isMaterialSafetyNote(InteractionWarning warning) =>
 /// warning cards; only actionable rows explicitly marked critical remain.
 Widget? buildGeneralNotesSection({
   required List<InteractionWarning> warnings,
-  List<InteractionWarning> conditionalNotes = const [],
+  List<ConditionalNote> conditionalNotes = const [],
+  bool medicinesEntered = false,
   List<FreeFromClaim> freeFromClaims = const [],
   void Function(List<String> sourceUrls)? onTapCitations,
 }) {
@@ -554,8 +555,12 @@ Widget? buildGeneralNotesSection({
         title: 'Good to know',
         compactWhenCollapsed: true,
         rows: [
-          for (final warning in conditionalNotes)
-            _rowForConditionalNote(warning, onTapCitations: onTapCitations),
+          for (final note in conditionalNotes)
+            _rowForConditionalNote(
+              note,
+              medicinesEntered: medicinesEntered,
+              onTapCitations: onTapCitations,
+            ),
           for (final warning in sortWarningsBySeverity(profileNotes))
             _rowForProfileNote(warning, onTapCitations: onTapCitations),
           for (final claim in reassuringClaims) rowForFreeFromClaim(claim),
@@ -606,32 +611,45 @@ Widget? buildGeneralNotesSection({
 
 /// The profile qualifier of a G4 conditional note: who it is for, and how to
 /// check. Names come from the bundled vocabularies (the medication-class and
-/// condition names the profile screens use).
-String conditionalNoteScope(InteractionWarning warning) {
+/// condition names the profile screens use). [medicinesEntered] is true when
+/// the user has added medicines the app could not place in any class.
+String conditionalNoteScope(
+  ConditionalNote note, {
+  bool medicinesEntered = false,
+}) {
   final registry = VocabRegistry.instance;
-  String names(Iterable<String> ids, String? Function(String) name) => ids
-      .map((id) => name(id) ?? id.replaceAll('_', ' '))
-      .toSet()
-      .join(' or ');
-  if (warning.drugClassIds.isNotEmpty) {
-    return 'Relevant if you take: '
-        '${names(warning.drugClassIds, (id) => registry.drugClass(id)?.name)}. '
-        'Add your medicines to check whether it applies to you.';
-  }
-  return 'Relevant to: '
-      '${names(warning.conditionIds, (id) => registry.condition(id)?.name)}. '
-      'Add your health details to check whether it applies to you.';
+  String names(Iterable<String> ids, String? Function(String) name) =>
+      ids.map((id) => name(id) ?? id.replaceAll('_', ' ')).toSet().join(' or ');
+  final drugs = note.drugClassIds;
+  final conditions = note.conditionIds;
+  return [
+    if (drugs.isNotEmpty)
+      'Relevant if you take: '
+          '${names(drugs, (id) => registry.drugClass(id)?.name)}.',
+    if (conditions.isNotEmpty)
+      'Relevant to: '
+          '${names(conditions, (id) => registry.condition(id)?.name)}.',
+    if (drugs.isEmpty)
+      'Add your health details to check whether it applies to you.'
+    else if (medicinesEntered)
+      "We couldn't match your medicines to a group; ask your pharmacist "
+          'whether this applies to you.'
+    else
+      'Add your medicines to check whether it applies to you.',
+  ].join(' ');
 }
 
 PGReviewRow _rowForConditionalNote(
-  InteractionWarning warning, {
+  ConditionalNote note, {
+  required bool medicinesEntered,
   void Function(List<String> sourceUrls)? onTapCitations,
 }) {
+  final warning = note.warning;
   final citationCount = warning.sourceUrls.length;
   return PGReviewRow(
     headline: warning.displayHeadline,
     caption: [
-      conditionalNoteScope(warning),
+      conditionalNoteScope(note, medicinesEntered: medicinesEntered),
       warning.evidenceLevel.label,
       if (citationCount > 0)
         '$citationCount citation${citationCount == 1 ? '' : 's'}',

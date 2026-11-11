@@ -27,7 +27,6 @@ import 'package:pharmaguide/features/product_detail/product_detail_helpers.dart'
         lifeStageConditionIds;
 import 'package:pharmaguide/services/warnings/interaction_warning.dart';
 
-
 /// True only for profile-matched context that is useful to retain but should
 /// not read like a danger signal.
 ///
@@ -99,12 +98,21 @@ List<InteractionWarning> composeGuardedWarnings({
   );
 }
 
+/// A G4 conditional note: the warning it shows, and every medicine class or
+/// condition it is relevant to once rows with one message are merged.
+typedef ConditionalNote = ({
+  InteractionWarning warning,
+  Set<String> drugClassIds,
+  Set<String> conditionIds,
+});
+
 /// Compose the conditional notes Product Detail shows in "Good to know"
 /// ([conditionalProductDetailNotes], Dr. Pham G4). Takes the same inputs as
 /// [composeGuardedWarnings] plus the warnings already shown, so a note never
-/// repeats a warning on the page, and two rule rows with one message (such as
-/// a warfarin-type and an unidentified blood-thinner row) become one note.
-List<InteractionWarning> composeConditionalNotes({
+/// repeats a warning on the page. Rows with one message (a warfarin-type and an
+/// unidentified blood-thinner row; a pregnancy and a breastfeeding row) become
+/// one note that keeps every class or condition they name.
+List<ConditionalNote> composeConditionalNotes({
   required Map<String, dynamic>? detailBlob,
   String? productStatus,
   required List<InteractionWarning> personalizedWarnings,
@@ -129,15 +137,28 @@ List<InteractionWarning> composeConditionalNotes({
     userProfileFlags: userProfileFlags,
     sex: sex,
   );
-  final seen = <String>{
+  final shown = <String>{
     for (final w in shownWarnings) ..._consumerWarningIdentities(w),
   };
-  final notes = <InteractionWarning>[];
-  for (final note in candidates) {
-    final identities = _consumerWarningIdentities(note);
-    if (identities.any(seen.contains)) continue;
-    seen.addAll(identities);
-    notes.add(note);
+  final notes = <ConditionalNote>[];
+  final noteByIdentity = <String, ConditionalNote>{};
+  for (final candidate in candidates) {
+    final identities = _consumerWarningIdentities(candidate);
+    if (identities.any(shown.contains)) continue;
+    final kept = identities.map((i) => noteByIdentity[i]).nonNulls.firstOrNull;
+    final note =
+        kept ??
+        (
+          warning: candidate,
+          drugClassIds: <String>{},
+          conditionIds: <String>{},
+        );
+    note.drugClassIds.addAll(candidate.drugClassIds);
+    note.conditionIds.addAll(candidate.conditionIds);
+    if (kept == null) notes.add(note);
+    for (final identity in identities) {
+      noteByIdentity[identity] ??= note;
+    }
   }
   return notes;
 }

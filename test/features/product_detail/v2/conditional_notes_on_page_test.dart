@@ -5,6 +5,8 @@
 // pairs (DSI_TRANYLCYPROMINE_SAME, DSI_MAOI_SAME) and the shipped
 // RULE_IQM_SAME MAOI row in the product's detail blob.
 
+import 'dart:async';
+
 import 'package:drift/drift.dart' show Value;
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -79,7 +81,12 @@ const _blob = <String, dynamic>{
   'warnings_profile_gated': [_sameMaoiRow],
 };
 
-UserStacksLocalData _medication(String id, String name, String rxcui) {
+UserStacksLocalData _medication(
+  String id,
+  String name,
+  String rxcui, {
+  String drugClassesCol = '["class:maois"]',
+}) {
   final ts = DateTime.utc(2026, 11, 11, 12);
   return UserStacksLocalData(
     id: id,
@@ -87,7 +94,7 @@ UserStacksLocalData _medication(String id, String name, String rxcui) {
     name: name,
     rxcui: rxcui,
     genericRxcui: rxcui,
-    drugClassesCol: '["class:maois"]',
+    drugClassesCol: drugClassesCol,
     addedAt: ts,
     clientUpdatedAt: ts,
   );
@@ -132,6 +139,9 @@ InteractionsCompanion _samePair({
 Future<void> _pumpPage(
   WidgetTester tester, {
   List<UserStacksLocalData> stack = const [],
+  Map<String, dynamic> blob = _blob,
+  bool seedPairs = true,
+  bool stackClassesLoading = false,
 }) async {
   final coreDb = CoreDatabase.memory();
   final userDb = UserDatabase.memory();
@@ -148,37 +158,19 @@ Future<void> _pumpPage(
           mappedCoverage: const Value(1),
         ),
       );
-  await interactionDb.into(interactionDb.interactions).insert(
-    _samePair(
-      id: 'DSI_TRANYLCYPROMINE_SAME',
-      agent1Name: 'Tranylcypromine',
-      agent1Id: '10734',
-      mechanism:
-          'The tranylcypromine label lists SAMe among contraindicated '
-          'combinations because of serotonin syndrome.',
-      management: 'Do not take SAMe with tranylcypromine.',
-    ),
-  );
-  await interactionDb.into(interactionDb.interactions).insert(
-    _samePair(
-      id: 'DSI_MAOI_SAME',
-      agent1Type: 'drug_class',
-      agent1Name: 'MAOIs (class)',
-      agent1Id: 'class:maois',
-      mechanism: 'Class inference from the tranylcypromine label.',
-      management: 'Do not combine SAMe with an MAOI.',
-    ),
-  );
+  if (seedPairs) await _seedSamePairs(interactionDb);
   // The shipped class map holds both medicines in class:maois.
-  await interactionDb.into(interactionDb.drugClassMap).insert(
-    DrugClassMapCompanion.insert(
-      classId: 'class:maois',
-      className: 'MAOIs',
-      drugRxcuisJson: '["10734","8123"]',
-      source: 'fixture',
-      lastUpdated: '2026-11-11',
-    ),
-  );
+  await interactionDb
+      .into(interactionDb.drugClassMap)
+      .insert(
+        DrugClassMapCompanion.insert(
+          classId: 'class:maois',
+          className: 'MAOIs',
+          drugRxcuisJson: '["10734","8123"]',
+          source: 'fixture',
+          lastUpdated: '2026-11-11',
+        ),
+      );
   addTearDown(() async {
     await tester.pumpWidget(const SizedBox.shrink());
     await coreDb.close();
@@ -194,8 +186,12 @@ Future<void> _pumpPage(
         interactionDatabaseProvider.overrideWithValue(interactionDb),
         safetyAlertRepositoryProvider.overrideWithValue(_VerifiedNoAlerts()),
         activeStackProvider.overrideWith((ref) async => stack),
-        detailBlobProvider.overrideWith((ref, dsldId) async => _blob),
-        detailBlobForRowProvider.overrideWith((ref, key) async => _blob),
+        detailBlobProvider.overrideWith((ref, dsldId) async => blob),
+        detailBlobForRowProvider.overrideWith((ref, key) async => blob),
+        if (stackClassesLoading)
+          currentStackMedicationClassIdsProvider.overrideWith(
+            (ref) => Completer<Set<String>>().future,
+          ),
         profileProvider.overrideWith((ref) => ProfileNotifier()),
         fitScoreForProductProvider.overrideWith(
           (ref, dsldId) async => const FitScoreResult(
@@ -218,53 +214,83 @@ Future<void> _pumpPage(
   await tester.pumpAndSettle();
 }
 
+Future<void> _seedSamePairs(InteractionDatabase interactionDb) async {
+  await interactionDb
+      .into(interactionDb.interactions)
+      .insert(
+        _samePair(
+          id: 'DSI_TRANYLCYPROMINE_SAME',
+          agent1Name: 'Tranylcypromine',
+          agent1Id: '10734',
+          mechanism:
+              'The tranylcypromine label lists SAMe among contraindicated '
+              'combinations because of serotonin syndrome.',
+          management: 'Do not take SAMe with tranylcypromine.',
+        ),
+      );
+  await interactionDb
+      .into(interactionDb.interactions)
+      .insert(
+        _samePair(
+          id: 'DSI_MAOI_SAME',
+          agent1Type: 'drug_class',
+          agent1Name: 'MAOIs (class)',
+          agent1Id: 'class:maois',
+          mechanism: 'Class inference from the tranylcypromine label.',
+          management: 'Do not combine SAMe with an MAOI.',
+        ),
+      );
+}
+
 void main() {
   setUpAll(() async {
     VocabRegistry.instance.debugSeed(drugClasses: await loadDrugClassVocab());
   });
   tearDownAll(VocabRegistry.instance.debugReset);
 
-  testWidgets('no medicines: SAMe shows a conditional MAOI note, not a warning', (
-    tester,
-  ) async {
-    await _pumpPage(tester);
+  testWidgets(
+    'no medicines: SAMe shows a conditional MAOI note, not a warning',
+    (tester) async {
+      await _pumpPage(tester);
 
-    expect(find.text('Good to know'), findsOneWidget);
-    await tester.tap(find.text('Good to know'));
-    await tester.pumpAndSettle();
-    expect(find.text(_classHeadline, skipOffstage: false), findsOneWidget);
-    expect(
-      find.textContaining(_conditionalScope, skipOffstage: false),
-      findsOneWidget,
-    );
-    expect(find.text('Review for your profile'), findsNothing);
-    expect(find.textContaining("Because you're taking"), findsNothing);
-  });
+      expect(find.text('Good to know'), findsOneWidget);
+      await tester.tap(find.text('Good to know'));
+      await tester.pumpAndSettle();
+      expect(find.text(_classHeadline, skipOffstage: false), findsOneWidget);
+      expect(
+        find.textContaining(_conditionalScope, skipOffstage: false),
+        findsOneWidget,
+      );
+      expect(find.text('Review for your profile'), findsNothing);
+      expect(find.textContaining("Because you're taking"), findsNothing);
+    },
+  );
 
-  testWidgets('an MAOI on the list: the actionable warning, no conditional note', (
-    tester,
-  ) async {
-    await _pumpPage(
-      tester,
-      stack: [_medication('med-phenelzine', 'Phenelzine', '8123')],
-    );
+  testWidgets(
+    'an MAOI on the list: the actionable warning, no conditional note',
+    (tester) async {
+      await _pumpPage(
+        tester,
+        stack: [_medication('med-phenelzine', 'Phenelzine', '8123')],
+      );
 
-    expect(
-      find.textContaining(_conditionalScope, skipOffstage: false),
-      findsNothing,
-    );
-    // The contraindicated class pair is the medication check's answer for
-    // phenelzine; the avoid class rule for the same hazard does not repeat it.
-    expect(
-      find.textContaining(
-        "Because you're taking Phenelzine",
-        skipOffstage: false,
-      ),
-      findsWidgets,
-    );
-    expect(find.text(_classHeadline, skipOffstage: false), findsNothing);
-    expect(find.text('No known concerns'), findsNothing);
-  });
+      expect(
+        find.textContaining(_conditionalScope, skipOffstage: false),
+        findsNothing,
+      );
+      // The contraindicated class pair is the medication check's answer for
+      // phenelzine; the avoid class rule for the same hazard does not repeat it.
+      expect(
+        find.textContaining(
+          "Because you're taking Phenelzine",
+          skipOffstage: false,
+        ),
+        findsWidgets,
+      );
+      expect(find.text(_classHeadline, skipOffstage: false), findsNothing);
+      expect(find.text('No known concerns'), findsNothing);
+    },
+  );
 
   testWidgets(
     'tranylcypromine: the exact contraindication once, with no conditional note',
@@ -297,6 +323,83 @@ void main() {
       expect(find.text('No known concerns'), findsNothing);
     },
   );
+
+  testWidgets(
+    'a contraindicated finding still reaches a matched user as a warning',
+    (tester) async {
+      // G4 ships contraindicated profile rows as informational; a match must
+      // still promote the full warning. No pairs, so the rule row is the answer.
+      final row = <String, dynamic>{
+        ..._sameMaoiRow,
+        'severity': 'contraindicated',
+        'severity_contextual': 'contraindicated',
+      };
+      await _pumpPage(
+        tester,
+        seedPairs: false,
+        blob: {
+          'ingredients': <Map<String, dynamic>>[],
+          'warnings': [row],
+          'warnings_profile_gated': [row],
+        },
+        stack: [_medication('med-phenelzine', 'Phenelzine', '8123')],
+      );
+
+      expect(find.text(_classHeadline, skipOffstage: false), findsWidgets);
+      expect(
+        find.textContaining('Relevant if you take', skipOffstage: false),
+        findsNothing,
+      );
+      expect(find.text('No known concerns'), findsNothing);
+    },
+  );
+
+  testWidgets(
+    'a medicine the app could not classify: the note asks the pharmacist',
+    (tester) async {
+      await _pumpPage(
+        tester,
+        stack: [
+          _medication(
+            'med-unknown',
+            'Unlisted medicine',
+            '999999',
+            drugClassesCol: '[]',
+          ),
+        ],
+      );
+
+      await tester.tap(find.text('Good to know'));
+      await tester.pumpAndSettle();
+      expect(
+        find.textContaining(
+          "Relevant if you take: MAOIs. We couldn't match your medicines to a "
+          'group; ask your pharmacist whether this applies to you.',
+          skipOffstage: false,
+        ),
+        findsOneWidget,
+      );
+      expect(
+        find.textContaining('Add your medicines', skipOffstage: false),
+        findsNothing,
+      );
+    },
+  );
+
+  testWidgets('no conditional note while medicine classes are loading', (
+    tester,
+  ) async {
+    await _pumpPage(
+      tester,
+      stackClassesLoading: true,
+      stack: [_medication('med-phenelzine', 'Phenelzine', '8123')],
+    );
+
+    expect(
+      find.textContaining('Relevant if you take', skipOffstage: false),
+      findsNothing,
+    );
+  });
 }
 
 /// A feed that loaded and has nothing to say.

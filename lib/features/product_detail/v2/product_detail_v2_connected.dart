@@ -570,19 +570,32 @@ class _ProductDetailV2ConnectedState
     );
     // Avoid / contraindicated findings for a medicine class or condition the
     // profile has not described yet: calm conditional notes, never a warning
-    // or a verdict (Dr. Pham G4).
-    final conditionalNotes = composeConditionalNotes(
-      detailBlob: detailBlob,
-      productStatus: _product?.productStatus,
-      personalizedWarnings: personalizedWarnings,
-      resolvedRuleWarnings: profileRuleWarnings,
-      shownWarnings: guardedWarnings,
-      ageBracket: profile.ageBracket,
-      sex: profile.sex,
-      userConditions: userConditionsSet,
-      userDrugClasses: userDrugClassesSet,
-      userProfileFlags: userProfileFlagsSet,
-    );
+    // or a verdict (Dr. Pham G4). None while the medicines' classes are still
+    // loading, so a medicine user never sees "add your medicines".
+    final stackClassesKnown =
+        stackMedicationClassesAsync.hasValue ||
+        stackMedicationClassesAsync.hasError;
+    final conditionalNotes = !stackClassesKnown
+        ? const <ConditionalNote>[]
+        : composeConditionalNotes(
+            detailBlob: detailBlob,
+            productStatus: _product?.productStatus,
+            personalizedWarnings: personalizedWarnings,
+            resolvedRuleWarnings: profileRuleWarnings,
+            shownWarnings: guardedWarnings,
+            ageBracket: profile.ageBracket,
+            sex: profile.sex,
+            userConditions: userConditionsSet,
+            userDrugClasses: userDrugClassesSet,
+            userProfileFlags: userProfileFlagsSet,
+          );
+    // Read the stack only when a medicine-class note needs its wording: such a
+    // note means no entered medicine resolved to a class.
+    final medicinesEntered =
+        conditionalNotes.any((note) => note.drugClassIds.isNotEmpty) &&
+        (ref.watch(activeStackProvider).value ?? const []).any(
+          (entry) => entry.type == 'medication',
+        );
     final profileBenefitWarnings = InteractionWarning.dedupe([
       ...personalizedWarnings,
       ...profileRuleWarnings,
@@ -1034,6 +1047,7 @@ class _ProductDetailV2ConnectedState
                                 ...profileBenefitNotes,
                               ],
                               conditionalNotes: conditionalNotes,
+                              medicinesEntered: medicinesEntered,
                               freeFromClaims: freeFromClaims
                                   .where(
                                     (claim) => !freeFromConflicts.contains(
