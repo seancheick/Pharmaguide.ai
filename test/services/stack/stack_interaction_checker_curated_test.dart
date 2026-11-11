@@ -1233,6 +1233,84 @@ void main() {
         expect(results.single.agent2Name, 'Combination medication');
       },
     );
+
+    // Dr. Pham 2026-11-11: an exact-drug result takes precedence over a weaker
+    // class result for the same two medications (simvastatin + gemfibrozil is
+    // contraindicated; the statin class pair is avoid).
+    test(
+      'an exact medication pair replaces the class pair for the same two medications',
+      () async {
+        await db.batch((b) {
+          b.insert(
+            db.interactions,
+            _row(
+              id: 'DDI_STATIN_GEMFIBROZIL',
+              a1Type: 'drug_class',
+              a1Id: 'class:statins',
+              a1Name: 'Statins (class)',
+              a2Type: 'drug',
+              a2Id: '4719',
+              a2Name: 'Gemfibrozil',
+              severity: 'avoid',
+            ),
+          );
+          b.insert(
+            db.interactions,
+            _row(
+              id: 'DDI_SIMVASTATIN_GEMFIBROZIL',
+              a1Type: 'drug',
+              a1Id: '36567',
+              a1Name: 'Simvastatin',
+              a2Type: 'drug',
+              a2Id: '4719',
+              a2Name: 'Gemfibrozil',
+              severity: 'contraindicated',
+            ),
+          );
+        });
+        final simvastatin = _medication(
+          id: 'simva',
+          name: 'Simvastatin',
+          rxcui: '36567',
+          drugClassesJson: '["class:statins"]',
+        );
+        final atorvastatin = _medication(
+          id: 'atorva',
+          name: 'Atorvastatin',
+          rxcui: '83367',
+          drugClassesJson: '["class:statins"]',
+        );
+        final gemfibrozil = _medication(
+          id: 'gem',
+          name: 'Gemfibrozil',
+          rxcui: '4719',
+        );
+
+        for (final (newMeds, existing) in [
+          ([simvastatin], [gemfibrozil]),
+          ([gemfibrozil], [simvastatin]),
+        ]) {
+          final results = await checker.checkMedicationPairInteractions(
+            newMedications: newMeds,
+            existingMedications: existing,
+            db: db,
+          );
+          expect(results.map((r) => r.id), ['DDI_SIMVASTATIN_GEMFIBROZIL']);
+          expect(results.single.severity, Severity.contraindicated);
+        }
+
+        // A statin without its own pair keeps the class result.
+        final control = await checker.checkMedicationPairInteractions(
+          newMedications: [gemfibrozil],
+          existingMedications: [atorvastatin, simvastatin],
+          db: db,
+        );
+        expect(control.map((r) => '${r.id}:${r.agent2Name}').toSet(), {
+          'DDI_STATIN_GEMFIBROZIL:Atorvastatin',
+          'DDI_SIMVASTATIN_GEMFIBROZIL:Simvastatin',
+        });
+      },
+    );
   });
 
   // -------------------------------------------------------------------------
