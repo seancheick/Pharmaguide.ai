@@ -58,52 +58,19 @@ List<InteractionWarning> filterProductDetailWarningsForProfile({
   required Set<String> userDrugClasses,
   Set<String> userProfileFlags = const <String>{},
 }) {
-  final combinedWarnings = InteractionWarning.dedupe([
-    ..._synthesizeUlWarnings(detailBlob),
-    ...warnings,
-  ]);
-
-  // Three-axis dose contract: the pipeline-authored consumer disposition is
-  // authoritative. Apply it before profile matching so a matching profile can
-  // never promote a below-threshold `suppress` result back into the UI.
-  final dispositionGated = applyConsumerDispositionGate(combinedWarnings);
-
-  // Emitted-floor gate: drop rows the pipeline marked immaterial at this
-  // product's dose (harmful + dose_dependent + below its form-scoped floor),
-  // before the profile filter can promote them back (G2).
-  final flooredWarnings = applyEmittedFloorGate(dispositionGated);
-
-  // Emitted-beneficial gate: drop condition warnings the pipeline tagged
-  // direction=beneficial (the nutrient HELPS the condition — a monitor flag is
-  // the boy-who-cried-wolf false positive). Runs before the profile filter so
-  // a beneficial row can't be promoted back by a matching profile (G2).
-  final beneficialGated = applyEmittedBeneficialGate(flooredWarnings);
-
-  // Resolve product form + per-nutrient dose/form once so dose-dependent
-  // profile-gate rules evaluate at the product's real dose instead of
-  // silently falling through to their `severity_if_not_met` branch (a
-  // 750 mg niacin product must reach the "avoid" arm, not "caution").
-  // The detail blob is parsed to ProductHealthFacts a single time and
-  // reused for every warning.
-  final healthFacts = detailBlob == null
-      ? null
-      : ProductHealthFacts.fromDetailBlob(detailBlob);
+  final gated = _gatedProductDetailWarnings(detailBlob, warnings);
+  final beneficialGated = gated.warnings;
+  final healthFacts = gated.healthFacts;
 
   return beneficialGated
       .where((w) {
-        final productContext = resolveProfileGateProductContext(
+        if (_matchesProfileForProduct(
+          w,
           detailBlob: detailBlob,
-          warning: w,
           healthFacts: healthFacts,
-        );
-        if (w.matchesProfile(
           userConditions: userConditions,
           userDrugClasses: userDrugClasses,
           userProfileFlags: userProfileFlags,
-          productForm: productContext.productForm,
-          nutrientForm: productContext.nutrientForm,
-          nutrientForms: productContext.nutrientForms,
-          dosePerDay: productContext.dosePerDay,
         )) {
           return true;
         }
@@ -139,6 +106,158 @@ List<InteractionWarning> filterProductDetailWarningsForProfile({
         // gate. Untagged legacy warnings remain visible for backward
         // compatibility.
         return true;
+      })
+      .toList(growable: false);
+}
+
+/// The pipeline's consumer gates every Product Detail list applies before
+/// profile matching (see [filterProductDetailWarningsForProfile]).
+({List<InteractionWarning> warnings, ProductHealthFacts? healthFacts})
+_gatedProductDetailWarnings(
+  Map<String, dynamic>? detailBlob,
+  List<InteractionWarning> warnings,
+) {
+  final combinedWarnings = InteractionWarning.dedupe([
+    ..._synthesizeUlWarnings(detailBlob),
+    ...warnings,
+  ]);
+
+  // Three-axis dose contract: the pipeline-authored consumer disposition is
+  // authoritative. Apply it before profile matching so a matching profile can
+  // never promote a below-threshold `suppress` result back into the UI.
+  final dispositionGated = applyConsumerDispositionGate(combinedWarnings);
+
+  // Emitted-floor gate: drop rows the pipeline marked immaterial at this
+  // product's dose (harmful + dose_dependent + below its form-scoped floor),
+  // before the profile filter can promote them back (G2).
+  final flooredWarnings = applyEmittedFloorGate(dispositionGated);
+
+  // Emitted-beneficial gate: drop condition warnings the pipeline tagged
+  // direction=beneficial (the nutrient HELPS the condition — a monitor flag is
+  // the boy-who-cried-wolf false positive). Runs before the profile filter so
+  // a beneficial row can't be promoted back by a matching profile (G2).
+  final beneficialGated = applyEmittedBeneficialGate(flooredWarnings);
+
+  // Resolve product form + per-nutrient dose/form once so dose-dependent
+  // profile-gate rules evaluate at the product's real dose instead of
+  // silently falling through to their `severity_if_not_met` branch (a
+  // 750 mg niacin product must reach the "avoid" arm, not "caution").
+  // The detail blob is parsed to ProductHealthFacts a single time and
+  // reused for every warning.
+  final healthFacts = detailBlob == null
+      ? null
+      : ProductHealthFacts.fromDetailBlob(detailBlob);
+
+  return (warnings: beneficialGated, healthFacts: healthFacts);
+}
+
+bool _matchesProfileForProduct(
+  InteractionWarning w, {
+  required Map<String, dynamic>? detailBlob,
+  required ProductHealthFacts? healthFacts,
+  required Set<String> userConditions,
+  required Set<String> userDrugClasses,
+  required Set<String> userProfileFlags,
+}) {
+  final productContext = resolveProfileGateProductContext(
+    detailBlob: detailBlob,
+    warning: w,
+    healthFacts: healthFacts,
+  );
+  return w.matchesProfile(
+    userConditions: userConditions,
+    userDrugClasses: userDrugClasses,
+    userProfileFlags: userProfileFlags,
+    productForm: productContext.productForm,
+    nutrientForm: productContext.nutrientForm,
+    nutrientForms: productContext.nutrientForms,
+    dosePerDay: productContext.dosePerDay,
+  );
+}
+
+// ---------------------------------------------------------------------------
+// `conditionalProductDetailNotes`
+//
+// Dr. Pham G4 (2026-11-11): "Show both avoid and contraindicated findings as
+// conditional notes when their applicability is unknown", with no personalized
+// verdict. The pipeline marks those profile-scoped findings
+// `display_mode_default: informational`. [filterProductDetailWarningsForProfile]
+// keeps them out of the warning list unless the profile matches; this returns
+// the ones whose profile axis is still empty, for the calm "Good to know"
+// surface only:
+//
+// - a medicine-class finding while no medicines or classes are entered and
+//   the user has not answered "none";
+// - a condition finding while no conditions are entered and the user has not
+//   answered "none", except life-stage findings (pregnancy, breastfeeding,
+//   trying to conceive) for a profile that says Male.
+//
+// The finding must still apply once that axis is answered: one the product or
+// the rest of the profile rules out (an oral-only rule on a topical product, a
+// medicine the gate excludes, a flag or second axis the user lacks) is not a
+// note. [derivedFlagByCondition] is the taxonomy's condition -> flag map
+// (ClinicalProfileSchema), so a pregnancy rule gated on `pregnant` still
+// counts as answered by the pregnancy condition.
+//
+// A finding scoped to both axes, or to profile flags, stays hidden; so do
+// caution and monitor findings, which the pipeline marks `suppress`.
+// ---------------------------------------------------------------------------
+
+/// Pregnancy, breastfeeding and trying to conceive.
+const lifeStageConditionIds = {'pregnancy', 'lactation', 'ttc'};
+
+List<InteractionWarning> conditionalProductDetailNotes({
+  required Map<String, dynamic>? detailBlob,
+  required List<InteractionWarning> warnings,
+  required Set<String> userConditions,
+  required Set<String> userDrugClasses,
+  Set<String> userProfileFlags = const <String>{},
+  String? sex,
+  bool conditionsAnswered = false,
+  bool drugClassesAnswered = false,
+  Map<String, String> derivedFlagByCondition = const {},
+}) {
+  final gated = _gatedProductDetailWarnings(detailBlob, warnings);
+  return gated.warnings
+      .where((w) {
+        if (w.displayModeDefault != 'informational' || !w.severity.isHard) {
+          return false;
+        }
+        final drugScoped = w.drugClassIds.isNotEmpty;
+        final conditionScoped = w.conditionIds.isNotEmpty;
+        if (drugScoped == conditionScoped) return false;
+        final axisUnknown = drugScoped
+            ? userDrugClasses.isEmpty && !drugClassesAnswered
+            : userConditions.isEmpty &&
+                  !conditionsAnswered &&
+                  !(sex == 'Male' &&
+                      w.conditionIds.every(lifeStageConditionIds.contains));
+        if (!axisUnknown) return false;
+        bool matches({
+          Iterable<String> conditions = const [],
+          Iterable<String> drugClasses = const [],
+          Iterable<String> profileFlags = const [],
+        }) => _matchesProfileForProduct(
+          w,
+          detailBlob: detailBlob,
+          healthFacts: gated.healthFacts,
+          userConditions: {...userConditions, ...conditions},
+          userDrugClasses: {...userDrugClasses, ...drugClasses},
+          userProfileFlags: {...userProfileFlags, ...profileFlags},
+        );
+        if (matches()) return false;
+        // Answer only the unknown axis, from the finding's own ids (and, for
+        // a condition, the flags the taxonomy derives from it, such as
+        // pregnancy -> pregnant). Known axes stay as the user gave them; if it
+        // still does not fire, the product or the known profile rules it out.
+        return drugScoped
+            ? matches(drugClasses: w.drugClassIds)
+            : matches(
+                conditions: w.conditionIds,
+                profileFlags: w.conditionIds
+                    .map((id) => derivedFlagByCondition[id])
+                    .nonNulls,
+              );
       })
       .toList(growable: false);
 }

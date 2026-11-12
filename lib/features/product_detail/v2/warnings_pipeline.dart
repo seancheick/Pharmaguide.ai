@@ -21,10 +21,11 @@ import 'package:pharmaguide/core/constants/severity.dart';
 import 'package:pharmaguide/data/database/catalog_schema_bridge.dart';
 import 'package:pharmaguide/services/crash_reporting_service.dart';
 import 'package:pharmaguide/features/product_detail/product_detail_helpers.dart'
-    show filterProductDetailWarningsForProfile;
+    show
+        conditionalProductDetailNotes,
+        filterProductDetailWarningsForProfile,
+        lifeStageConditionIds;
 import 'package:pharmaguide/services/warnings/interaction_warning.dart';
-
-const _lifeStageConditionIds = {'pregnancy', 'lactation', 'ttc'};
 
 /// True only for profile-matched context that is useful to retain but should
 /// not read like a danger signal.
@@ -62,7 +63,7 @@ bool isCalmProfileNote(InteractionWarning warning) {
       .where((condition) => condition.isNotEmpty)
       .toSet();
   return conditions.isNotEmpty &&
-      conditions.every(_lifeStageConditionIds.contains);
+      conditions.every(lifeStageConditionIds.contains);
 }
 
 /// Compose the warning list every Product Detail surface renders.
@@ -95,6 +96,110 @@ List<InteractionWarning> composeGuardedWarnings({
     userDrugClasses: userDrugClasses,
     userProfileFlags: userProfileFlags,
   );
+}
+
+/// A G4 conditional note: the warning it shows, every medicine class or
+/// condition it is relevant to once rows with one message are merged, and the
+/// citations of every merged row.
+typedef ConditionalNote = ({
+  InteractionWarning warning,
+  Set<String> drugClassIds,
+  Set<String> conditionIds,
+  Set<String> sourceUrls,
+});
+
+/// Compose the conditional notes Product Detail shows in "Good to know"
+/// ([conditionalProductDetailNotes], Dr. Pham G4). Takes the same inputs as
+/// [composeGuardedWarnings] plus the warnings already shown, so a note never
+/// repeats a warning on the page. Rows with one message and one evidence grade
+/// (a warfarin-type and an unidentified blood-thinner row; a pregnancy and a
+/// breastfeeding row) become one note that keeps every class, condition and
+/// citation they name; a different evidence grade stays its own note.
+/// Rows for one hazard (the consumer identities) merge; the most severe row
+/// supplies the note's text, as in [InteractionWarning.dedupe].
+/// [conditionsAnswered] / [drugClassesAnswered]: the user answered "none" for
+/// that axis, so an empty set there is known, not missing.
+/// [derivedFlagByCondition]: the taxonomy's condition -> flag map.
+List<ConditionalNote> composeConditionalNotes({
+  required Map<String, dynamic>? detailBlob,
+  String? productStatus,
+  required List<InteractionWarning> personalizedWarnings,
+  List<InteractionWarning> resolvedRuleWarnings = const [],
+  required List<InteractionWarning> shownWarnings,
+  required Set<String> userConditions,
+  required Set<String> userDrugClasses,
+  required Set<String> userProfileFlags,
+  String? ageBracket,
+  String? sex,
+  bool conditionsAnswered = false,
+  bool drugClassesAnswered = false,
+  Map<String, String> derivedFlagByCondition = const {},
+}) {
+  final merged = <InteractionWarning>[
+    ...personalizedWarnings,
+    ...resolvedRuleWarnings,
+    ...parseBlobWarnings(detailBlob, productStatus: productStatus),
+  ];
+  final candidates = conditionalProductDetailNotes(
+    detailBlob: detailBlob,
+    warnings: [for (final w in merged) w.resolvedForAge(ageBracket)],
+    userConditions: userConditions,
+    userDrugClasses: userDrugClasses,
+    userProfileFlags: userProfileFlags,
+    sex: sex,
+    conditionsAnswered: conditionsAnswered,
+    drugClassesAnswered: drugClassesAnswered,
+    derivedFlagByCondition: derivedFlagByCondition,
+  );
+  final shown = <String>{
+    for (final w in shownWarnings) ..._consumerWarningIdentities(w),
+  };
+  final notes = <ConditionalNote>[];
+  // Keyed by evidence grade too: the note shows one grade, so a row with
+  // another grade never merges into it. Values are indexes into [notes].
+  final noteByIdentity = <(String, EvidenceLevel), int>{};
+  for (final candidate in candidates) {
+    final identities = _consumerWarningIdentities(candidate);
+    if (identities.any(shown.contains)) continue;
+    final evidence = candidate.evidenceLevel;
+    var index = identities
+        .map((i) => noteByIdentity[(i, evidence)])
+        .nonNulls
+        .firstOrNull;
+    if (index == null) {
+      index = notes.length;
+      notes.add((
+        warning: candidate,
+        drugClassIds: <String>{},
+        conditionIds: <String>{},
+        sourceUrls: <String>{},
+      ));
+    } else if (candidate.severity.weight >
+        notes[index].warning.severity.weight) {
+      // One hazard, one note: as in InteractionWarning.dedupe, the most
+      // severe row supplies the text, so an avoid row never hides a
+      // contraindicated one.
+      final kept = notes[index];
+      notes[index] = (
+        warning: candidate,
+        drugClassIds: kept.drugClassIds,
+        conditionIds: kept.conditionIds,
+        sourceUrls: kept.sourceUrls,
+      );
+    }
+    final note = notes[index];
+    note.drugClassIds.addAll(candidate.drugClassIds);
+    note.conditionIds.addAll(candidate.conditionIds);
+    note.sourceUrls.addAll(
+      candidate.sourceUrls
+          .map((url) => url.trim())
+          .where((url) => url.isNotEmpty),
+    );
+    for (final identity in identities) {
+      noteByIdentity[(identity, evidence)] ??= index;
+    }
+  }
+  return notes;
 }
 
 /// Drain the blob's `warnings` + `warnings_profile_gated` lists, drop
@@ -337,7 +442,7 @@ Set<String> _consumerWarningIdentities(InteractionWarning warning) {
         .toSet();
     final conditions =
         rawConditions.isNotEmpty &&
-            rawConditions.every(_lifeStageConditionIds.contains)
+            rawConditions.every(lifeStageConditionIds.contains)
         ? const ['life-stage']
         : (rawConditions.toList()..sort());
     final drugClasses = [...warning.drugClassIds.map(_normalizeConsumerText)]
