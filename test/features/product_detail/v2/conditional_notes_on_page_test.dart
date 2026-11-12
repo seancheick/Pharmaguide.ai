@@ -275,6 +275,14 @@ void main() {
         find.textContaining(_conditionalScope, skipOffstage: false),
         findsOneWidget,
       );
+      // The note carries the finding's reason, as every other warning row does.
+      expect(
+        find.textContaining(
+          'the tranylcypromine (Parnate) label lists it as contraindicated',
+          skipOffstage: false,
+        ),
+        findsOneWidget,
+      );
       expect(find.text('Review for your profile'), findsNothing);
       expect(find.textContaining("Because you're taking"), findsNothing);
     },

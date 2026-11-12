@@ -648,10 +648,12 @@ PGReviewRow _rowForConditionalNote(
   final warning = note.warning;
   final sourceUrls = note.sourceUrls.toList(growable: false);
   final citationCount = sourceUrls.length;
+  final body = warning.displayBody.trim();
   return PGReviewRow(
     headline: warning.displayHeadline,
     caption: [
       conditionalNoteScope(note, medicinesEntered: medicinesEntered),
+      if (body.isNotEmpty) body,
       warning.evidenceLevel.label,
       if (citationCount > 0)
         '$citationCount citation${citationCount == 1 ? '' : 's'}',
