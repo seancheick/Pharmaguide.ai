@@ -28,6 +28,7 @@ Map<String, dynamic> _metforminB12Fixture({
         'depletion_type': 'depletion',
         'severity': 'significant',
         'citation_review_status': 'verified',
+        'b1_clinical_approval_status': 'approved_for_controlled_beta',
         'mechanism': 'Metformin impairs B12 absorption.',
         'clinical_impact': 'Up to 30% of long-term users develop low B12.',
         'recommendation': 'Consider B12 supplementation.',
@@ -72,6 +73,7 @@ void main() {
       'depletion_type': 'depletion',
       'severity': 'significant',
       'citation_review_status': 'verified',
+      'b1_clinical_approval_status': 'approved_for_controlled_beta',
       'mechanism': 'x',
       'recommendation': 'y',
     };
@@ -225,6 +227,7 @@ void main() {
       'depletion_type': 'depletion',
       'severity': 'significant',
       'citation_review_status': 'verified',
+      'b1_clinical_approval_status': 'approved_for_controlled_beta',
     };
 
     test('entry missing the nutrient canonical_id is dropped', () {
@@ -330,7 +333,10 @@ void main() {
     // and future/unknown values, fails closed.
     const metformin = (name: 'Metformin', drugClassId: null);
 
-    Map<String, dynamic> entry({Object? status}) => {
+    Map<String, dynamic> entry({
+      Object? status,
+      Object? approval = 'approved_for_controlled_beta',
+    }) => {
       'id': 'DEP_METFORMIN_VITAMINB12',
       'drug_ref': {
         'id': '860974',
@@ -343,7 +349,40 @@ void main() {
       'depletion_type': 'depletion',
       'severity': 'significant',
       if (status != null) 'citation_review_status': status,
+      if (approval != null) 'b1_clinical_approval_status': approval,
     };
+
+    // The clinical sign-off owns consumer visibility: a verified citation is
+    // not enough while the exact current text awaits licensed-pharmacist
+    // sign-off (scripts/data/medication_depletions_b1_delta_signoff.json).
+    test('verified entries pending clinical approval are suppressed', () {
+      for (final held in const [
+        'pending_delta_review',
+        'approved_not_consumer_visible',
+        'mystery',
+      ]) {
+        final issues = <String>[];
+        final out = checker.check(
+          medications: const [metformin],
+          depletionsData: {
+            'depletions': [entry(status: 'verified', approval: held)],
+          },
+          onDataIssue: issues.add,
+        );
+        expect(out, isEmpty, reason: held);
+        expect(issues.single, contains('b1_clinical_approval_status=$held'));
+      }
+    });
+
+    test('verified entries without an approval status are suppressed', () {
+      final out = checker.check(
+        medications: const [metformin],
+        depletionsData: {
+          'depletions': [entry(status: 'verified', approval: null)],
+        },
+      );
+      expect(out, isEmpty);
+    });
 
     test('needs_revision entries are suppressed', () {
       final out = checker.check(
@@ -395,15 +434,20 @@ void main() {
   });
 
   group('medNutrientPublicationPolicy (B1.2)', () {
-    test('verified allows display, persistence, and notification', () {
-      final p = medNutrientPublicationPolicy('verified');
-      expect(p.displayAllowed, isTrue);
-      expect(p.persistenceAllowed, isTrue);
-      expect(p.notificationAllowed, isTrue);
-    });
+    const approved = 'approved_for_controlled_beta';
+
+    test(
+      'verified and approved allows display, persistence, and notification',
+      () {
+        final p = medNutrientPublicationPolicy('verified', approved);
+        expect(p.displayAllowed, isTrue);
+        expect(p.persistenceAllowed, isTrue);
+        expect(p.notificationAllowed, isTrue);
+      },
+    );
 
     test('unverified is fully suppressed', () {
-      final p = medNutrientPublicationPolicy('unverified');
+      final p = medNutrientPublicationPolicy('unverified', approved);
       expect(p.displayAllowed, isFalse);
       expect(p.persistenceAllowed, isFalse);
       expect(p.notificationAllowed, isFalse);
@@ -411,7 +455,7 @@ void main() {
 
     test('needs_revision and rejected are fully suppressed', () {
       for (final s in const ['needs_revision', 'rejected']) {
-        final p = medNutrientPublicationPolicy(s);
+        final p = medNutrientPublicationPolicy(s, approved);
         expect(p.displayAllowed, isFalse, reason: s);
         expect(p.persistenceAllowed, isFalse, reason: s);
         expect(p.notificationAllowed, isFalse, reason: s);
@@ -419,11 +463,28 @@ void main() {
     });
 
     test('unknown status is fully suppressed', () {
-      final p = medNutrientPublicationPolicy('mystery');
+      final p = medNutrientPublicationPolicy('mystery', approved);
       expect(p.displayAllowed, isFalse);
       expect(p.persistenceAllowed, isFalse);
       expect(p.notificationAllowed, isFalse);
     });
+
+    test(
+      'verified records held by the clinical sign-off are fully suppressed',
+      () {
+        for (final a in const [
+          'pending_delta_review',
+          'approved_not_consumer_visible',
+          'missing',
+          '',
+        ]) {
+          final p = medNutrientPublicationPolicy('verified', a);
+          expect(p.displayAllowed, isFalse, reason: a);
+          expect(p.persistenceAllowed, isFalse, reason: a);
+          expect(p.notificationAllowed, isFalse, reason: a);
+        }
+      },
+    );
   });
 
   group('DepletionChecker — medication matching', () {
@@ -469,6 +530,7 @@ void main() {
               },
               'severity': 'moderate',
               'citation_review_status': 'verified',
+              'b1_clinical_approval_status': 'approved_for_controlled_beta',
             },
           ],
         },
@@ -502,6 +564,7 @@ void main() {
               },
               'severity': 'moderate',
               'citation_review_status': 'verified',
+              'b1_clinical_approval_status': 'approved_for_controlled_beta',
             },
           ],
         },
@@ -557,6 +620,7 @@ void main() {
                   },
                   'severity': 'moderate',
                   'citation_review_status': 'verified',
+                  'b1_clinical_approval_status': 'approved_for_controlled_beta',
                 },
               ],
             },
@@ -737,6 +801,7 @@ void main() {
                 'depletion_type': 'functional_antagonism',
                 'severity': 'significant',
                 'citation_review_status': 'verified',
+                'b1_clinical_approval_status': 'approved_for_controlled_beta',
               },
             ],
           },
@@ -774,6 +839,7 @@ void main() {
                 'depletion_type': depletionType,
                 'severity': 'moderate',
                 'citation_review_status': 'verified',
+                'b1_clinical_approval_status': 'approved_for_controlled_beta',
                 'adequacy_threshold_mg': 500,
               },
             ],
@@ -819,6 +885,7 @@ void main() {
               },
               'severity': 'significant',
               'citation_review_status': 'verified',
+              'b1_clinical_approval_status': 'approved_for_controlled_beta',
             },
           ],
         },
@@ -902,6 +969,7 @@ void main() {
             'depleted_nutrient': {'standard_name': 'N1', 'canonical_id': 'n1'},
             'severity': 'significant',
             'citation_review_status': 'verified',
+            'b1_clinical_approval_status': 'approved_for_controlled_beta',
           },
           {
             'id': 'B_PARTIAL',
@@ -909,6 +977,7 @@ void main() {
             'depleted_nutrient': {'standard_name': 'N2', 'canonical_id': 'n2'},
             'severity': 'significant',
             'citation_review_status': 'verified',
+            'b1_clinical_approval_status': 'approved_for_controlled_beta',
             'adequacy_threshold_mcg': 500,
           },
           {
@@ -917,6 +986,7 @@ void main() {
             'depleted_nutrient': {'standard_name': 'N3', 'canonical_id': 'n3'},
             'severity': 'mild',
             'citation_review_status': 'verified',
+            'b1_clinical_approval_status': 'approved_for_controlled_beta',
           },
         ],
       };
@@ -962,6 +1032,7 @@ void main() {
           },
           'severity': 'moderate',
           'citation_review_status': 'verified',
+          'b1_clinical_approval_status': 'approved_for_controlled_beta',
         },
       ],
     };
@@ -1011,6 +1082,7 @@ void main() {
               },
               'severity': 'significant',
               'citation_review_status': 'verified',
+              'b1_clinical_approval_status': 'approved_for_controlled_beta',
             },
           ],
         },

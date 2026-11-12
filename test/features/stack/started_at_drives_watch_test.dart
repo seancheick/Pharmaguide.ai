@@ -28,6 +28,7 @@ Map<String, dynamic> get _data => {
       'depletion_type': 'depletion',
       'severity': 'significant',
       'citation_review_status': 'verified',
+      'b1_clinical_approval_status': 'approved_for_controlled_beta',
       'mechanism': 'Impairs B12 absorption.',
       'recommendation': 'Worth a conversation with your clinician.',
       'evidence_level': 'established',
