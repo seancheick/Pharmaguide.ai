@@ -347,6 +347,40 @@ void main() {
   // checkSupplementPairInteractions
   // -------------------------------------------------------------------------
   group('checkSupplementPairInteractions', () {
+    test('collapses identical branded and generic EMSAM pair rows', () async {
+      for (final rx in ['865208', '865206']) {
+        await db
+            .into(db.interactions)
+            .insert(
+              _row(
+                id: 'DSI_EMSAM_SAME_$rx',
+                a1Type: 'drug',
+                a1Id: rx,
+                a1Name: 'EMSAM $rx',
+                a2Type: 'supplement',
+                a2Id: 'C0036002',
+                a2Name: 'SAMe',
+                a2Canonical: 'same',
+                severity: 'contraindicated',
+              ),
+            );
+      }
+      final findings = await checker.checkMedicationInteractions(
+        newProductCanonicalIds: const ['same'],
+        stackMedications: [
+          _medication(
+            id: 'emsam',
+            name: 'EMSAM patch',
+            rxcui: '865208',
+            genericRxcui: '865206',
+            ingredientRxcuis: const ['9639'],
+          ),
+        ],
+        db: db,
+      );
+      expect(findings.single.severity, Severity.contraindicated);
+    });
+
     test('returns empty for empty new product canonical ids', () async {
       final results = await checker.checkSupplementPairInteractions(
         newProductCanonicalIds: const <String>[],
@@ -1693,6 +1727,24 @@ void main() {
           ),
         );
         expect(sinemet.map((r) => r.id), ['DSI_LEVODOPA_IRON']);
+
+        // The populated fixture proves the matcher does not extrapolate the
+        // iron concern into a blanket B6 warning for a combination user.
+        // Pipeline source guards separately census all authored B6 records.
+        final b6 = await checker.checkMedicationInteractions(
+          newProductCanonicalIds: const ['vitamin_b6_pyridoxine'],
+          stackMedications: [
+            _medication(
+              id: 'carbidopa-levodopa',
+              name: 'Sinemet',
+              rxcui: '197444',
+              ingredientRxcuis: const ['2019', '6375'],
+            ),
+          ],
+          db: db,
+          newProductName: 'Vitamin B6',
+        );
+        expect(b6, isEmpty);
 
         final stalevo = await check(
           _medication(

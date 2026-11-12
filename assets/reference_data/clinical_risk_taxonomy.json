@@ -2,14 +2,50 @@
   "_metadata": {
     "description": "Controlled clinical risk taxonomy for condition and medication-class interaction alerts",
     "purpose": "interaction_alert_taxonomy",
-    "schema_version": "5.5.0",
+    "schema_version": "5.11.0",
     "contract_test": "scripts/tests/test_clinical_risk_taxonomy_contract.py",
-    "last_updated": "2026-11-03",
-    "total_entries": 85,
+    "last_updated": "2026-11-12",
+    "total_entries": 97,
     "flutter_top_level_key": "clinical_risk_taxonomy",
-    "drug_classes_count": 31,
+    "drug_classes_count": 43,
     "migration": {
       "completed_migrations": [
+        {
+          "from": "5.10.0",
+          "to": "5.11.0",
+          "date": "2026-11-12",
+          "summary": "Signed Q1 EMSAM product scope and Q5 unassessed seizure medication scope."
+        },
+        {
+          "from": "5.9.0",
+          "to": "5.10.0",
+          "date": "2026-11-12",
+          "summary": "Additive: nadolol gate vocabulary for the signed G1 green-tea interaction scope; unrelated beta-blockers no longer inherit this finding."
+        },
+        {
+          "from": "5.8.0",
+          "to": "5.9.0",
+          "date": "2026-11-12",
+          "summary": "Additive: drug classes stiripentol, everolimus, tacrolimus, sirolimus and digoxin, so the cannabidiol findings can name each medicine with its own claim (Dr. Pham Q5). Gate vocabulary only; the profile picker is unchanged."
+        },
+        {
+          "from": "5.7.0",
+          "to": "5.8.0",
+          "date": "2026-11-12",
+          "summary": "Additive: drug class antimuscarinics (members of anticholinergics taken for their antimuscarinic effect), so huperzine A and alpha-GPC findings can follow Dr. Pham's Q6. Gate vocabulary only; the profile picker is unchanged."
+        },
+        {
+          "from": "5.6.0",
+          "to": "5.7.0",
+          "date": "2026-11-12",
+          "summary": "Additive: drug class injectable_anticoagulants (heparins, fondaparinux, injected direct thrombin inhibitors), so warfarin-addressed fallback findings can exclude them (Dr. Pham Q7). Gate vocabulary only; the profile picker (drug_class_vocab.json) is unchanged."
+        },
+        {
+          "from": "5.5.0",
+          "to": "5.6.0",
+          "date": "2026-11-11",
+          "summary": "Additive: drug classes valproate and clobazam, so the cannabidiol antiseizure-medicine warning can name the two medicines its label names. Gate vocabulary only; the profile picker (drug_class_vocab.json) is unchanged."
+        },
         {
           "from": "5.4.0",
           "to": "5.5.0",
@@ -560,6 +596,78 @@
       "label": "SSRIs",
       "category": "psychiatry",
       "display_priority": 10
+    },
+    {
+      "id": "valproate",
+      "label": "Valproate",
+      "category": "neurologic",
+      "display_priority": 23
+    },
+    {
+      "id": "clobazam",
+      "label": "Clobazam",
+      "category": "neurologic",
+      "display_priority": 24
+    },
+    {
+      "id": "injectable_anticoagulants",
+      "label": "Injected Anticoagulants",
+      "category": "hematology",
+      "display_priority": 25
+    },
+    {
+      "id": "antimuscarinics",
+      "label": "Antimuscarinic Medications",
+      "category": "neurology",
+      "display_priority": 26
+    },
+    {
+      "id": "stiripentol",
+      "label": "Stiripentol",
+      "category": "neurologic",
+      "display_priority": 27
+    },
+    {
+      "id": "everolimus",
+      "label": "Everolimus",
+      "category": "immunology",
+      "display_priority": 28
+    },
+    {
+      "id": "tacrolimus",
+      "label": "Tacrolimus",
+      "category": "immunology",
+      "display_priority": 29
+    },
+    {
+      "id": "sirolimus",
+      "label": "Sirolimus",
+      "category": "immunology",
+      "display_priority": 30
+    },
+    {
+      "id": "digoxin",
+      "label": "Digoxin",
+      "category": "cardiology",
+      "display_priority": 31
+    },
+    {
+      "id": "nadolol",
+      "label": "Nadolol",
+      "category": "cardiovascular",
+      "display_priority": 25
+    },
+    {
+      "id": "emsam_patch",
+      "label": "EMSAM patch",
+      "category": "neurologic",
+      "display_priority": 25
+    },
+    {
+      "id": "cbd_other_anticonvulsants",
+      "label": "Other seizure medicines",
+      "category": "neurologic",
+      "display_priority": 25
     }
   ],
   "severity_levels": [

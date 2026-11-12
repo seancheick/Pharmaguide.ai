@@ -114,6 +114,7 @@ void main() {
         "UPDATE drug_class_map SET excluded_drug_rxcuis_json='[\"4845\"]' WHERE class_id='class:nsaids'",
       );
       final result = await bridge.resolve(
+        genericRxcui: '4845',
         ingredientRxcuis: ['4845', '5640'],
         runtimeClassIds: [
           'class:nsaids',
@@ -128,6 +129,69 @@ void main() {
         ]),
       );
       expect(result.profileGateClassIds, contains('nsaids'));
+    },
+  );
+
+  test(
+    'exact IV ibandronate exclusion wins over its oral ingredient class',
+    () async {
+      await db
+          .into(db.drugClassMap)
+          .insert(
+            DrugClassMapCompanion.insert(
+              classId: 'class:bisphosphonates',
+              className: 'Bisphosphonates',
+              drugRxcuisJson: '["46041","115264","73056"]',
+              source: 'pipeline batch 6',
+              lastUpdated: '2026-11-12',
+            ),
+          );
+      await db.customStatement(
+        "UPDATE drug_class_map SET excluded_drug_rxcuis_json='[\"77655\",\"904952\",\"904954\",\"904955\"]' WHERE class_id='class:bisphosphonates'",
+      );
+      for (final product in ['904952', '904954', '904955']) {
+        final result = await bridge.resolve(
+          selectedRxcui: product,
+          ingredientRxcuis: ['115264'],
+          runtimeClassIds: ['class:bisphosphonates'],
+        );
+        expect(
+          result.curatedInteractionClassIds,
+          isNot(contains('class:bisphosphonates')),
+        );
+        expect(
+          result.mergedInteractionClassIds,
+          isNot(contains('class:bisphosphonates')),
+        );
+        expect(result.profileGateClassIds, isNot(contains('bisphosphonates')));
+        expect(result.runtimeClassIds, contains('class:bisphosphonates'));
+      }
+      final genericInjection = await bridge.resolve(
+        selectedRxcui: 'unresolved-brand',
+        genericRxcui: '904952',
+        ingredientRxcuis: ['115264'],
+        runtimeClassIds: ['class:bisphosphonates'],
+      );
+      expect(
+        genericInjection.profileGateClassIds,
+        isNot(contains('bisphosphonates')),
+      );
+      for (final product in [
+        '904932',
+        '904934',
+        '904936',
+        '904946',
+        '115264',
+      ]) {
+        final oralOrUnspecified = await bridge.resolve(
+          selectedRxcui: product,
+          ingredientRxcuis: ['115264'],
+        );
+        expect(
+          oralOrUnspecified.profileGateClassIds,
+          contains('bisphosphonates'),
+        );
+      }
     },
   );
 

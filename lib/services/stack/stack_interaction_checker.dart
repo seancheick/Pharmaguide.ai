@@ -471,6 +471,7 @@ class StackInteractionChecker {
         .toSet();
     final results = <InteractionResult>[];
     final seenRowIds = <String>{};
+    final seenDirectFindings = <(String, InteractionRow)>{};
     for (final candidate in candidates) {
       final pairKey = '${candidate.medicationId}\u0000${candidate.nutrientId}';
       if (!candidate.medicationSpecific && directPairKeys.contains(pairKey)) {
@@ -484,6 +485,15 @@ class StackInteractionChecker {
         continue;
       }
       if (!seenRowIds.add(candidate.row.id)) continue;
+      if (candidate.medicationSpecific) {
+        // A selected product and its generic product can both identify the
+        // same medication. Collapse only identical authored findings.
+        final row = candidate.row;
+        final clinicalRow = row.agent1Type == 'drug'
+            ? row.copyWith(id: '', agent1Id: '', agent1Name: '')
+            : row.copyWith(id: '', agent2Id: '', agent2Name: '');
+        if (!seenDirectFindings.add((pairKey, clinicalRow))) continue;
+      }
       results.add(
         InteractionResult.fromRow(
           candidate.row,

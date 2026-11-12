@@ -49,7 +49,7 @@ class RxNormSuggestion {
 
   final String name;
   final String rxcui;
-  final int score;
+  final double score;
 
   @override
   bool operator ==(Object other) =>
@@ -515,7 +515,7 @@ class RxNormApiService {
         // consume the dedupe key and hide the usable current concept.
         if (!seenRxcui.add(rxcui)) continue;
         final scoreStr = c['score']?.toString() ?? '0';
-        final score = int.tryParse(scoreStr) ?? 0;
+        final score = double.tryParse(scoreStr) ?? 0;
         out.add(RxNormSuggestion(name: name, rxcui: rxcui, score: score));
       }
       out.sort((a, b) => b.score.compareTo(a.score));

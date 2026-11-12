@@ -69,13 +69,15 @@ void main() {
   test('timing rules are bundled at the schema the parser requires', () {
     final json =
         jsonDecode(
-              File('assets/reference_data/timing_rules.json').readAsStringSync(),
+              File(
+                'assets/reference_data/timing_rules.json',
+              ).readAsStringSync(),
             )
             as Map<String, dynamic>;
     final metadata = json['_metadata'] as Map<String, dynamic>;
     final rules = json['timing_rules'] as List;
 
-    expect(metadata['schema_version'], '6.0.0');
+    expect(metadata['schema_version'], '6.1.0');
     expect(metadata['total_entries'], rules.length);
 
     // The legacy scheduler fields must never come back through the artifact.

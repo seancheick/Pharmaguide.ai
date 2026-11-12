@@ -5,6 +5,9 @@
 // covers what the service does once a rule is verified: which stack rows it
 // matches, how medication identity is resolved, and when a tip is withheld.
 
+import 'dart:convert';
+import 'dart:io';
+
 import 'package:flutter_test/flutter_test.dart';
 import 'package:pharmaguide/core/constants/severity.dart';
 import 'package:pharmaguide/core/models/timing_optimization.dart';
@@ -111,7 +114,9 @@ void main() {
         ),
       ]);
       final result = service.evaluateStack(
-        stackItems: [_supplement('row-iron', 'Iron', {'iron'})],
+        stackItems: [
+          _supplement('row-iron', 'Iron', {'iron'}),
+        ],
       );
       expect(result.single.evidenceLevel, EvidenceLevel.theoretical);
     });
@@ -154,7 +159,9 @@ void main() {
 
     test('does not fire when only one side is present', () {
       final results = service.evaluateStack(
-        stackItems: [_supplement('row-iron', 'Gentle Iron', {'iron'})],
+        stackItems: [
+          _supplement('row-iron', 'Gentle Iron', {'iron'}),
+        ],
       );
       expect(results, isEmpty);
     });
@@ -199,19 +206,20 @@ void main() {
     });
 
     test('fires a unary rule once per bottle carrying the tag', () {
-      final results = _serviceOf([
-        _rule(
-          id: 'timing_vitamin_d_with_food',
-          ingredient1: 'vitamin d',
-          ingredient1Tags: const ['vitamin_d'],
-          relation: _withFood,
-        ),
-      ]).evaluateStack(
-        stackItems: [
-          _supplement('row-d3', 'D3 5000', {'vitamin_d'}),
-          _supplement('row-multi', 'Multi', {'vitamin_d', 'zinc'}),
-        ],
-      );
+      final results =
+          _serviceOf([
+            _rule(
+              id: 'timing_vitamin_d_with_food',
+              ingredient1: 'vitamin d',
+              ingredient1Tags: const ['vitamin_d'],
+              relation: _withFood,
+            ),
+          ]).evaluateStack(
+            stackItems: [
+              _supplement('row-d3', 'D3 5000', {'vitamin_d'}),
+              _supplement('row-multi', 'Multi', {'vitamin_d', 'zinc'}),
+            ],
+          );
       expect(results, hasLength(2));
       expect(
         results.map((r) => r.product1StackEntryId),
@@ -220,24 +228,25 @@ void main() {
     });
 
     test('collapses duplicate with-food tips for the same bottle', () {
-      final results = _serviceOf([
-        _rule(
-          id: 'timing_vitamin_d_with_food',
-          ingredient1: 'vitamin d',
-          ingredient1Tags: const ['vitamin_d'],
-          relation: _withFood,
-        ),
-        _rule(
-          id: 'timing_vitamin_k_with_food',
-          ingredient1: 'vitamin k',
-          ingredient1Tags: const ['vitamin_k1'],
-          relation: _withFood,
-        ),
-      ]).evaluateStack(
-        stackItems: [
-          _supplement('row-dk', 'D+K', {'vitamin_d', 'vitamin_k1'}),
-        ],
-      );
+      final results =
+          _serviceOf([
+            _rule(
+              id: 'timing_vitamin_d_with_food',
+              ingredient1: 'vitamin d',
+              ingredient1Tags: const ['vitamin_d'],
+              relation: _withFood,
+            ),
+            _rule(
+              id: 'timing_vitamin_k_with_food',
+              ingredient1: 'vitamin k',
+              ingredient1Tags: const ['vitamin_k1'],
+              relation: _withFood,
+            ),
+          ]).evaluateStack(
+            stackItems: [
+              _supplement('row-dk', 'D+K', {'vitamin_d', 'vitamin_k1'}),
+            ],
+          );
       expect(
         results,
         hasLength(1),
@@ -258,6 +267,125 @@ void main() {
       service.evaluateStack(stackItems: stack);
       stopwatch.stop();
       expect(stopwatch.elapsedMilliseconds, lessThan(2000));
+    });
+  });
+
+  test('bundled oral timing excludes current nonoral products only', () {
+    final payload =
+        jsonDecode(
+              File(
+                'assets/reference_data/timing_rules.json',
+              ).readAsStringSync(),
+            )
+            as Map<String, dynamic>;
+    final service = TimingEvaluationService.fromJson(payload);
+    for (final sample in [
+      (tag: 'magnesium', drug: '10582', nonoral: '1115267'),
+      (tag: 'psyllium', drug: '3407', nonoral: '208137'),
+      (tag: 'psyllium', drug: '1191', nonoral: '198464'),
+    ]) {
+      List<TimingOptimization> evaluate(Set<String> identities) => service
+          .evaluateStack(
+            stackItems: [
+              _supplement('supplement', sample.tag, {sample.tag}),
+              TimingStackItem.medication(
+                stackEntryId: 'medicine',
+                displayName: 'Selected medicine',
+                medicationRxCuis: identities,
+              ),
+            ],
+          )
+          .where((finding) => finding.involvesMedication)
+          .toList();
+      expect(evaluate({sample.drug, sample.nonoral}), isEmpty);
+      expect(evaluate({sample.drug}), hasLength(1));
+      expect(evaluate({'860975'}), isEmpty);
+    }
+  });
+
+  group('pipeline-authored medication exclusions', () {
+    Map<String, dynamic> scopedRule() => {
+      ..._rule(
+        id: 'timing_psyllium_digoxin',
+        ingredient1: 'psyllium',
+        ingredient1Tags: const ['psyllium'],
+        ingredient2: 'digoxin',
+        ingredient2Rxcuis: const ['3407'],
+        relation: const {'type': 'separate_from', 'minimum_hours': 3},
+        category: 'important_separation',
+      ),
+      'excluded_member_rxcuis': ['208137'],
+    };
+
+    test('excluded selected product wins over its matching ingredient', () {
+      final service = _serviceOf([scopedRule()]);
+      final results = service.evaluateStack(
+        stackItems: [
+          _supplement('psyllium', 'Psyllium', {'psyllium'}),
+          const TimingStackItem.medication(
+            stackEntryId: 'injection',
+            displayName: 'Lanoxin injection',
+            medicationRxCuis: {'208137', '3407'},
+          ),
+        ],
+      );
+      expect(results, isEmpty);
+    });
+
+    test('exclusion is local to the medication, not the whole stack', () {
+      final service = _serviceOf([scopedRule()]);
+      final results = service.evaluateStack(
+        stackItems: [
+          _supplement('psyllium', 'Psyllium', {'psyllium'}),
+          const TimingStackItem.medication(
+            stackEntryId: 'injection',
+            displayName: 'Lanoxin injection',
+            medicationRxCuis: {'208137', '3407'},
+          ),
+          const TimingStackItem.medication(
+            stackEntryId: 'oral-or-unknown',
+            displayName: 'Digoxin',
+            medicationRxCuis: {'3407'},
+          ),
+        ],
+      );
+      expect(results, hasLength(1));
+      expect(results.single.product2StackEntryId, 'oral-or-unknown');
+    });
+
+    test('malformed exclusions cannot silently become an ungated rule', () {
+      for (final invalid in [
+        null,
+        '208137',
+        [208137],
+        ['not-an-rxcui'],
+        [''],
+      ]) {
+        expect(
+          () => _serviceOf([
+            {...scopedRule(), 'excluded_member_rxcuis': invalid},
+          ]),
+          throwsFormatException,
+        );
+      }
+    });
+
+    test('omitted exclusions preserve existing rule matching', () {
+      final raw = scopedRule()..remove('excluded_member_rxcuis');
+      final service = _serviceOf([raw]);
+      expect(
+        service.evaluateStack(
+          stackItems: [
+            _supplement('psyllium', 'Psyllium', {'psyllium'}),
+            const TimingStackItem.medication(
+              stackEntryId: 'unknown',
+              displayName: 'Digoxin',
+              medicationRxCuis: {'3407'},
+            ),
+          ],
+        ),
+        hasLength(1),
+      );
     });
   });
 
@@ -325,7 +453,9 @@ void main() {
 
     test('does not fire when the medication is absent', () {
       final results = service.evaluateStack(
-        stackItems: [_supplement('row-iron', 'Gentle Iron', {'iron'})],
+        stackItems: [
+          _supplement('row-iron', 'Gentle Iron', {'iron'}),
+        ],
       );
       expect(results, isEmpty);
     });
@@ -381,28 +511,29 @@ void main() {
 
   group('ordering and derived fields', () {
     test('important separations outrank how-to-take guidance', () {
-      final results = _serviceOf([
-        _rule(
-          id: 'timing_with_food',
-          ingredient1: 'iron',
-          ingredient1Tags: const ['iron'],
-          relation: _withFood,
-        ),
-        _rule(
-          id: 'timing_separate',
-          ingredient1: 'iron',
-          ingredient1Tags: const ['iron'],
-          ingredient2: 'calcium',
-          ingredient2Tags: const ['calcium'],
-          relation: _separate2h,
-          category: 'important_separation',
-        ),
-      ]).evaluateStack(
-        stackItems: [
-          _supplement('row-iron', 'Iron', {'iron'}),
-          _supplement('row-cal', 'Calcium', {'calcium'}),
-        ],
-      );
+      final results =
+          _serviceOf([
+            _rule(
+              id: 'timing_with_food',
+              ingredient1: 'iron',
+              ingredient1Tags: const ['iron'],
+              relation: _withFood,
+            ),
+            _rule(
+              id: 'timing_separate',
+              ingredient1: 'iron',
+              ingredient1Tags: const ['iron'],
+              ingredient2: 'calcium',
+              ingredient2Tags: const ['calcium'],
+              relation: _separate2h,
+              category: 'important_separation',
+            ),
+          ]).evaluateStack(
+            stackItems: [
+              _supplement('row-iron', 'Iron', {'iron'}),
+              _supplement('row-cal', 'Calcium', {'calcium'}),
+            ],
+          );
       expect(results.first.ruleId, 'timing_separate');
     });
 
@@ -468,22 +599,23 @@ void main() {
     });
 
     test('involvesMedication comes from reviewed rule identity only', () {
-      final results = _serviceOf([
-        _rule(
-          id: 'timing_supplement_only',
-          ingredient1: 'iron',
-          ingredient1Tags: const ['iron'],
-          ingredient2: 'calcium',
-          ingredient2Tags: const ['calcium'],
-          relation: _separate2h,
-          category: 'important_separation',
-        ),
-      ]).evaluateStack(
-        stackItems: [
-          _supplement('row-iron', 'Levothyroxine lookalike', {'iron'}),
-          _supplement('row-cal', 'Calcium', {'calcium'}),
-        ],
-      );
+      final results =
+          _serviceOf([
+            _rule(
+              id: 'timing_supplement_only',
+              ingredient1: 'iron',
+              ingredient1Tags: const ['iron'],
+              ingredient2: 'calcium',
+              ingredient2Tags: const ['calcium'],
+              relation: _separate2h,
+              category: 'important_separation',
+            ),
+          ]).evaluateStack(
+            stackItems: [
+              _supplement('row-iron', 'Levothyroxine lookalike', {'iron'}),
+              _supplement('row-cal', 'Calcium', {'calcium'}),
+            ],
+          );
       expect(results.single.involvesMedication, isFalse);
     });
   });

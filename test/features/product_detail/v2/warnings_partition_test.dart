@@ -60,6 +60,135 @@ List<InteractionWarning> _all(
 ) => [...partitioned.profile, ...partitioned.general];
 
 void main() {
+  test('mixed seizure medicines retain the qualified CBD review message', () {
+    Map<String, dynamic> row(
+      String drugClass,
+      String title,
+      List<String> excludes,
+    ) => {
+      'severity': 'caution',
+      'evidence_level': 'theoretical',
+      'mechanism': title,
+      'action': title,
+      'alert_headline': title,
+      'alert_body': title,
+      'ingredient_canonical_id': 'cannabidiol',
+      'drug_class_ids': [drugClass],
+      'profile_gate': {
+        'gate_type': 'drug_class',
+        'requires': {
+          'drug_classes_any': [drugClass],
+        },
+        'excludes': {'drug_classes_any': excludes},
+      },
+    };
+    final rows = [
+      row('stiripentol', 'Stiripentol finding', []),
+      row('anticonvulsants', 'Review other seizure medicines', [
+        'clobazam',
+        'valproate',
+        'stiripentol',
+        'cbd_other_anticonvulsants',
+      ]),
+      row('cbd_other_anticonvulsants', 'Review other seizure medicines', []),
+    ];
+    Set<String> findings(Set<String> classes) => composeGuardedWarnings(
+      detailBlob: {'warnings': rows},
+      personalizedWarnings: const [],
+      userConditions: const {},
+      userDrugClasses: classes,
+      userProfileFlags: const {},
+    ).map((warning) => warning.alertHeadline!).toSet();
+
+    expect(findings({'anticonvulsants', 'stiripentol'}), {
+      'Stiripentol finding',
+    });
+    expect(
+      findings({'anticonvulsants', 'stiripentol', 'cbd_other_anticonvulsants'}),
+      {'Stiripentol finding', 'Review other seizure medicines'},
+    );
+    expect(findings({'anticonvulsants'}), {'Review other seizure medicines'});
+    expect(findings({}), isEmpty);
+  });
+
+  test('B8 eight omega rows become one concern across both medicine classes', () {
+    // Snapshot of the four canonical B8 G1 rows on 2026-11-12. The first
+    // source-level dedupe preserves eligibility; presentation merges only
+    // after profile evaluation, so either class also works on its own.
+    final rows = <Map<String, dynamic>>[
+      for (final ingredient in ['omega_3', 'fish_oil', 'epa', 'dha'])
+        for (final drugClass in ['anticoagulants', 'antiplatelets'])
+          {
+            ...{
+              "severity": "monitor",
+              "evidence_level": "established",
+              "mechanism":
+                  "Omega-3 preparations can affect platelet function, but randomized-trial evidence does not show an overall increase in bleeding. High-dose purified prescription EPA has a separate bleeding signal; that finding does not establish the same risk for ordinary EPA/DHA supplements or a universal supplement cutoff.",
+              "action":
+                  "Tell your prescriber when starting, stopping or changing omega-3 supplements and report unusual bruising or bleeding. If you take warfarin, ask your anticoagulation team whether INR follow-up is needed.",
+              "sources": [
+                "https://ods.od.nih.gov/factsheets/Omega3FattyAcids-HealthProfessional/",
+                "https://pubmed.ncbi.nlm.nih.gov/38742535/",
+              ],
+              "alert_headline":
+                  "Omega-3 supplements: monitor with blood-thinning medicines",
+              "alert_body":
+                  "If you take blood-thinning medicine, tell your prescriber about omega-3 supplements and report unusual bruising or bleeding. Warfarin users may need INR follow-up when changing use.",
+              "informational_note":
+                  "Ordinary supplemental omega-3 findings are monitored together; prescription purified EPA requires its own guidance.",
+              "direction": "harmful",
+              "materiality": "presence",
+              "min_effective_dose": null,
+              "type": "drug_interaction",
+              "display_mode_default": "informational",
+            },
+            'ingredient_canonical_id': ingredient,
+            'drug_class_ids': [drugClass],
+            'evidence_level': ingredient == 'epa' || ingredient == 'dha'
+                ? 'theoretical'
+                : 'established',
+            'profile_gate': {
+              'gate_type': 'drug_class',
+              'requires': {
+                'drug_classes_any': [drugClass],
+              },
+              'excludes': <String, dynamic>{},
+              'dose': null,
+            },
+          },
+    ];
+    expect(rows, hasLength(8));
+    for (final classes in <Set<String>>[
+      {'anticoagulants', 'antiplatelets'},
+      {'anticoagulants'},
+      {'antiplatelets'},
+    ]) {
+      final guarded = composeGuardedWarnings(
+        detailBlob: {'warnings': rows},
+        personalizedWarnings: const [],
+        userConditions: const {},
+        userDrugClasses: classes,
+        userProfileFlags: const {},
+      );
+      final result = partitionProfileWarnings(
+        warnings: guarded,
+        userConditions: const {},
+        userDrugClasses: classes,
+        userProfileFlags: const {},
+      );
+      expect(result.profile, hasLength(1));
+      expect(result.profile.single.severity, Severity.monitor);
+      expect(result.profile.single.evidenceLevel, EvidenceLevel.established);
+      expect(
+        result.profile.single.sourceUrls,
+        containsAll([
+          'https://ods.od.nih.gov/factsheets/Omega3FattyAcids-HealthProfessional/',
+          'https://pubmed.ncbi.nlm.nih.gov/38742535/',
+        ]),
+      );
+    }
+  });
+
   test('critical display mode ignores case and surrounding whitespace', () {
     expect(isCriticalDisplayMode('critical'), isTrue);
     expect(isCriticalDisplayMode('Critical'), isTrue);

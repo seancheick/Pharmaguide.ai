@@ -100,6 +100,13 @@ class MedicationClassBridge {
       _normalizeRxcuis([selectedRxcui, genericRxcui, ...ingredientRxcuis]),
     );
     final runtime = _normalizeClassIds(runtimeClassIds);
+    // A hydrated generic may itself be one ingredient of a combination.
+    // Only identities outside that ingredient list can override its members.
+    final ingredients = _normalizeRxcuis(ingredientRxcuis).toSet();
+    final productIdentities = _normalizeRxcuis([
+      selectedRxcui,
+      genericRxcui,
+    ]).where((id) => !ingredients.contains(id)).toList();
 
     final curated = <String>[];
     final seenCurated = <String>{};
@@ -125,9 +132,21 @@ class MedicationClassBridge {
       }
     }
 
+    // Exact authored product exclusions (such as IV formulations) take
+    // precedence over the class inherited from their active ingredient.
+    final excludedProducts = <String>{};
+    for (final classId in {...curated, ...runtime}) {
+      final membershipId = _rxClassFallbackToCurated[classId] ?? classId;
+      if (await _db.isDrugClassExcluded(membershipId, productIdentities)) {
+        excludedProducts.add(membershipId);
+      }
+    }
+    curated.removeWhere(excludedProducts.contains);
+    seenCurated.removeAll(excludedProducts);
+
     for (final runtimeId in runtime) {
       final fallback = _rxClassFallbackToCurated[runtimeId];
-      if (fallback == null) continue;
+      if (fallback == null || excludedProducts.contains(fallback)) continue;
       if (await _db.isDrugClassExcluded(fallback, rxcuis)) continue;
       if (seenCurated.add(fallback)) curated.add(fallback);
     }
@@ -136,6 +155,7 @@ class MedicationClassBridge {
     final seenMerged = <String>{};
     for (final classId in [...runtime, ...curated]) {
       final membershipClassId = _rxClassFallbackToCurated[classId] ?? classId;
+      if (excludedProducts.contains(membershipClassId)) continue;
       // A combination's verified member wins over another ingredient's exclusion.
       if (!seenCurated.contains(membershipClassId) &&
           await _db.isDrugClassExcluded(membershipClassId, rxcuis)) {

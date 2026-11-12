@@ -248,6 +248,14 @@ class TimingEvaluationService {
 
         for (final indexed in matchingRules) {
           final rule = indexed.rule;
+          // Pipeline-authored product exclusions take precedence over the
+          // ingredient aliases in this medication's identity chain. Apply
+          // them per medication so another oral/unknown-route row still matches.
+          if (medication.medicationRxCuis.any(
+            rule.excludedMemberRxcuis.contains,
+          )) {
+            continue;
+          }
           if (!_passesDoseGate(rule, ingredientDosesMg)) continue;
 
           if (!rule.relation.isBinary) {
@@ -421,6 +429,7 @@ class _ParsedTimingRule {
   final Set<String> ingredient2Tags;
   final Set<String> ingredient1Rxcuis;
   final Set<String> ingredient2Rxcuis;
+  final Set<String> excludedMemberRxcuis;
   final TimingRelation relation;
   final TimingCategory category;
   final TimingAppliesTo appliesTo;
@@ -445,6 +454,7 @@ class _ParsedTimingRule {
     required this.ingredient2Tags,
     required this.ingredient1Rxcuis,
     required this.ingredient2Rxcuis,
+    required this.excludedMemberRxcuis,
     required this.relation,
     required this.category,
     required this.appliesTo,
@@ -482,8 +492,7 @@ class _ParsedTimingRule {
     Set<String> tags(String key) {
       final raw = json[key];
       if (raw == null) return const {};
-      if (raw is! List ||
-          raw.any((v) => v is! String || v.trim().isEmpty)) {
+      if (raw is! List || raw.any((v) => v is! String || v.trim().isEmpty)) {
         throw FormatException('$id: $key must be a list of canonical tags');
       }
       return raw.cast<String>().map((v) => v.trim()).toSet();
@@ -555,6 +564,17 @@ class _ParsedTimingRule {
     final ingredient2Tags = tags('ingredient2_tags');
     final ingredient1Rxcuis = rxcuis('ingredient1_rxcuis');
     final ingredient2Rxcuis = rxcuis('ingredient2_rxcuis');
+    if (json.containsKey('excluded_member_rxcuis') &&
+        json['excluded_member_rxcuis'] is! List) {
+      throw FormatException('$id: excluded_member_rxcuis must be a list');
+    }
+    final excludedMemberRxcuis = rxcuis('excluded_member_rxcuis');
+    if (excludedMemberRxcuis.isNotEmpty &&
+        (ingredient1Rxcuis.isEmpty && ingredient2Rxcuis.isEmpty)) {
+      throw FormatException(
+        '$id: medication exclusions need a medication identity',
+      );
+    }
 
     if (ingredient1Tags.isEmpty && ingredient1Rxcuis.isEmpty) {
       throw FormatException(
@@ -626,6 +646,7 @@ class _ParsedTimingRule {
       ingredient2Tags: ingredient2Tags,
       ingredient1Rxcuis: ingredient1Rxcuis,
       ingredient2Rxcuis: ingredient2Rxcuis,
+      excludedMemberRxcuis: excludedMemberRxcuis,
       relation: relation,
       category: category,
       appliesTo: appliesTo,
