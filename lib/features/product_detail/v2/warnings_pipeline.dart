@@ -98,20 +98,25 @@ List<InteractionWarning> composeGuardedWarnings({
   );
 }
 
-/// A G4 conditional note: the warning it shows, and every medicine class or
-/// condition it is relevant to once rows with one message are merged.
+/// A G4 conditional note: the warning it shows, every medicine class or
+/// condition it is relevant to once rows with one message are merged, and the
+/// citations of every merged row.
 typedef ConditionalNote = ({
   InteractionWarning warning,
   Set<String> drugClassIds,
   Set<String> conditionIds,
+  Set<String> sourceUrls,
 });
 
 /// Compose the conditional notes Product Detail shows in "Good to know"
 /// ([conditionalProductDetailNotes], Dr. Pham G4). Takes the same inputs as
 /// [composeGuardedWarnings] plus the warnings already shown, so a note never
-/// repeats a warning on the page. Rows with one message (a warfarin-type and an
-/// unidentified blood-thinner row; a pregnancy and a breastfeeding row) become
-/// one note that keeps every class or condition they name.
+/// repeats a warning on the page. Rows with one message and one evidence grade
+/// (a warfarin-type and an unidentified blood-thinner row; a pregnancy and a
+/// breastfeeding row) become one note that keeps every class, condition and
+/// citation they name; a different evidence grade stays its own note.
+/// [conditionsAnswered] / [drugClassesAnswered]: the user answered "none" for
+/// that axis, so an empty set there is known, not missing.
 List<ConditionalNote> composeConditionalNotes({
   required Map<String, dynamic>? detailBlob,
   String? productStatus,
@@ -123,6 +128,8 @@ List<ConditionalNote> composeConditionalNotes({
   required Set<String> userProfileFlags,
   String? ageBracket,
   String? sex,
+  bool conditionsAnswered = false,
+  bool drugClassesAnswered = false,
 }) {
   final merged = <InteractionWarning>[
     ...personalizedWarnings,
@@ -136,28 +143,42 @@ List<ConditionalNote> composeConditionalNotes({
     userDrugClasses: userDrugClasses,
     userProfileFlags: userProfileFlags,
     sex: sex,
+    conditionsAnswered: conditionsAnswered,
+    drugClassesAnswered: drugClassesAnswered,
   );
   final shown = <String>{
     for (final w in shownWarnings) ..._consumerWarningIdentities(w),
   };
   final notes = <ConditionalNote>[];
-  final noteByIdentity = <String, ConditionalNote>{};
+  // Keyed by evidence grade too: the note shows one grade, so a row with
+  // another grade never merges into it.
+  final noteByIdentity = <(String, EvidenceLevel), ConditionalNote>{};
   for (final candidate in candidates) {
     final identities = _consumerWarningIdentities(candidate);
     if (identities.any(shown.contains)) continue;
-    final kept = identities.map((i) => noteByIdentity[i]).nonNulls.firstOrNull;
+    final evidence = candidate.evidenceLevel;
+    final kept = identities
+        .map((i) => noteByIdentity[(i, evidence)])
+        .nonNulls
+        .firstOrNull;
     final note =
         kept ??
         (
           warning: candidate,
           drugClassIds: <String>{},
           conditionIds: <String>{},
+          sourceUrls: <String>{},
         );
     note.drugClassIds.addAll(candidate.drugClassIds);
     note.conditionIds.addAll(candidate.conditionIds);
+    note.sourceUrls.addAll(
+      candidate.sourceUrls
+          .map((url) => url.trim())
+          .where((url) => url.isNotEmpty),
+    );
     if (kept == null) notes.add(note);
     for (final identity in identities) {
-      noteByIdentity[identity] ??= note;
+      noteByIdentity[(identity, evidence)] ??= note;
     }
   }
   return notes;

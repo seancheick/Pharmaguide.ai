@@ -575,6 +575,18 @@ class _ProductDetailV2ConnectedState
     final stackClassesKnown =
         stackMedicationClassesAsync.hasValue ||
         stackMedicationClassesAsync.hasError;
+    // An explicit "none" is an answer. The medicines "none" holds only while
+    // the stack has loaded with no medicine on it: a medicine added since, even
+    // one with no class, leaves the question open. The stack is read only for
+    // a "none" profile (an unconditional watch starts the real stack query in
+    // screen tests that don't provide one).
+    final drugClassesAnswered =
+        profile.hasDrugClassNone &&
+        !(ref
+                .watch(activeStackProvider)
+                .value
+                ?.any((entry) => entry.type == 'medication') ??
+            true);
     final conditionalNotes = !stackClassesKnown
         ? const <ConditionalNote>[]
         : composeConditionalNotes(
@@ -588,14 +600,20 @@ class _ProductDetailV2ConnectedState
             userConditions: userConditionsSet,
             userDrugClasses: userDrugClassesSet,
             userProfileFlags: userProfileFlagsSet,
+            conditionsAnswered: profile.hasConditionNone,
+            drugClassesAnswered: drugClassesAnswered,
           );
     // Read the stack only when a medicine-class note needs its wording: such a
-    // note means no entered medicine resolved to a class.
+    // note means no entered medicine resolved to a class. True also when the
+    // stack could not be read: an unread stack is not "no medicines", so the
+    // note asks the pharmacist instead of saying "Add your medicines".
     final medicinesEntered =
         conditionalNotes.any((note) => note.drugClassIds.isNotEmpty) &&
-        (ref.watch(activeStackProvider).value ?? const []).any(
-          (entry) => entry.type == 'medication',
-        );
+        (ref
+                .watch(activeStackProvider)
+                .value
+                ?.any((entry) => entry.type == 'medication') ??
+            true);
     final profileBenefitWarnings = InteractionWarning.dedupe([
       ...personalizedWarnings,
       ...profileRuleWarnings,

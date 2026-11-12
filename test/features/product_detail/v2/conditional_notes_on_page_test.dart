@@ -11,6 +11,7 @@ import 'package:drift/drift.dart' show Value;
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:pharmaguide/core/constants/schema_ids.dart';
 import 'package:pharmaguide/core/data/drug_class_vocab.dart';
 import 'package:pharmaguide/core/data/vocab_registry.dart';
 import 'package:pharmaguide/core/models/fit_score_result.dart';
@@ -33,6 +34,9 @@ const _classHeadline = 'Avoid combining with MAOIs';
 const _conditionalScope =
     'Relevant if you take: MAOIs. Add your medicines to check whether it '
     'applies to you.';
+const _pharmacistScope =
+    "Relevant if you take: MAOIs. We couldn't match your medicines to a "
+    'group; ask your pharmacist whether this applies to you.';
 
 /// RULE_IQM_SAME's MAOI row as build_final_db exports it (G4 display mode).
 const _sameMaoiRow = <String, dynamic>{
@@ -107,6 +111,7 @@ InteractionsCompanion _samePair({
   required String agent1Id,
   required String mechanism,
   required String management,
+  required String evidenceLevel,
 }) => InteractionsCompanion.insert(
   id: id,
   agent1Type: agent1Type,
@@ -121,7 +126,7 @@ InteractionsCompanion _samePair({
   effectType: const Value('additive'),
   mechanism: mechanism,
   management: management,
-  evidenceLevel: const Value('established'),
+  evidenceLevel: Value(evidenceLevel),
   sourceUrlsJson:
       '["https://dailymed.nlm.nih.gov/dailymed/drugInfo.cfm?setid=3c14a558-2df4-4d93-97dd-640dec6ee785"]',
   sourcePmidsJson: '[]',
@@ -142,6 +147,8 @@ Future<void> _pumpPage(
   Map<String, dynamic> blob = _blob,
   bool seedPairs = true,
   bool stackClassesLoading = false,
+  bool stackReadFails = false,
+  List<String> profileDrugClasses = const [],
 }) async {
   final coreDb = CoreDatabase.memory();
   final userDb = UserDatabase.memory();
@@ -185,14 +192,19 @@ Future<void> _pumpPage(
         userDatabaseProvider.overrideWithValue(userDb),
         interactionDatabaseProvider.overrideWithValue(interactionDb),
         safetyAlertRepositoryProvider.overrideWithValue(_VerifiedNoAlerts()),
-        activeStackProvider.overrideWith((ref) async => stack),
+        activeStackProvider.overrideWith(
+          (ref) async =>
+              stackReadFails ? throw StateError('stack read failed') : stack,
+        ),
         detailBlobProvider.overrideWith((ref, dsldId) async => blob),
         detailBlobForRowProvider.overrideWith((ref, key) async => blob),
         if (stackClassesLoading)
           currentStackMedicationClassIdsProvider.overrideWith(
             (ref) => Completer<Set<String>>().future,
           ),
-        profileProvider.overrideWith((ref) => ProfileNotifier()),
+        profileProvider.overrideWith(
+          (ref) => ProfileNotifier()..setDrugClasses(profileDrugClasses),
+        ),
         fitScoreForProductProvider.overrideWith(
           (ref, dsldId) async => const FitScoreResult(
             missingFields: [],
@@ -226,6 +238,7 @@ Future<void> _seedSamePairs(InteractionDatabase interactionDb) async {
               'The tranylcypromine label lists SAMe among contraindicated '
               'combinations because of serotonin syndrome.',
           management: 'Do not take SAMe with tranylcypromine.',
+          evidenceLevel: 'established',
         ),
       );
   await interactionDb
@@ -238,6 +251,7 @@ Future<void> _seedSamePairs(InteractionDatabase interactionDb) async {
           agent1Id: 'class:maois',
           mechanism: 'Class inference from the tranylcypromine label.',
           management: 'Do not combine SAMe with an MAOI.',
+          evidenceLevel: 'moderate',
         ),
       );
 }
@@ -287,6 +301,21 @@ void main() {
         ),
         findsWidgets,
       );
+      // The inferred class pair carries its own (moderate) evidence grade.
+      expect(
+        find.textContaining(
+          RegExp(
+            r'Class inference from the tranylcypromine label\..*'
+            'Moderate supporting evidence',
+          ),
+          skipOffstage: false,
+        ),
+        findsOneWidget,
+      );
+      expect(
+        find.textContaining('Strong supporting evidence', skipOffstage: false),
+        findsNothing,
+      );
       expect(find.text(_classHeadline, skipOffstage: false), findsNothing);
       expect(find.text('No known concerns'), findsNothing);
     },
@@ -310,6 +339,23 @@ void main() {
           skipOffstage: false,
         ),
         findsOneWidget,
+      );
+      // The exact label pair carries its own (established) evidence grade.
+      expect(
+        find.textContaining(
+          RegExp(
+            'The tranylcypromine label lists SAMe.*Strong supporting evidence',
+          ),
+          skipOffstage: false,
+        ),
+        findsOneWidget,
+      );
+      expect(
+        find.textContaining(
+          'Moderate supporting evidence',
+          skipOffstage: false,
+        ),
+        findsNothing,
       );
       // Neither the class pair nor the class rule repeats it.
       expect(
@@ -372,16 +418,73 @@ void main() {
       await tester.tap(find.text('Good to know'));
       await tester.pumpAndSettle();
       expect(
-        find.textContaining(
-          "Relevant if you take: MAOIs. We couldn't match your medicines to a "
-          'group; ask your pharmacist whether this applies to you.',
-          skipOffstage: false,
-        ),
+        find.textContaining(_pharmacistScope, skipOffstage: false),
         findsOneWidget,
       );
       expect(
         find.textContaining('Add your medicines', skipOffstage: false),
         findsNothing,
+      );
+    },
+  );
+
+  testWidgets(
+    'a stack that could not be read is not "no medicines": ask the pharmacist',
+    (tester) async {
+      await _pumpPage(tester, stackReadFails: true);
+
+      // The incomplete-checks banner pushes the card below the fold.
+      await tester.ensureVisible(
+        find.text('Good to know', skipOffstage: false),
+      );
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Good to know'));
+      await tester.pumpAndSettle();
+      expect(
+        find.textContaining(_pharmacistScope, skipOffstage: false),
+        findsOneWidget,
+      );
+      expect(
+        find.textContaining('Add your medicines', skipOffstage: false),
+        findsNothing,
+      );
+    },
+  );
+
+  testWidgets('medicines answered "none" and none on the list: no note', (
+    tester,
+  ) async {
+    await _pumpPage(tester, profileDrugClasses: [SchemaIds.drugClassNone]);
+
+    expect(find.text('Good to know'), findsNothing);
+    expect(
+      find.textContaining('Relevant if you take', skipOffstage: false),
+      findsNothing,
+    );
+  });
+
+  testWidgets(
+    'a stale "none" beside an unclassified medicine: the note asks the '
+    'pharmacist',
+    (tester) async {
+      await _pumpPage(
+        tester,
+        profileDrugClasses: [SchemaIds.drugClassNone],
+        stack: [
+          _medication(
+            'med-unknown',
+            'Unlisted medicine',
+            '999999',
+            drugClassesCol: '[]',
+          ),
+        ],
+      );
+
+      await tester.tap(find.text('Good to know'));
+      await tester.pumpAndSettle();
+      expect(
+        find.textContaining(_pharmacistScope, skipOffstage: false),
+        findsOneWidget,
       );
     },
   );

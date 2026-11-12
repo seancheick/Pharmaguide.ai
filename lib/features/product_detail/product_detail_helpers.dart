@@ -186,10 +186,15 @@ bool _matchesProfileForProduct(
 // the ones whose profile axis is still empty, for the calm "Good to know"
 // surface only:
 //
-// - a medicine-class finding while no medicines or classes are entered;
-// - a condition finding while no conditions are entered, except life-stage
-//   findings (pregnancy, breastfeeding, trying to conceive) for a profile that
-//   says Male.
+// - a medicine-class finding while no medicines or classes are entered and
+//   the user has not answered "none";
+// - a condition finding while no conditions are entered and the user has not
+//   answered "none", except life-stage findings (pregnancy, breastfeeding,
+//   trying to conceive) for a profile that says Male.
+//
+// The finding must still apply once that axis is answered: one the product or
+// the rest of the profile rules out (an oral-only rule on a topical product, a
+// medicine the gate excludes) is not a note.
 //
 // A finding scoped to both axes, or to profile flags, stays hidden; so do
 // caution and monitor findings, which the pipeline marks `suppress`.
@@ -205,6 +210,8 @@ List<InteractionWarning> conditionalProductDetailNotes({
   required Set<String> userDrugClasses,
   Set<String> userProfileFlags = const <String>{},
   String? sex,
+  bool conditionsAnswered = false,
+  bool drugClassesAnswered = false,
 }) {
   final gated = _gatedProductDetailWarnings(detailBlob, warnings);
   return gated.warnings
@@ -216,18 +223,39 @@ List<InteractionWarning> conditionalProductDetailNotes({
         final conditionScoped = w.conditionIds.isNotEmpty;
         if (drugScoped == conditionScoped) return false;
         final axisUnknown = drugScoped
-            ? userDrugClasses.isEmpty
+            ? userDrugClasses.isEmpty && !drugClassesAnswered
             : userConditions.isEmpty &&
+                  !conditionsAnswered &&
                   !(sex == 'Male' &&
                       w.conditionIds.every(lifeStageConditionIds.contains));
         if (!axisUnknown) return false;
-        return !_matchesProfileForProduct(
+        bool matches({
+          Iterable<String> conditions = const [],
+          Iterable<String> drugClasses = const [],
+          Iterable<String> profileFlags = const [],
+        }) => _matchesProfileForProduct(
           w,
           detailBlob: detailBlob,
           healthFacts: gated.healthFacts,
-          userConditions: userConditions,
-          userDrugClasses: userDrugClasses,
-          userProfileFlags: userProfileFlags,
+          userConditions: {...userConditions, ...conditions},
+          userDrugClasses: {...userDrugClasses, ...drugClasses},
+          userProfileFlags: {...userProfileFlags, ...profileFlags},
+        );
+        if (matches()) return false;
+        // Answer the unknown axis with what the finding requires; if it still
+        // does not fire, the product or the known profile rules it out.
+        final gate = w.profileGate;
+        final requires = gate?['requires'];
+        Iterable<String> gateRequires(String key, List<String> legacy) =>
+            gate == null
+            ? legacy
+            : requires is Map && requires[key] is List
+            ? (requires[key] as List).whereType<String>()
+            : const [];
+        return matches(
+          conditions: gateRequires('conditions_any', w.conditionIds),
+          drugClasses: gateRequires('drug_classes_any', w.drugClassIds),
+          profileFlags: gateRequires('profile_flags_any', const []),
         );
       })
       .toList(growable: false);

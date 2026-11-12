@@ -612,7 +612,8 @@ Widget? buildGeneralNotesSection({
 /// The profile qualifier of a G4 conditional note: who it is for, and how to
 /// check. Names come from the bundled vocabularies (the medication-class and
 /// condition names the profile screens use). [medicinesEntered] is true when
-/// the user has added medicines the app could not place in any class.
+/// the user has added medicines the app could not place in any class, or when
+/// the medicines could not be read.
 String conditionalNoteScope(
   ConditionalNote note, {
   bool medicinesEntered = false,
@@ -645,7 +646,8 @@ PGReviewRow _rowForConditionalNote(
   void Function(List<String> sourceUrls)? onTapCitations,
 }) {
   final warning = note.warning;
-  final citationCount = warning.sourceUrls.length;
+  final sourceUrls = note.sourceUrls.toList(growable: false);
+  final citationCount = sourceUrls.length;
   return PGReviewRow(
     headline: warning.displayHeadline,
     caption: [
@@ -656,7 +658,7 @@ PGReviewRow _rowForConditionalNote(
     ].join(' · '),
     rowTone: PGReviewTone.info,
     onTap: citationCount > 0 && onTapCitations != null
-        ? () => onTapCitations(warning.sourceUrls)
+        ? () => onTapCitations(sourceUrls)
         : null,
   );
 }
