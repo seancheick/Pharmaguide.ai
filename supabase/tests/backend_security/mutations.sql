@@ -232,3 +232,7 @@ BEGIN
   END LOOP;
   IF NOT changed THEN RAISE EXCEPTION 'no reviewer gate found in %', p_name; END IF;
 END $$;
+
+INSERT INTO sec.mutations VALUES
+('NULL usage guard gone', 'check_usage_type_required', $$SELECT sec.mutate('increment_usage', 'p_type IS NULL OR ', '')$$, 'NULL usage type (as B)'),
+('NULL approval digest guard gone', 'check_reopen_digest_required', $$SELECT sec.mutate('reopen_product_submission_approval', 'OR p_expected_payload_sha256 IS NULL\s+', '')$$, 'NULL approval digest (as R)');

@@ -436,3 +436,23 @@ BEGIN
     RAISE EXCEPTION 'FAIL: the mutation judge refused the named assertion';
   END IF;
 END $$;
+
+-- Invalid inputs must fail before the usage insert or approval lookup.
+CREATE FUNCTION sec.check_usage_type_required() RETURNS void LANGUAGE plpgsql AS $$
+BEGIN
+  PERFORM sec.expect('B', $q$SELECT public.increment_usage(sec.uid('B'), NULL)$q$, 'denied:P0001', 'NULL usage type');
+  PERFORM sec.expect('B', $q$SELECT public.increment_usage(sec.uid('B'), '')$q$, 'denied:P0001', 'empty usage type');
+  PERFORM sec.expect('B', $q$SELECT public.increment_usage(sec.uid('B'), 'invalid')$q$, 'denied:P0001', 'unknown usage type');
+  PERFORM sec.expect('B', $q$SELECT public.increment_usage(sec.uid('B'), 'scan')$q$, 'rows:1', 'valid scan type');
+  PERFORM sec.expect('B', $q$SELECT public.increment_usage(sec.uid('B'), 'ai_message')$q$, 'rows:1', 'valid AI type');
+END $$;
+
+CREATE FUNCTION sec.check_reopen_digest_required() RETURNS void LANGUAGE plpgsql AS $$
+BEGIN
+  PERFORM sec.expect('R', $q$SELECT public.reopen_product_submission_approval(sec.submission(), 1, NULL, 'Correction')$q$, 'denied:22023', 'NULL approval digest');
+  PERFORM sec.expect('R', $q$SELECT public.reopen_product_submission_approval(sec.submission(), 1, '', 'Correction')$q$, 'denied:22023', 'empty approval digest');
+  PERFORM sec.expect('R', $q$SELECT public.reopen_product_submission_approval(sec.submission(), 1, 'invalid', 'Correction')$q$, 'denied:22023', 'malformed approval digest');
+  PERFORM sec.expect('R', $q$SELECT public.reopen_product_submission_approval(sec.submission(), NULL, repeat('a',64), 'Correction')$q$, 'denied:22023', 'NULL approval revision');
+  -- Valid syntax reaches the existing ready-submission gate in this fixture.
+  PERFORM sec.expect('R', $q$SELECT public.reopen_product_submission_approval(sec.submission(), 1, repeat('a',64), 'Correction')$q$, 'denied:55000', 'valid digest reaches state gate');
+END $$;
