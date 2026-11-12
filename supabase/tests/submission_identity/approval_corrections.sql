@@ -26,6 +26,10 @@ DO $$ DECLARE sid uuid; h text; BEGIN
  PERFORM fixture.throws(format('SELECT public.reopen_product_submission_approval(%L,1,%L,'' '')',sid,h),'22023','reason required');
  PERFORM fixture.throws(format('SELECT public.reopen_product_submission_approval(%L,2,%L,''Fix transcription'')',sid,h),'55000','approval changed');
  PERFORM fixture.throws(format('SELECT public.reopen_product_submission_approval(%L,1,%L,''Fix transcription'')',sid,repeat('0',64)),'55000','approval changed');
+ PERFORM fixture.throws(format('SELECT public.reopen_product_submission_approval(%L,1,NULL,''Fix transcription'')',sid),'22023','expected approval required');
+ PERFORM fixture.throws(format('SELECT public.reopen_product_submission_approval(%L,1,%L,''Fix transcription'')',sid,''),'22023','expected approval required');
+ PERFORM fixture.throws(format('SELECT public.reopen_product_submission_approval(%L,1,%L,''Fix transcription'')',sid,'invalid'),'22023','expected approval required');
+ PERFORM fixture.assert((SELECT review_status='approved' FROM public.product_submissions WHERE id=sid),'invalid digest leaves approval intact');
  PERFORM fixture.assert(public.reopen_product_submission_approval(sid,1,h,'Fix transcription'),'reopened');
  PERFORM fixture.assert(public.reopen_product_submission_approval(sid,1,h,'Fix transcription'),'identical retry');
  PERFORM fixture.assert((SELECT review_status='under_review' AND approval_revision=1
