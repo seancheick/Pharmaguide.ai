@@ -60,6 +60,57 @@ List<InteractionWarning> _all(
 ) => [...partitioned.profile, ...partitioned.general];
 
 void main() {
+  test('mixed seizure medicines retain the qualified CBD review message', () {
+    Map<String, dynamic> row(
+      String drugClass,
+      String title,
+      List<String> excludes,
+    ) => {
+      'severity': 'caution',
+      'evidence_level': 'theoretical',
+      'mechanism': title,
+      'action': title,
+      'alert_headline': title,
+      'alert_body': title,
+      'ingredient_canonical_id': 'cannabidiol',
+      'drug_class_ids': [drugClass],
+      'profile_gate': {
+        'gate_type': 'drug_class',
+        'requires': {
+          'drug_classes_any': [drugClass],
+        },
+        'excludes': {'drug_classes_any': excludes},
+      },
+    };
+    final rows = [
+      row('stiripentol', 'Stiripentol finding', []),
+      row('anticonvulsants', 'Review other seizure medicines', [
+        'clobazam',
+        'valproate',
+        'stiripentol',
+        'cbd_other_anticonvulsants',
+      ]),
+      row('cbd_other_anticonvulsants', 'Review other seizure medicines', []),
+    ];
+    Set<String> findings(Set<String> classes) => composeGuardedWarnings(
+      detailBlob: {'warnings': rows},
+      personalizedWarnings: const [],
+      userConditions: const {},
+      userDrugClasses: classes,
+      userProfileFlags: const {},
+    ).map((warning) => warning.alertHeadline!).toSet();
+
+    expect(findings({'anticonvulsants', 'stiripentol'}), {
+      'Stiripentol finding',
+    });
+    expect(
+      findings({'anticonvulsants', 'stiripentol', 'cbd_other_anticonvulsants'}),
+      {'Stiripentol finding', 'Review other seizure medicines'},
+    );
+    expect(findings({'anticonvulsants'}), {'Review other seizure medicines'});
+    expect(findings({}), isEmpty);
+  });
+
   test('B8 eight omega rows become one concern across both medicine classes', () {
     // Snapshot of the four canonical B8 G1 rows on 2026-11-12. The first
     // source-level dedupe preserves eligibility; presentation merges only
