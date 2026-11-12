@@ -1,5 +1,32 @@
 # SECURITY DEFINER audit
 
+## November 12 NULL-input follow-up
+
+Two confirmed input-validation defects are fixed in the candidate migrations
+`20261112173021` (usage type) and `20261112173046` (approval digest).
+An authorized caller could previously supply SQL NULL and skip the corresponding
+validation branch. Reviewer and cross-user gates remain unchanged. No grants,
+policies, search paths, indexes or clinical behavior change.
+
+Owner: app `supabase/migrations::increment_usage` and
+`reopen_product_submission_approval`; evidence: migration definitions and live
+`pg_proc` inspection on November 12. Will NOT create a parallel authorization owner.
+
+Behavioral database validation: the new backend checks fail against the baseline
+(schema from app `e5b07733`, pipeline `eab3a334`) and pass with the fixes. All 35
+backend security checks pass; all 110 mutations are caught, including removal of
+each new NULL guard. Real approved-submission regression coverage also checks NULL,
+empty and malformed digests before the existing valid/retry/stale cases.
+Hosted CI and full submission-workflow results are recorded in the qualification PR.
+These migrations require qualification and deployment; this entry does not claim
+live application. Original reported commit `0d1f2997` was unavailable locally and
+after fetch; the fixes were reconstructed from the current owners.
+
+Index tuning and coordinated notification-secret rotation remain separate work.
+The November 3 snapshot below is historical, including its deployment statuses.
+
+## November 3 inventory
+
 Hardening item A6. One row for each of the 130 `SECURITY DEFINER` functions in the live database on
 2026-11-03: 124 in `public`, and 6 owned by the provider (`pgbouncer` 1, `storage` 3, `vault` 2).
 
