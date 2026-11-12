@@ -30,6 +30,7 @@ Map<String, dynamic> _fixture({
         'depletion_type': 'depletion',
         'severity': 'significant',
         'citation_review_status': 'verified',
+        'b1_clinical_approval_status': 'approved_for_controlled_beta',
         'mechanism': 'Metformin impairs B12 absorption.',
         'recommendation': 'Consider discussing B12 with your clinician.',
         'onset_timeline': 'years',

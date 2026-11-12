@@ -497,44 +497,38 @@ activateMedicationDepletionsArtifact(
 }
 
 /// Consumer-facing publication eligibility for a medication–nutrient entry,
-/// derived from its `citation_review_status` (B1.2). This is the ONE place the
-/// policy lives — the checker gates display on it, and A2 must consume these
-/// fields rather than reinterpret the raw status. `notificationAllowed` is the
-/// review-status permission only; the signal's disposition decides separately.
+/// derived from its `citation_review_status` (B1.2) and its
+/// `b1_clinical_approval_status`. This is the ONE place the policy lives — the
+/// checker gates display on it, and A2 must consume these fields rather than
+/// reinterpret the raw statuses. `notificationAllowed` is the review-status
+/// permission only; the signal's disposition decides separately.
 typedef MedNutrientPublication = ({
   bool displayAllowed,
   bool persistenceAllowed,
   bool notificationAllowed,
 });
 
-/// Map a `citation_review_status` to its publication eligibility (B1.2).
-/// Only verified records may display, persist, or notify. Every other value,
-/// including unknown future statuses, fails closed.
+/// Map an entry's review and approval statuses to its publication eligibility.
+/// A record may display, persist, or notify only when its citations are
+/// `verified` AND its exact current text is `approved_for_controlled_beta`.
+/// The pipeline's clinical sign-off owns the second field
+/// (`medication_depletions_b1_delta_signoff.json`): `pending_delta_review`
+/// and `approved_not_consumer_visible` are held. The chatbot applies the same
+/// rule (`src/core/depletions.js`). Every other value, including a missing or
+/// unknown future status, fails closed.
 MedNutrientPublication medNutrientPublicationPolicy(
   String citationReviewStatus,
+  String clinicalApprovalStatus,
 ) {
-  switch (citationReviewStatus.trim().toLowerCase()) {
-    case 'verified':
-      return (
-        displayAllowed: true,
-        persistenceAllowed: true,
-        notificationAllowed: true,
-      );
-    case 'needs_revision':
-    case 'rejected':
-      return (
-        displayAllowed: false,
-        persistenceAllowed: false,
-        notificationAllowed: false,
-      );
-    case 'unverified':
-    default:
-      return (
-        displayAllowed: false,
-        persistenceAllowed: false,
-        notificationAllowed: false,
-      );
-  }
+  final allowed =
+      citationReviewStatus.trim().toLowerCase() == 'verified' &&
+      clinicalApprovalStatus.trim().toLowerCase() ==
+          'approved_for_controlled_beta';
+  return (
+    displayAllowed: allowed,
+    persistenceAllowed: allowed,
+    notificationAllowed: allowed,
+  );
 }
 
 class DepletionChecker {
@@ -682,17 +676,26 @@ class DepletionChecker {
 
       if (!matches) continue;
 
-      // Citation-review publication rule (B1.2): only verified records surface.
-      // Missing, unverified, rejected, needs_revision, and unknown future
+      // Publication rule: only verified records whose exact current text is
+      // clinically approved for consumers surface. Missing, unverified,
+      // rejected, needs_revision, held-for-approval, and unknown future
       // statuses all fail closed.
       var reviewStatus =
           (dep['citation_review_status']?.toString() ?? 'unverified')
               .trim()
               .toLowerCase();
-      if (!medNutrientPublicationPolicy(reviewStatus).displayAllowed) {
+      final approvalStatus =
+          (dep['b1_clinical_approval_status']?.toString() ?? 'missing')
+              .trim()
+              .toLowerCase();
+      if (!medNutrientPublicationPolicy(
+        reviewStatus,
+        approvalStatus,
+      ).displayAllowed) {
         onDataIssue?.call(
           'medication_depletions: suppressed $depId '
-          '(citation_review_status=$reviewStatus, display not allowed)',
+          '(citation_review_status=$reviewStatus, '
+          'b1_clinical_approval_status=$approvalStatus, display not allowed)',
         );
         continue;
       }

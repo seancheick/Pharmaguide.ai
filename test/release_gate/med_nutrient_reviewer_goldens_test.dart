@@ -70,16 +70,15 @@ void main() {
       depletionsData: artifact,
     );
 
+    // DEP_ANTICOAGULANTS_VITAMINK is verified but held by the clinical
+    // sign-off (b1_clinical_approval_status pending_delta_review in
+    // dsld_clean scripts/data/medication_depletions_b1_delta_signoff.json),
+    // so a warfarin user sees only the approved metformin note until the
+    // delta text is signed.
     expect(matches.map((match) => match.depletionId), {
       'DEP_METFORMIN_VITAMINB12',
-      'DEP_ANTICOAGULANTS_VITAMINK',
     });
-    final metformin = matches.singleWhere(
-      (match) => match.depletionId == 'DEP_METFORMIN_VITAMINB12',
-    );
-    final warfarin = matches.singleWhere(
-      (match) => match.depletionId == 'DEP_ANTICOAGULANTS_VITAMINK',
-    );
+    final metformin = matches.single;
     // Clinician-pinned consumer copy. dsld_clean 0546d8b3 PARKED the batch-01
     // copy softening, so the reviewed "4–5 years" recommendation must ship
     // verbatim and the softened variant must NOT reappear until a B1 delta
@@ -93,10 +92,6 @@ void main() {
     expect(metformin.recommendation, isNot(contains('symptoms of deficiency')));
     // batch-01 removed the proposed watch block; no threshold may be inferred.
     expect(metformin.watchThresholdDays, isNull);
-    expect(
-      warfarin.recommendation,
-      contains('Keep vitamin K intake reasonably consistent'),
-    );
     await _pumpCard(tester, PGDepletionCard(depletions: matches));
     expect(
       find.text('Long-term metformin can lower vitamin B12'),
@@ -104,7 +99,7 @@ void main() {
     );
     expect(
       find.text('Warfarin is sensitive to vitamin K changes'),
-      findsOneWidget,
+      findsNothing,
     );
     expect(find.textContaining('comparison amount'), findsNothing);
     // Each row names its medication. The clinical sentence is the pipeline's
@@ -113,7 +108,7 @@ void main() {
       (w) => w is Text && (w.data ?? '').toLowerCase().contains(drug),
     );
     expect(names('metformin'), findsWidgets);
-    expect(names('warfarin'), findsWidgets);
+    expect(names('warfarin'), findsNothing);
 
     await expectLater(
       find.byType(MaterialApp),

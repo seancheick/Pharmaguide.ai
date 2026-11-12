@@ -44,6 +44,7 @@ Map<String, dynamic> _depletionsPayload() {
         'onset_timeline': 'years',
         'evidence_level': 'established',
         'citation_review_status': 'verified',
+        'b1_clinical_approval_status': 'approved_for_controlled_beta',
         'adequacy_threshold_mcg': 250,
         'sources': [
           {'source_type': 'reference', 'url': 'https://example.test/b12'},
@@ -66,6 +67,7 @@ Map<String, dynamic> _orlistatDepletionsPayload() {
         'depletion_type': 'depletion',
         'severity': 'moderate',
         'citation_review_status': 'verified',
+        'b1_clinical_approval_status': 'approved_for_controlled_beta',
       },
     ],
   };

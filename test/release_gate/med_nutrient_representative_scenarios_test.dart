@@ -31,16 +31,19 @@ const _scenarios = <_Scenario>[
     medication: 'warfarin',
     rxcui: '11289',
     expectedClasses: {'class:anticoagulants', 'class:vitamin_k_antagonists'},
-    expectedVisible: {'DEP_ANTICOAGULANTS_VITAMINK'},
-    expectedSuppressed: {},
+    // Held: exact current text awaits licensed-pharmacist sign-off
+    // (pipeline scripts/data/medication_depletions_b1_delta_signoff.json).
+    expectedVisible: {},
+    expectedSuppressed: {'DEP_ANTICOAGULANTS_VITAMINK'},
   ),
   (
     label: 'levothyroxine + calcium/iron',
     medication: 'levothyroxine',
     rxcui: '10582',
     expectedClasses: {},
-    expectedVisible: {'DEP_LEVOTHYROXINE_CALCIUM', 'DEP_LEVOTHYROXINE_IRON'},
-    expectedSuppressed: {},
+    // Held pending licensed-pharmacist sign-off of the delta text.
+    expectedVisible: {},
+    expectedSuppressed: {'DEP_LEVOTHYROXINE_CALCIUM', 'DEP_LEVOTHYROXINE_IRON'},
   ),
   (
     label: 'PPI + B12/magnesium',
@@ -50,8 +53,9 @@ const _scenarios = <_Scenario>[
       'class:acid_suppressants',
       'class:proton_pump_inhibitors',
     },
-    expectedVisible: {'DEP_ANTACIDS_CALCIUM', 'DEP_ANTACIDS_IRON'},
+    expectedVisible: {'DEP_ANTACIDS_CALCIUM'},
     expectedSuppressed: {
+      'DEP_ANTACIDS_IRON', // held pending delta sign-off
       'DEP_ANTACIDS_VITAMINB12',
       'DEP_ANTACIDS_MAGNESIUM',
       'DEP_ANTACIDS_VITAMINC',
@@ -66,8 +70,12 @@ const _scenarios = <_Scenario>[
       'class:loop_diuretics',
       'class:loop_and_thiazide_diuretics',
     },
-    expectedVisible: {'DEP_DIURETICS_CALCIUM', 'DEP_DIURETICS_THIAMINE'},
-    expectedSuppressed: {'DEP_DIURETICS_POTASSIUM', 'DEP_DIURETICS_MAGNESIUM'},
+    expectedVisible: {'DEP_DIURETICS_CALCIUM'},
+    expectedSuppressed: {
+      'DEP_DIURETICS_THIAMINE', // held pending delta sign-off
+      'DEP_DIURETICS_POTASSIUM',
+      'DEP_DIURETICS_MAGNESIUM',
+    },
   ),
   (
     label: 'statin + CoQ10',
@@ -210,12 +218,11 @@ const _scenarios = <_Scenario>[
     rxcui: '37925',
     expectedClasses: {},
     expectedVisible: {
-      'DEP_ORLISTAT_VITAMINA',
       'DEP_ORLISTAT_VITAMIND',
       'DEP_ORLISTAT_VITAMINE',
       'DEP_ORLISTAT_VITAMINK',
     },
-    expectedSuppressed: {},
+    expectedSuppressed: {'DEP_ORLISTAT_VITAMINA'}, // held pending sign-off
   ),
   (
     label: 'sulfasalazine + folate',
@@ -362,6 +369,63 @@ void main() {
       },
     );
   }
+
+  // Consumer visibility follows the pipeline's clinical sign-off, not citation
+  // review alone: a record whose exact current text is not
+  // approved_for_controlled_beta stays hidden even for an exact medication
+  // match. Data-driven so a future hold or approval needs no test edit here.
+  test('records held by the clinical sign-off never reach the user', () {
+    final rows = (artifact['depletions'] as List).cast<Map<String, dynamic>>();
+    final held = rows
+        .where(
+          (row) =>
+              row['citation_review_status'] == 'verified' &&
+              row['b1_clinical_approval_status'] !=
+                  'approved_for_controlled_beta',
+        )
+        .toList();
+    final approved = rows
+        .where(
+          (row) =>
+              row['citation_review_status'] == 'verified' &&
+              row['b1_clinical_approval_status'] ==
+                  'approved_for_controlled_beta',
+        )
+        .toList();
+    // No isNotEmpty on `held`: signing every record must not fail this test.
+    // An empty `approved` means the approval field was renamed or dropped.
+    expect(approved, isNotEmpty);
+
+    Set<String> visibleFor(Map<String, dynamic> row) {
+      final drugRef = (row['drug_ref'] as Map)['id'].toString();
+      return DepletionChecker()
+          .check(
+            medications: const [],
+            medicationIdentities: [
+              DepletionMedicationIdentity(
+                name: drugRef,
+                rxcui: drugRef.startsWith('class:') ? null : drugRef,
+                drugClassIds: [drugRef],
+              ),
+            ],
+            depletionsData: artifact,
+          )
+          .map((match) => match.depletionId)
+          .toSet();
+    }
+
+    for (final row in held) {
+      expect(
+        visibleFor(row),
+        isNot(contains(row['id'])),
+        reason: '${row['id']}',
+      );
+    }
+    // Control: the same exact-match identity does surface approved records.
+    for (final row in approved) {
+      expect(visibleFor(row), contains(row['id']), reason: '${row['id']}');
+    }
+  });
 
   for (final record in _approvedRecords) {
     test(
