@@ -110,9 +110,12 @@ jobs:
 
           echo "VERIFICATION_DB=$verification_db" >> "$GITHUB_ENV"
 
+      # Pinned: an unpinned stable picked up 3.50.0 on 2026-11-11, whose material.dart deprecation
+      # turned `flutter analyze` red on 300 infos. Raise the pin together with that migration.
       - uses: subosito/flutter-action@v2
         with:
           channel: stable
+          flutter-version: 3.47.8
           cache: true
 
       - name: Install dependencies
