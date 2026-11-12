@@ -41,7 +41,7 @@ void main() {
       final drugClasses = taxonomy['drug_classes'] as List;
       final metadata = taxonomy['_metadata'] as Map;
       expect(drugClasses.length, metadata['drug_classes_count']);
-      expect(drugClasses.length, 36);
+      expect(drugClasses.length, 43);
       expect((drugClasses.first as Map)['id'], 'anticoagulants');
       expect(
         drugClasses.map((entry) => (entry as Map)['id']),

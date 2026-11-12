@@ -347,6 +347,40 @@ void main() {
   // checkSupplementPairInteractions
   // -------------------------------------------------------------------------
   group('checkSupplementPairInteractions', () {
+    test('collapses identical branded and generic EMSAM pair rows', () async {
+      for (final rx in ['865208', '865206']) {
+        await db
+            .into(db.interactions)
+            .insert(
+              _row(
+                id: 'DSI_EMSAM_SAME_$rx',
+                a1Type: 'drug',
+                a1Id: rx,
+                a1Name: 'EMSAM $rx',
+                a2Type: 'supplement',
+                a2Id: 'C0036002',
+                a2Name: 'SAMe',
+                a2Canonical: 'same',
+                severity: 'contraindicated',
+              ),
+            );
+      }
+      final findings = await checker.checkMedicationInteractions(
+        newProductCanonicalIds: const ['same'],
+        stackMedications: [
+          _medication(
+            id: 'emsam',
+            name: 'EMSAM patch',
+            rxcui: '865208',
+            genericRxcui: '865206',
+            ingredientRxcuis: const ['9639'],
+          ),
+        ],
+        db: db,
+      );
+      expect(findings.single.severity, Severity.contraindicated);
+    });
+
     test('returns empty for empty new product canonical ids', () async {
       final results = await checker.checkSupplementPairInteractions(
         newProductCanonicalIds: const <String>[],

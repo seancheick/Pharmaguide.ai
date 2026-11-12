@@ -17,7 +17,7 @@ void main() {
       expect(file.existsSync(), isTrue);
     });
 
-    test('schema lock + 32 entries (16 user_selectable + 16 rule-only)', () {
+    test('schema lock + 41 entries (16 user_selectable + 25 rule-only)', () {
       final raw = file.readAsStringSync();
       final decoded = jsonDecode(raw) as Map<String, dynamic>;
       final md = decoded['_metadata'] as Map<String, dynamic>;
@@ -26,9 +26,9 @@ void main() {
       // and the sheet-facing group_label + commonly_used_for fields.
       // 2026-11-12: antimuscarinics and nadolol add two rule-only gates.
       expect(md['schema_version'], '1.1.0');
-      expect(md['total_entries'], 32);
+      expect(md['total_entries'], 41);
       expect(md['user_selectable_count'], 16);
-      expect(md['rule_only_count'], 16);
+      expect(md['rule_only_count'], 25);
       expect((md['status'] as String).contains('LOCKED'), isTrue);
     });
 
