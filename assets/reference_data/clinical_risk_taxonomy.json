@@ -2,14 +2,32 @@
   "_metadata": {
     "description": "Controlled clinical risk taxonomy for condition and medication-class interaction alerts",
     "purpose": "interaction_alert_taxonomy",
-    "schema_version": "5.5.0",
+    "schema_version": "5.8.0",
     "contract_test": "scripts/tests/test_clinical_risk_taxonomy_contract.py",
-    "last_updated": "2026-11-03",
-    "total_entries": 85,
+    "last_updated": "2026-11-12",
+    "total_entries": 89,
     "flutter_top_level_key": "clinical_risk_taxonomy",
-    "drug_classes_count": 31,
+    "drug_classes_count": 35,
     "migration": {
       "completed_migrations": [
+        {
+          "from": "5.7.0",
+          "to": "5.8.0",
+          "date": "2026-11-12",
+          "summary": "Additive: nadolol gate vocabulary for the signed G1 green-tea interaction scope; unrelated beta-blockers no longer inherit this finding."
+        },
+        {
+          "from": "5.6.0",
+          "to": "5.7.0",
+          "date": "2026-11-12",
+          "summary": "Additive: drug class injectable_anticoagulants (heparins, fondaparinux, injected direct thrombin inhibitors), so warfarin-addressed fallback findings can exclude them (Dr. Pham Q7). Gate vocabulary only; the profile picker (drug_class_vocab.json) is unchanged."
+        },
+        {
+          "from": "5.5.0",
+          "to": "5.6.0",
+          "date": "2026-11-11",
+          "summary": "Additive: drug classes valproate and clobazam, so the cannabidiol antiseizure-medicine warning can name the two medicines its label names. Gate vocabulary only; the profile picker (drug_class_vocab.json) is unchanged."
+        },
         {
           "from": "5.4.0",
           "to": "5.5.0",
@@ -560,6 +578,30 @@
       "label": "SSRIs",
       "category": "psychiatry",
       "display_priority": 10
+    },
+    {
+      "id": "valproate",
+      "label": "Valproate",
+      "category": "neurologic",
+      "display_priority": 23
+    },
+    {
+      "id": "clobazam",
+      "label": "Clobazam",
+      "category": "neurologic",
+      "display_priority": 24
+    },
+    {
+      "id": "injectable_anticoagulants",
+      "label": "Injected Anticoagulants",
+      "category": "hematology",
+      "display_priority": 25
+    },
+    {
+      "id": "nadolol",
+      "label": "Nadolol",
+      "category": "cardiovascular",
+      "display_priority": 25
     }
   ],
   "severity_levels": [

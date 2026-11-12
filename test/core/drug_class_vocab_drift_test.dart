@@ -17,17 +17,18 @@ void main() {
       expect(file.existsSync(), isTrue);
     });
 
-    test('schema lock + 30 entries (16 user_selectable + 14 rule-only)', () {
+    test('schema lock + 31 entries (16 user_selectable + 15 rule-only)', () {
       final raw = file.readAsStringSync();
       final decoded = jsonDecode(raw) as Map<String, dynamic>;
       final md = decoded['_metadata'] as Map<String, dynamic>;
 
       // v1.1.0 (2026-08-08): adds vitamin_k_antagonists (rule-only, 13 -> 14)
       // and the sheet-facing group_label + commonly_used_for fields.
+      // 2026-11-12: nadolol adds one rule-only gate for green-tea evidence.
       expect(md['schema_version'], '1.1.0');
-      expect(md['total_entries'], 30);
+      expect(md['total_entries'], 31);
       expect(md['user_selectable_count'], 16);
-      expect(md['rule_only_count'], 14);
+      expect(md['rule_only_count'], 15);
       expect((md['status'] as String).contains('LOCKED'), isTrue);
     });
 

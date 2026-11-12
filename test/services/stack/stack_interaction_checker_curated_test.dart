@@ -1694,6 +1694,24 @@ void main() {
         );
         expect(sinemet.map((r) => r.id), ['DSI_LEVODOPA_IRON']);
 
+        // The populated fixture proves the matcher does not extrapolate the
+        // iron concern into a blanket B6 warning for a combination user.
+        // Pipeline source guards separately census all authored B6 records.
+        final b6 = await checker.checkMedicationInteractions(
+          newProductCanonicalIds: const ['vitamin_b6_pyridoxine'],
+          stackMedications: [
+            _medication(
+              id: 'carbidopa-levodopa',
+              name: 'Sinemet',
+              rxcui: '197444',
+              ingredientRxcuis: const ['2019', '6375'],
+            ),
+          ],
+          db: db,
+          newProductName: 'Vitamin B6',
+        );
+        expect(b6, isEmpty);
+
         final stalevo = await check(
           _medication(
             id: 'carbidopa-entacapone-levodopa',
