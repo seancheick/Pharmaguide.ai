@@ -2,19 +2,25 @@
   "_metadata": {
     "description": "Controlled clinical risk taxonomy for condition and medication-class interaction alerts",
     "purpose": "interaction_alert_taxonomy",
-    "schema_version": "5.8.0",
+    "schema_version": "5.9.0",
     "contract_test": "scripts/tests/test_clinical_risk_taxonomy_contract.py",
     "last_updated": "2026-11-12",
-    "total_entries": 89,
+    "total_entries": 90,
     "flutter_top_level_key": "clinical_risk_taxonomy",
-    "drug_classes_count": 35,
+    "drug_classes_count": 36,
     "migration": {
       "completed_migrations": [
+        {
+          "from": "5.8.0",
+          "to": "5.9.0",
+          "date": "2026-11-12",
+          "summary": "Additive: nadolol gate vocabulary for the signed G1 green-tea interaction scope; unrelated beta-blockers no longer inherit this finding."
+        },
         {
           "from": "5.7.0",
           "to": "5.8.0",
           "date": "2026-11-12",
-          "summary": "Additive: nadolol gate vocabulary for the signed G1 green-tea interaction scope; unrelated beta-blockers no longer inherit this finding."
+          "summary": "Additive: drug class antimuscarinics (members of anticholinergics taken for their antimuscarinic effect), so huperzine A and alpha-GPC findings can follow Dr. Pham's Q6. Gate vocabulary only; the profile picker is unchanged."
         },
         {
           "from": "5.6.0",
@@ -596,6 +602,12 @@
       "label": "Injected Anticoagulants",
       "category": "hematology",
       "display_priority": 25
+    },
+    {
+      "id": "antimuscarinics",
+      "label": "Antimuscarinic Medications",
+      "category": "neurology",
+      "display_priority": 26
     },
     {
       "id": "nadolol",
