@@ -648,7 +648,10 @@ PGReviewRow _rowForConditionalNote(
   final warning = note.warning;
   final sourceUrls = note.sourceUrls.toList(growable: false);
   final citationCount = sourceUrls.length;
-  final body = warning.displayBody.trim();
+  // The authored consumer body only: `displayBody` would fall back to the
+  // rule's informational note or mechanism, which are not reviewed for a
+  // reader whose applicability is unknown.
+  final body = warning.alertBody?.trim() ?? '';
   return PGReviewRow(
     headline: warning.displayHeadline,
     caption: [
