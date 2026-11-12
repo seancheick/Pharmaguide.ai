@@ -115,8 +115,11 @@ typedef ConditionalNote = ({
 /// (a warfarin-type and an unidentified blood-thinner row; a pregnancy and a
 /// breastfeeding row) become one note that keeps every class, condition and
 /// citation they name; a different evidence grade stays its own note.
+/// Rows for one hazard (the consumer identities) merge; the most severe row
+/// supplies the note's text, as in [InteractionWarning.dedupe].
 /// [conditionsAnswered] / [drugClassesAnswered]: the user answered "none" for
 /// that axis, so an empty set there is known, not missing.
+/// [derivedFlagByCondition]: the taxonomy's condition -> flag map.
 List<ConditionalNote> composeConditionalNotes({
   required Map<String, dynamic>? detailBlob,
   String? productStatus,
@@ -130,6 +133,7 @@ List<ConditionalNote> composeConditionalNotes({
   String? sex,
   bool conditionsAnswered = false,
   bool drugClassesAnswered = false,
+  Map<String, String> derivedFlagByCondition = const {},
 }) {
   final merged = <InteractionWarning>[
     ...personalizedWarnings,
@@ -145,30 +149,45 @@ List<ConditionalNote> composeConditionalNotes({
     sex: sex,
     conditionsAnswered: conditionsAnswered,
     drugClassesAnswered: drugClassesAnswered,
+    derivedFlagByCondition: derivedFlagByCondition,
   );
   final shown = <String>{
     for (final w in shownWarnings) ..._consumerWarningIdentities(w),
   };
   final notes = <ConditionalNote>[];
   // Keyed by evidence grade too: the note shows one grade, so a row with
-  // another grade never merges into it.
-  final noteByIdentity = <(String, EvidenceLevel), ConditionalNote>{};
+  // another grade never merges into it. Values are indexes into [notes].
+  final noteByIdentity = <(String, EvidenceLevel), int>{};
   for (final candidate in candidates) {
     final identities = _consumerWarningIdentities(candidate);
     if (identities.any(shown.contains)) continue;
     final evidence = candidate.evidenceLevel;
-    final kept = identities
+    var index = identities
         .map((i) => noteByIdentity[(i, evidence)])
         .nonNulls
         .firstOrNull;
-    final note =
-        kept ??
-        (
-          warning: candidate,
-          drugClassIds: <String>{},
-          conditionIds: <String>{},
-          sourceUrls: <String>{},
-        );
+    if (index == null) {
+      index = notes.length;
+      notes.add((
+        warning: candidate,
+        drugClassIds: <String>{},
+        conditionIds: <String>{},
+        sourceUrls: <String>{},
+      ));
+    } else if (candidate.severity.weight >
+        notes[index].warning.severity.weight) {
+      // One hazard, one note: as in InteractionWarning.dedupe, the most
+      // severe row supplies the text, so an avoid row never hides a
+      // contraindicated one.
+      final kept = notes[index];
+      notes[index] = (
+        warning: candidate,
+        drugClassIds: kept.drugClassIds,
+        conditionIds: kept.conditionIds,
+        sourceUrls: kept.sourceUrls,
+      );
+    }
+    final note = notes[index];
     note.drugClassIds.addAll(candidate.drugClassIds);
     note.conditionIds.addAll(candidate.conditionIds);
     note.sourceUrls.addAll(
@@ -176,9 +195,8 @@ List<ConditionalNote> composeConditionalNotes({
           .map((url) => url.trim())
           .where((url) => url.isNotEmpty),
     );
-    if (kept == null) notes.add(note);
     for (final identity in identities) {
-      noteByIdentity[(identity, evidence)] ??= note;
+      noteByIdentity[(identity, evidence)] ??= index;
     }
   }
   return notes;

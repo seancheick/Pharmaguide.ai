@@ -602,6 +602,15 @@ class _ProductDetailV2ConnectedState
             userProfileFlags: userProfileFlagsSet,
             conditionsAnswered: profile.hasConditionNone,
             drugClassesAnswered: drugClassesAnswered,
+            // Empty until the bundled taxonomy loads (no flag-gated note
+            // meanwhile); the watch rebuilds the notes once it has.
+            derivedFlagByCondition:
+                ref
+                    .watch(clinicalProfileSchemaProvider)
+                    .asData
+                    ?.value
+                    .derivedFlagByCondition ??
+                const {},
           );
     // Read the stack only when a medicine-class note needs its wording: such a
     // note means no entered medicine resolved to a class. True also when the

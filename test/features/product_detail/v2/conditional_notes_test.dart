@@ -12,12 +12,13 @@ Map<String, dynamic> _gate({
   List<String> excludedDrugClasses = const [],
   List<String> conditions = const [],
   List<String> excludedProductForms = const [],
+  List<String> flags = const [],
 }) => {
   'gate_type': conditions.isEmpty ? 'drug_class' : 'condition',
   'requires': {
     'conditions_any': conditions,
     'drug_classes_any': drugClasses,
-    'profile_flags_any': <String>[],
+    'profile_flags_any': flags,
   },
   'excludes': {
     'conditions_any': <String>[],
@@ -39,6 +40,9 @@ Map<String, dynamic> _row({
   List<String> excludedProductForms = const [],
   String evidence = 'established',
   List<String> sources = const [],
+  List<String>? gateConditions,
+  List<String> gateDrugClasses = const [],
+  List<String> gateFlags = const [],
 }) => {
   'type': drugClass != null ? 'drug_interaction' : 'interaction',
   'severity': severity,
@@ -55,10 +59,11 @@ Map<String, dynamic> _row({
   'drug_class_id': ?drugClass,
   'condition_id': ?condition,
   'profile_gate': _gate(
-    drugClasses: [?drugClass],
+    drugClasses: [?drugClass, ...gateDrugClasses],
     excludedDrugClasses: excludedDrugClasses,
-    conditions: [?condition],
+    conditions: gateConditions ?? [?condition],
     excludedProductForms: excludedProductForms,
+    flags: gateFlags,
   ),
 };
 
@@ -70,6 +75,7 @@ List<ConditionalNote> _notes(
   String? productForm,
   bool conditionsAnswered = false,
   bool drugClassesAnswered = false,
+  Map<String, String> derivedFlagByCondition = const {},
 }) => composeConditionalNotes(
   detailBlob: {'warnings': rows, 'product_form': ?productForm},
   personalizedWarnings: const [],
@@ -80,6 +86,7 @@ List<ConditionalNote> _notes(
   sex: sex,
   conditionsAnswered: conditionsAnswered,
   drugClassesAnswered: drugClassesAnswered,
+  derivedFlagByCondition: derivedFlagByCondition,
 );
 
 void main() {
@@ -306,6 +313,68 @@ void main() {
       ]);
       expect(notes, hasLength(1));
       expect(notes.single.sourceUrls.toList(), [urlA, urlB, urlC]);
+    });
+  });
+
+  group('the trial answers only the unknown axis', () {
+    test('a medicine gate that also needs a flag the user lacks: no note', () {
+      final notes = _notes([
+        _row(
+          headline: 'Avoid with MAOIs after bleeding',
+          drugClass: 'maois',
+          gateFlags: const ['bleeding_history'],
+        ),
+      ]);
+      expect(notes, isEmpty);
+    });
+
+    test('a condition gate that also needs a medicine class: no note', () {
+      final notes = _notes([
+        _row(
+          headline: 'Avoid with kidney disease on NSAIDs',
+          condition: 'kidney_disease',
+          gateDrugClasses: const ['nsaids'],
+        ),
+      ]);
+      expect(notes, isEmpty);
+    });
+
+    test('a pregnancy rule gated on its derived flag is still a note', () {
+      final notes = _notes(
+        [
+          _row(
+            headline: 'Avoid during pregnancy',
+            condition: 'pregnancy',
+            gateConditions: const [],
+            gateFlags: const ['pregnant'],
+          ),
+        ],
+        derivedFlagByCondition: const {'pregnancy': 'pregnant'},
+      );
+      expect(notes.single.warning.displayHeadline, 'Avoid during pregnancy');
+    });
+  });
+
+  test('the most severe row for one hazard sets the note\'s text', () {
+    final notes = _notes([
+      _row(
+        headline: 'Avoid with MAOIs',
+        drugClass: 'maois',
+        sources: const ['https://example.org/a'],
+      ),
+      _row(
+        headline: 'Do not use with MAOIs',
+        drugClass: 'maois',
+        severity: 'contraindicated',
+        sources: const ['https://example.org/b'],
+      ),
+    ]);
+    expect(notes, hasLength(1));
+    expect(notes.single.warning.displayHeadline, 'Do not use with MAOIs');
+    expect(notes.single.warning.alertBody, 'Body for Do not use with MAOIs.');
+    expect(notes.single.sourceUrls, {
+      'https://example.org/a',
+      'https://example.org/b',
     });
   });
 

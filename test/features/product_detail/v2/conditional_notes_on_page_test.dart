@@ -20,6 +20,7 @@ import 'package:pharmaguide/data/database/interaction_database.dart';
 import 'package:pharmaguide/data/database/user_database.dart';
 import 'package:pharmaguide/data/providers/database_providers.dart';
 import 'package:pharmaguide/data/providers/reference_data_provider.dart';
+import 'package:pharmaguide/data/repositories/reference_data_repository.dart';
 import 'package:pharmaguide/features/product_detail/providers/detail_blob_provider.dart';
 import 'package:pharmaguide/features/product_detail/providers/fit_score_provider.dart';
 import 'package:pharmaguide/features/product_detail/v2/product_detail_v2_connected.dart';
@@ -178,6 +179,11 @@ Future<void> _pumpPage(
           lastUpdated: '2026-11-11',
         ),
       );
+  // The bundled taxonomy, loaded before the pump: the page does not wait on
+  // it, and a real asset read races pumpAndSettle.
+  final schema = (await tester.runAsync(
+    () => ReferenceDataRepository().loadClinicalProfileSchema(),
+  ))!;
   addTearDown(() async {
     await tester.pumpWidget(const SizedBox.shrink());
     await coreDb.close();
@@ -217,6 +223,7 @@ Future<void> _pumpPage(
           (ref) async => const <String>{},
         ),
         rdaOptimalUlsProvider.overrideWith((ref) async => const {}),
+        clinicalProfileSchemaProvider.overrideWith((ref) async => schema),
       ],
       child: const MaterialApp(
         home: ProductDetailV2ConnectedScreen(dsldId: _dsldId),
@@ -492,6 +499,52 @@ void main() {
       await tester.pumpAndSettle();
       expect(
         find.textContaining(_pharmacistScope, skipOffstage: false),
+        findsOneWidget,
+      );
+    },
+  );
+
+  testWidgets(
+    'no profile: a pregnancy rule gated on the derived flag is a note',
+    (tester) async {
+      // Exported as build_final_db ships pregnancy condition rules: the gate
+      // asks for the `pregnant` flag the taxonomy derives from the condition.
+      const pregnancyRow = <String, dynamic>{
+        'type': 'interaction',
+        'severity': 'avoid',
+        'severity_contextual': 'informational',
+        'display_mode_default': 'informational',
+        'alert_headline': 'Not for use during pregnancy',
+        'alert_body': 'Avoid this product if you are pregnant.',
+        'condition_id': 'pregnancy',
+        'ingredient_name': 'SAMe',
+        'ingredient_canonical_id': 'same',
+        'evidence_level': 'moderate',
+        'direction': 'harmful',
+        'materiality': 'presence',
+        'source': 'interaction_rules',
+        'profile_gate': {
+          'gate_type': 'profile_flag',
+          'requires': {
+            'conditions_any': <String>[],
+            'drug_classes_any': <String>[],
+            'profile_flags_any': ['pregnant'],
+          },
+        },
+      };
+      await _pumpPage(
+        tester,
+        blob: const {
+          'ingredients': <Map<String, dynamic>>[],
+          'warnings': [_sameMaoiRow, pregnancyRow],
+          'warnings_profile_gated': [_sameMaoiRow, pregnancyRow],
+        },
+      );
+
+      await tester.tap(find.text('Good to know'));
+      await tester.pumpAndSettle();
+      expect(
+        find.text('Not for use during pregnancy', skipOffstage: false),
         findsOneWidget,
       );
     },

@@ -194,7 +194,10 @@ bool _matchesProfileForProduct(
 //
 // The finding must still apply once that axis is answered: one the product or
 // the rest of the profile rules out (an oral-only rule on a topical product, a
-// medicine the gate excludes) is not a note.
+// medicine the gate excludes, a flag or second axis the user lacks) is not a
+// note. [derivedFlagByCondition] is the taxonomy's condition -> flag map
+// (ClinicalProfileSchema), so a pregnancy rule gated on `pregnant` still
+// counts as answered by the pregnancy condition.
 //
 // A finding scoped to both axes, or to profile flags, stays hidden; so do
 // caution and monitor findings, which the pipeline marks `suppress`.
@@ -212,6 +215,7 @@ List<InteractionWarning> conditionalProductDetailNotes({
   String? sex,
   bool conditionsAnswered = false,
   bool drugClassesAnswered = false,
+  Map<String, String> derivedFlagByCondition = const {},
 }) {
   final gated = _gatedProductDetailWarnings(detailBlob, warnings);
   return gated.warnings
@@ -242,21 +246,18 @@ List<InteractionWarning> conditionalProductDetailNotes({
           userProfileFlags: {...userProfileFlags, ...profileFlags},
         );
         if (matches()) return false;
-        // Answer the unknown axis with what the finding requires; if it still
-        // does not fire, the product or the known profile rules it out.
-        final gate = w.profileGate;
-        final requires = gate?['requires'];
-        Iterable<String> gateRequires(String key, List<String> legacy) =>
-            gate == null
-            ? legacy
-            : requires is Map && requires[key] is List
-            ? (requires[key] as List).whereType<String>()
-            : const [];
-        return matches(
-          conditions: gateRequires('conditions_any', w.conditionIds),
-          drugClasses: gateRequires('drug_classes_any', w.drugClassIds),
-          profileFlags: gateRequires('profile_flags_any', const []),
-        );
+        // Answer only the unknown axis, from the finding's own ids (and, for
+        // a condition, the flags the taxonomy derives from it, such as
+        // pregnancy -> pregnant). Known axes stay as the user gave them; if it
+        // still does not fire, the product or the known profile rules it out.
+        return drugScoped
+            ? matches(drugClasses: w.drugClassIds)
+            : matches(
+                conditions: w.conditionIds,
+                profileFlags: w.conditionIds
+                    .map((id) => derivedFlagByCondition[id])
+                    .nonNulls,
+              );
       })
       .toList(growable: false);
 }
