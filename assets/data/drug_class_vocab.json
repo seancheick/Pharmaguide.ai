@@ -2,7 +2,7 @@
   "_metadata": {
     "description": "Controlled vocabulary for the 30 drug-class identifiers referenced by interaction_rules.drug_class_rules. Splits into two tiers: 16 USER-SELECTABLE classes shown in onboarding/profile and 14 RULE-ONLY classes used by interaction rules but not surfaced as profile picks. v1.1.0 adds sheet-facing consumer-education fields (group_label, commonly_used_for) for the app's medication details sheet.",
     "schema_version": "1.1.0",
-    "last_updated": "2026-08-08",
+    "last_updated": "2026-11-11",
     "total_entries": 30,
     "user_selectable_count": 16,
     "rule_only_count": 14,
@@ -149,12 +149,11 @@
       "name": "Thyroid medication",
       "group_label": "Thyroid hormone medications",
       "commonly_used_for": "Commonly used to replace thyroid hormone when the body does not make enough.",
-      "notes": "Replace or modulate thyroid hormone. Iodine, kelp, soy isoflavones, and biotin can alter levels or assay results — separate by 4 hours from levothyroxine.",
+      "notes": "Thyroid hormone replacement. The levothyroxine label says to take it at least 4 hours apart from calcium carbonate or ferrous sulfate, and to stop biotin at least 2 days before thyroid blood tests.",
       "examples": [
         "levothyroxine (Synthroid, Levoxyl)",
         "liothyronine (Cytomel)",
-        "armour thyroid",
-        "methimazole"
+        "armour thyroid"
       ],
       "rx_status": "rx_only",
       "user_selectable": true

@@ -1651,6 +1651,73 @@ void main() {
       },
     );
 
+    test(
+      'levodopa + iron reaches combination products by ingredient, not carbidopa alone',
+      () async {
+        // DSI_LEVODOPA_IRON (Dr. Pham 2026-11-11, batch 3b part 2) is keyed on
+        // levodopa's ingredient RxCUI 6375. Combination products carry it in
+        // their ingredient list (RxNav, 2026-11-11): carbidopa/levodopa
+        // 25/100 mg (SCD 197444: 2019 + 6375) and carbidopa/entacapone/
+        // levodopa (SCD 403851: 2019 + 60307 + 6375). Carbidopa alone (2019)
+        // is not levodopa.
+        await db
+            .into(db.interactions)
+            .insert(
+              _row(
+                id: 'DSI_LEVODOPA_IRON',
+                a1Type: 'drug',
+                a1Id: '6375',
+                a1Name: 'Levodopa',
+                a2Type: 'supplement',
+                a2Id: 'C0302583',
+                a2Name: 'Iron (supplement)',
+                a2Canonical: 'iron',
+                severity: 'caution',
+              ),
+            );
+
+        Future<List<InteractionResult>> check(UserStacksLocalData medication) =>
+            checker.checkMedicationInteractions(
+              newProductCanonicalIds: const ['iron'],
+              stackMedications: [medication],
+              db: db,
+              newProductName: 'Multivitamin with iron',
+            );
+
+        final sinemet = await check(
+          _medication(
+            id: 'carbidopa-levodopa',
+            name: 'Carbidopa / Levodopa',
+            rxcui: '197444',
+            ingredientRxcuis: const ['2019', '6375'],
+          ),
+        );
+        expect(sinemet.map((r) => r.id), ['DSI_LEVODOPA_IRON']);
+
+        final stalevo = await check(
+          _medication(
+            id: 'carbidopa-entacapone-levodopa',
+            name: 'Carbidopa / Entacapone / Levodopa',
+            rxcui: '403851',
+            ingredientRxcuis: const ['2019', '60307', '6375'],
+          ),
+        );
+        expect(stalevo.map((r) => r.id), ['DSI_LEVODOPA_IRON']);
+
+        expect(
+          await check(
+            _medication(
+              id: 'carbidopa',
+              name: 'Carbidopa',
+              rxcui: '2019',
+              genericRxcui: '2019',
+            ),
+          ),
+          isEmpty,
+        );
+      },
+    );
+
     test('honors an authored medication-pair dose threshold', () async {
       await db
           .into(db.interactions)

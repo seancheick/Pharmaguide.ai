@@ -13,7 +13,7 @@
     "assets/data/clinical_indication_vocab.json": "7dc09dd630a2c0715da986ac303cd0d31b8fe560df773b2f42bc598143ece090",
     "assets/data/clinical_risk_vocab.json": "64b99c0bd44cf1b5b2f3a1070d72e05db0b73bf959a4de3abd0f312bd2e4e7bd",
     "assets/data/confidence_tier_vocab.json": "9d5b2306d7d28f940019a5c694d671008c58700af837e93c3509507273bfe8e5",
-    "assets/data/drug_class_vocab.json": "7dc33c7374d53a9b44aa6dc8db6931c60d96a50f2dd561abdd645858fbd4879c",
+    "assets/data/drug_class_vocab.json": "f2e824509f7fde5115e95555e8dfaf58a3f8caf3b0ecf141d76927d63b07addf",
     "assets/data/effect_direction_vocab.json": "409a75879a3fb600250b150d3158337167e52eaee10779f2a23f10f27088c51d",
     "assets/data/efsa_genotoxicity_vocab.json": "b31c2979c1610da5bab97d3e7f66359674b7956ab6d02808c1c3c8e7211e9c5e",
     "assets/data/efsa_status_vocab.json": "c5507ad946c61eea2e78b5a700d51db249ebfa7d5dda1d0956730adeb37194a4",
