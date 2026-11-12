@@ -193,6 +193,28 @@ void main() {
       },
     );
 
+    test(
+      'preserves decimal RxNorm scores and ranks named current products',
+      () async {
+        final fake = _FakeHttp(const {
+          '/REST/approximateTerm.json':
+              '{"approximateGroup":{"candidate":['
+              '{"rxcui":"1020066","score":"6.198120211876819","source":"GS"},'
+              '{"rxcui":"lower","name":"Lower ranked","score":"5.9"},'
+              '{"rxcui":"1020066","name":"Atelvia delayed release pack","score":"6.128566661951587","source":"RXNORM"}]}}',
+          '/REST/rxcui/1020066/related.json':
+              '{"relatedGroup":{"conceptGroup":['
+              '{"tty":"IN","conceptProperties":[{"rxcui":"73056","name":"risedronate"}]}]}}',
+        });
+        final svc = RxNormApiService(httpGet: fake.call);
+        final out = await svc.search('Atelvia');
+        expect(out.first.rxcui, '1020066');
+        expect(out.first.score, closeTo(6.128566661951587, 0.000001));
+        expect(await svc.resolveGenericRxcuis(out.first.rxcui), ['73056']);
+        expect(fake.hits.first.queryParameters['option'], '1');
+      },
+    );
+
     test('dedupes candidates by rxcui', () async {
       final fake = _FakeHttp(const {
         '/REST/approximateTerm.json': '''
