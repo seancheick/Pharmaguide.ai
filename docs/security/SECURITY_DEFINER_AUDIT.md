@@ -22,7 +22,21 @@ These migrations require qualification and deployment; this entry does not claim
 live application. Original reported commit `0d1f2997` was unavailable locally and
 after fetch; the fixes were reconstructed from the current owners.
 
-Index tuning and coordinated notification-secret rotation remain separate work.
+Index tuning remains separate work. Notification credential rotation was completed
+November 12 with user authorization. Job `notify-new-product-submissions-hourly`
+now reads `PRODUCT_SUBMISSION_NOTIFY_SECRET` from `vault.decrypted_secrets` at
+runtime. The same fresh random 256-bit credential was set in the Edge Function
+environment. The hourly schedule remains active; Vault SELECT is denied to
+`anon` and `authenticated`. No function code or grant changed.
+
+Verification: 16 notification tests passed; old/missing credentials return 401,
+new credential returns 200. The exact cron command completed via `pg_net` with
+HTTP 200 and zero failures. The queue was empty (claimed/sent/failed all zero),
+so this verifies authentication and outbox access, not delivery of a new email.
+Temporary credential files were deleted after matching the Edge secret digest.
+For future rotations, pause the job, update the existing Vault and Edge secrets
+together, verify old rejection/new acceptance and the cron HTTP response, then
+resume the original schedule. Never embed credentials in cron commands or Git.
 The November 3 snapshot below is historical, including its deployment statuses.
 
 ## November 3 inventory
@@ -53,7 +67,7 @@ API caller can reach them, and the suite calls each one as a signed-in user and 
 |---|---|---|---|
 | F1 | `review-product-submissions` did not refuse AI assistant tokens | An assistant token issued to a **reviewer's** account passes the user check, then the function reads with the admin client, so the PostgREST request guard never sees those reads: submission rows and signed links to pending reviewer evidence. The reviewer table lists one account. Not proved against production, since that needs a real assistant token | Fixed in this PR, with a test. **Needs an edge function deploy** |
 | F2 | Submitters could read staff columns on their own rows | `reviewed_by`, `evidence_requested_by`, `cleanup_claim_token`, `cleanup_claimed_at`, and `uploader_id` on photos. This reveals a reviewer's account id. The claim token is usable only by service-role functions | Fixed by migration `20261103120000`, with a test. **Needs applying to production** |
-| F3 | The hourly `notify-new-product-submissions` cron job holds its shared secret as plain text in `cron.job` | Not in the repo and not readable by API roles. Project admins can read it, and `pg_net` logs may hold it | **Sean's decision:** rotate it and move it to Vault |
+| F3 | The hourly `notify-new-product-submissions` cron job holds its shared secret as plain text in `cron.job` | Not in the repo and not readable by API roles. Project admins can read it, and `pg_net` logs may hold it | Resolved November 12: rotated in Vault and Edge secret; cron reads Vault. Verification and limits above. |
 
 None of these is a medication or profile leak. Live, `user_stacks` holds 30 rows and none is a
 non-supplement. Column checks and row policies refuse a medication row, and both layers are tested.
