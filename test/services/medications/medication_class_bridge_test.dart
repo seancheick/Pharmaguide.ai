@@ -131,6 +131,66 @@ void main() {
     },
   );
 
+  // Interaction audit 3b (Dr. Pham D2, 2026-11-11): diphenhydramine is an
+  // anticholinergic member, and combination sleep/cold products must reach it
+  // through their ingredient list. RxCUIs are the real RxNorm SCDs and the
+  // ingredients RxNav returns for them (related.json?tty=IN).
+  for (final combination in [
+    (
+      scd: '1092189',
+      name: 'acetaminophen / diphenhydramine',
+      ingredients: ['161', '3498'],
+    ),
+    (
+      scd: '895664',
+      name: 'diphenhydramine citrate / ibuprofen',
+      ingredients: ['3498', '5640'],
+    ),
+    (
+      scd: '1052928',
+      name: 'diphenhydramine / phenylephrine',
+      ingredients: ['3498', '8163'],
+    ),
+    (
+      scd: '1046751',
+      name: 'acetaminophen / diphenhydramine / phenylephrine',
+      ingredients: ['161', '3498', '8163'],
+    ),
+  ]) {
+    test(
+      'combination sleep/cold product ${combination.name} reaches anticholinergic rules',
+      () async {
+        await db
+            .into(db.drugClassMap)
+            .insert(
+              DrugClassMapCompanion.insert(
+                classId: 'class:anticholinergics',
+                className: 'Anticholinergic medicines',
+                drugRxcuisJson: '["3498","32675"]',
+                source: 'fixture',
+                lastUpdated: '2026-11-11',
+              ),
+            );
+        final result = await bridge.resolve(
+          selectedRxcui: combination.scd,
+          ingredientRxcuis: combination.ingredients,
+        );
+        expect(result.profileGateClassIds, contains('anticholinergics'));
+
+        final unlisted = await bridge.resolve(
+          selectedRxcui: combination.scd,
+          ingredientRxcuis: combination.ingredients
+              .where((r) => r != '3498')
+              .toList(),
+        );
+        expect(
+          unlisted.profileGateClassIds,
+          isNot(contains('anticholinergics')),
+        );
+      },
+    );
+  }
+
   test('verified class-only entries reach existing profile rules', () async {
     final result = await bridge.resolve(runtimeClassIds: ['class:nsaids']);
     expect(result.rxcuis, isEmpty);
