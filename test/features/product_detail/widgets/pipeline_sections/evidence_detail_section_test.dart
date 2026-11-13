@@ -45,6 +45,29 @@ Future<void> _pump(WidgetTester tester, {Map<String, dynamic>? evidenceData}) {
 }
 
 void main() {
+  testWidgets('no-credit tier retains research without claiming it is absent', (
+    tester,
+  ) async {
+    for (final brightness in [Brightness.light, Brightness.dark]) {
+      await tester.pumpWidget(
+        MaterialApp(
+          theme: ThemeData(brightness: brightness),
+          home: const Scaffold(
+            body: PGEvidenceSection(
+              tier: PGEvidenceTier.none,
+              citations: [
+                PGCitation(pmid: '22486722', title: 'Recorded human research'),
+              ],
+            ),
+          ),
+        ),
+      );
+      expect(find.textContaining('No qualifying support'), findsOneWidget);
+      expect(find.textContaining('No direct evidence'), findsNothing);
+      expect(find.textContaining('View sources (1)'), findsOneWidget);
+    }
+  });
+
   test('one PMID and its link-only aliases dedupe in either order', () {
     for (final shared in [
       {'doi': '10.1234/shared'},
