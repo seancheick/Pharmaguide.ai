@@ -220,7 +220,7 @@ _EvidencePillarPresentation? _evidencePillarPresentation(
     V4PillarStatus.mixed => PGEvidenceTier.moderate,
     V4PillarStatus.limited || V4PillarStatus.noPoints => PGEvidenceTier.limited,
     // No conclusion was reached. Deliberately NOT PGEvidenceTier.none, whose
-    // label is "NO DIRECT EVIDENCE" — that is a finding, and this is the
+    // label is "No qualifying support" — that is a finding, and this is the
     // absence of one.
     V4PillarStatus.notYetAssessed ||
     V4PillarStatus.applicabilityNotEstablished ||

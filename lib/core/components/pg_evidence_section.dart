@@ -15,7 +15,7 @@ extension PGEvidenceTierMeta on PGEvidenceTier {
     PGEvidenceTier.strong => 'Strong',
     PGEvidenceTier.moderate => 'Moderate',
     PGEvidenceTier.limited => 'Limited',
-    PGEvidenceTier.none => 'No direct evidence',
+    PGEvidenceTier.none => 'No qualifying support',
   };
 
   // Takes the palette: an enum has no element tree, but its colour
